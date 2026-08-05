@@ -1,0 +1,2394 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}إدارة الورديات{% endblock %}
+
+{% block content %}
+
+<style>
+.shift-page {
+    padding: 32px;
+}
+
+.page-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 22px;
+    flex-wrap: wrap;
+}
+
+.page-title {
+    margin: 0;
+
+    color: #0b5e46;
+
+    font-size: 30px;
+    font-weight: 900;
+}
+
+.active-box {
+    margin-bottom: 24px;
+    padding: 16px 20px;
+
+    border: 1px solid #67e8f9;
+    border-radius: 16px;
+
+    background: #ecfeff;
+
+    font-size: 15px;
+}
+
+.action-btn {
+    padding: 11px 18px;
+
+    border: 0;
+    border-radius: 14px;
+
+    background: #0f7b5c;
+    color: #ffffff;
+
+    font-family: inherit;
+    font-weight: 900;
+
+    cursor: pointer;
+}
+
+.action-btn:hover {
+    background: #0b5e46;
+}
+
+.shift-grid {
+    display: grid;
+    grid-template-columns: repeat(
+        auto-fit,
+        minmax(260px, 1fr)
+    );
+    gap: 20px;
+}
+
+.shift-card {
+    position: relative;
+
+    padding: 22px;
+
+    overflow: hidden;
+
+    border: 1px solid #eef2f7;
+    border-radius: 24px;
+
+    background: #ffffff;
+
+    box-shadow:
+        0 18px 45px
+        rgba(0, 0, 0, 0.08);
+}
+
+.shift-card::before {
+    content: "";
+
+    position: absolute;
+    top: 0;
+    right: 0;
+
+    width: 7px;
+    height: 100%;
+
+    background: #d1d5db;
+}
+
+.shift-card.active {
+    border: 2px solid #0f7b5c;
+
+    background: #f0fdf4;
+}
+
+.shift-card.active::before {
+    background: #0f7b5c;
+}
+
+.shift-card.finished::before {
+    background: #64748b;
+}
+
+.shift-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+
+    margin-bottom: 18px;
+}
+
+.shift-header h3 {
+    margin: 0;
+
+    color: #0b5e46;
+
+    font-size: 24px;
+    font-weight: 900;
+}
+
+.active-badge {
+    padding: 6px 12px;
+
+    border-radius: 999px;
+
+    background: #dcfce7;
+    color: #166534;
+
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.status-badge {
+    display: inline-block;
+
+    padding: 7px 13px;
+
+    border-radius: 999px;
+
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.status-running {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.status-preparation {
+    background: #fef9c3;
+    color: #854d0e;
+}
+
+.status-ended {
+    background: #f3f4f6;
+    color: #4b5563;
+}
+
+.shift-times {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+
+    margin: 16px 0;
+}
+
+.time-box {
+    padding: 14px;
+
+    border: 1px solid #eef2f7;
+    border-radius: 16px;
+
+    background: #f9fafb;
+}
+
+.time-box span {
+    display: block;
+
+    margin-bottom: 5px;
+
+    color: #6b7280;
+
+    font-size: 12px;
+}
+
+.time-box strong {
+    color: #111827;
+
+    font-size: 20px;
+}
+
+.shift-info {
+    margin-top: 14px;
+
+    color: #6b7280;
+
+    font-size: 13px;
+    line-height: 1.8;
+}
+
+.shift-actions {
+    display: flex;
+    gap: 10px;
+
+    margin-top: 20px;
+}
+
+.shift-actions button,
+.shift-actions a {
+    flex: 1;
+
+    padding: 11px 10px;
+
+    border: 0;
+    border-radius: 14px;
+
+    background: #0f7b5c;
+    color: #ffffff;
+
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 900;
+    text-align: center;
+    text-decoration: none;
+
+    cursor: pointer;
+}
+
+.shift-actions a {
+    background: #111827;
+}
+
+.shift-actions .disabled {
+    background: #d1d5db;
+    color: #6b7280;
+
+    cursor: not-allowed;
+}
+
+.empty-box {
+    padding: 30px;
+
+    border-radius: 20px;
+
+    background: #ffffff;
+    color: #6b7280;
+
+    text-align: center;
+
+    box-shadow:
+        0 18px 45px
+        rgba(0, 0, 0, 0.08);
+}
+
+
+/* ==================================================
+   نافذة إدارة الورديات
+================================================== */
+
+.shift-modal-backdrop {
+    position: fixed !important;
+    inset: 0 !important;
+
+    z-index: 2147483000 !important;
+
+    width: 100vw !important;
+    height: 100vh !important;
+
+    padding: 20px;
+
+    display: none;
+    align-items: center;
+    justify-content: center;
+
+    overflow-y: auto;
+
+    background:
+        rgba(15, 23, 20, 0.68) !important;
+
+    backdrop-filter: blur(5px);
+
+    box-sizing: border-box;
+}
+
+.shift-modal-backdrop.is-open {
+    display: flex !important;
+}
+
+.shift-modal-form {
+    position: relative;
+
+    z-index: 2;
+
+    width: 760px;
+    max-width: 96%;
+    max-height: 92vh;
+
+    padding: 24px;
+
+    overflow-y: auto;
+
+    border-radius: 22px;
+
+    background: #ffffff;
+
+    box-shadow:
+        0 25px 70px
+        rgba(0, 0, 0, 0.25);
+
+    box-sizing: border-box;
+}
+
+.shift-modal-form h3 {
+    margin: 0 0 18px;
+
+    color: #0b5e46;
+
+    font-weight: 900;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+
+    margin-bottom: 7px;
+
+    font-weight: 900;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+
+    padding: 12px 14px;
+
+    border: 1px solid #d1d5db;
+    border-radius: 14px;
+
+    background: #ffffff;
+
+    font-family: inherit;
+    font-size: 14px;
+
+    box-sizing: border-box;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-start;
+    gap: 10px;
+
+    margin-top: 18px;
+}
+
+.modal-actions button {
+    padding: 11px 18px;
+
+    border: 0;
+    border-radius: 14px;
+
+    font-family: inherit;
+    font-weight: 900;
+
+    cursor: pointer;
+}
+
+.btn-save {
+    background: #0f7b5c;
+    color: #ffffff;
+}
+
+.btn-cancel {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+.btn-save:disabled {
+    opacity: 0.6;
+
+    cursor: not-allowed;
+}
+
+.schedule-mode {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+
+    margin: 18px 0 22px;
+}
+
+.schedule-mode-item {
+    position: relative;
+
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    padding: 14px 16px;
+
+    border: 1px solid #dbe3ea;
+    border-radius: 15px;
+
+    background: #f8fafc;
+    color: #334155;
+
+    font-weight: 900;
+
+    cursor: pointer;
+}
+
+.schedule-mode-item.selected {
+    border-color: #0f7b5c;
+
+    background: #ecfdf5;
+    color: #0b5e46;
+
+    box-shadow:
+        0 0 0 3px
+        rgba(15, 123, 92, 0.1);
+}
+
+.schedule-mode-item input {
+    width: auto;
+
+    margin: 0;
+}
+
+.form-section {
+    margin-top: 18px;
+    padding: 18px;
+
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+
+    background: #fafafa;
+}
+
+.form-section-title {
+    margin: 0 0 15px;
+
+    color: #0b5e46;
+
+    font-size: 18px;
+    font-weight: 900;
+}
+
+.form-row-two {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+.seasonal-shifts-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.seasonal-shift-card {
+    padding: 16px;
+
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+
+    background: #ffffff;
+}
+
+.seasonal-shift-card.disabled {
+    opacity: 0.58;
+
+    background: #f3f4f6;
+}
+
+.seasonal-shift-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+
+    margin-bottom: 13px;
+}
+
+.seasonal-shift-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    color: #0b5e46;
+
+    font-size: 16px;
+    font-weight: 900;
+}
+
+.seasonal-shift-title input {
+    width: auto;
+
+    margin: 0;
+}
+
+.seasonal-time-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.seasonal-hint {
+    margin-top: 10px;
+
+    color: #64748b;
+
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+.seasonal-summary {
+    display: grid;
+    grid-template-columns:
+        repeat(3, minmax(0, 1fr));
+    gap: 10px;
+
+    margin-top: 14px;
+}
+
+.seasonal-summary > div {
+    padding: 12px;
+
+    border: 1px solid #dbeafe;
+    border-radius: 13px;
+
+    background: #eff6ff;
+
+    text-align: center;
+}
+
+.seasonal-summary span {
+    display: block;
+
+    color: #64748b;
+
+    font-size: 11px;
+}
+
+.seasonal-summary strong {
+    display: block;
+
+    margin-top: 4px;
+
+    color: #1d4ed8;
+
+    font-size: 18px;
+}
+
+.form-message {
+    display: none;
+
+    margin-top: 14px;
+    padding: 12px 14px;
+
+    border-radius: 12px;
+
+    font-weight: 800;
+    line-height: 1.7;
+}
+
+.form-message.error {
+    display: block;
+
+    border: 1px solid #fecaca;
+
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.form-message.success {
+    display: block;
+
+    border: 1px solid #bbf7d0;
+
+    background: #dcfce7;
+    color: #166534;
+}
+
+body.shift-modal-open {
+    overflow: hidden !important;
+}
+
+body.shift-modal-open header,
+body.shift-modal-open .main-system-header,
+body.shift-modal-open .abwaab-topbar,
+body.shift-modal-open .main-navigation {
+    z-index: 10 !important;
+}
+
+
+/* ==================================================
+   الوضع الداكن
+================================================== */
+
+body.dark .shift-card,
+html[data-theme="dark"] .shift-card,
+body.dark .shift-modal-form,
+html[data-theme="dark"] .shift-modal-form {
+    border-color: #34463e;
+
+    background: #17211d;
+    color: #edf4f0;
+}
+
+body.dark .shift-modal-form h3,
+html[data-theme="dark"] .shift-modal-form h3,
+body.dark .form-section-title,
+html[data-theme="dark"] .form-section-title {
+    color: #d4af37;
+}
+
+body.dark .form-section,
+html[data-theme="dark"] .form-section,
+body.dark .time-box,
+html[data-theme="dark"] .time-box {
+    border-color: #34463e;
+
+    background: #101714;
+}
+
+body.dark .form-group input,
+body.dark .form-group select,
+body.dark .form-group textarea,
+html[data-theme="dark"] .form-group input,
+html[data-theme="dark"] .form-group select,
+html[data-theme="dark"] .form-group textarea {
+    border-color: #42544c;
+
+    background: #101714;
+    color: #edf4f0;
+}
+
+
+/* ==================================================
+   الجوال
+================================================== */
+
+@media (max-width: 700px) {
+    .shift-page {
+        padding: 20px 14px;
+    }
+
+    .schedule-mode,
+    .form-row-two,
+    .seasonal-shifts-grid,
+    .seasonal-time-row,
+    .seasonal-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .shift-modal-backdrop {
+        padding: 10px;
+    }
+
+    .shift-modal-form {
+        max-width: 100%;
+        padding: 18px;
+    }
+}
+</style>
+<link rel="stylesheet" href="{% static 'css/scheduling/shift_upsert_modal.css' %}?v=20260803-1">
+<link rel="stylesheet" href="{% static 'css/scheduling/shifts_status_page.css' %}?v=20260803-1">
+
+
+<div class="shift-page" dir="rtl">
+
+    <div class="page-head">
+
+        <div class="shift-page-heading">
+            <span>مركز التخطيط والتشغيل</span>
+            <h2 class="page-title">إدارة الورديات الأربع</h2>
+            <p>متابعة ورديات اليوم والتحكم في دورة التفعيل والإسناد.</p>
+        </div>
+
+        {% if perms.scheduling.change_shiftplan %}
+
+            <button
+                type="button"
+                id="openShiftModalButton"
+                class="action-btn"
+            >
+                <span aria-hidden="true">＋</span>
+                إضافة أو تحديث وردية
+            </button>
+
+        {% endif %}
+
+    </div>
+
+
+    <div class="active-box {% if not active_shift %}is-idle{% endif %}">
+
+        <span class="active-box-indicator" aria-hidden="true"></span>
+
+        <div>
+
+        {% if active_shift %}
+
+            <small>الوردية النشطة حاليًا</small>
+            <strong>{{ active_shift.shift_type.name }}</strong>
+            <span>{{ active_shift.date }} · تشغيل مباشر</span>
+
+        {% else %}
+
+            <small>حالة التشغيل</small>
+            <strong>لا توجد وردية نشطة حاليًا</strong>
+            <span>يمكن تفعيل إحدى الورديات الجاهزة أدناه.</span>
+
+        {% endif %}
+        </div>
+
+        <span class="active-box-date">{{ today|date:"d M Y" }}</span>
+
+    </div>
+
+    <section class="shift-overview" aria-label="ملخص الورديات">
+        <article><span>إجمالي الورديات</span><strong>{{ shifts_total|default:0 }}</strong><i class="is-total"></i></article>
+        <article><span>قيد التشغيل</span><strong>{{ shifts_active_count|default:0 }}</strong><i class="is-running"></i></article>
+        <article><span>جاهزة للتفعيل</span><strong>{{ shifts_ready_count|default:0 }}</strong><i class="is-ready"></i></article>
+        <article><span>وردية منتهية</span><strong>{{ shifts_finished_count|default:0 }}</strong><i class="is-finished"></i></article>
+    </section>
+
+
+    {% if shifts %}
+
+        <div class="shift-grid">
+
+            {% for shift in shifts %}
+
+                <div
+                    class="
+                        shift-card
+                        {% if shift.is_active %}active{% endif %}
+                        {% if shift.is_finished %}finished{% endif %}
+                    "
+                >
+
+                    <div class="shift-card-sequence">وردية {{ forloop.counter|stringformat:"02d" }}</div>
+
+                    <div class="shift-header">
+
+                        <h3>
+                            {{ shift.shift_type.name }}
+                            <small>{{ shift.get_category_display }}</small>
+                        </h3>
+
+                        {% if shift.is_active %}
+
+                            <span class="active-badge">
+                                نشطة الآن
+                            </span>
+
+                        {% endif %}
+
+                    </div>
+
+
+                    <div>
+
+                        {% if shift.is_active %}
+
+                            <span
+                                class="
+                                    status-badge
+                                    status-running
+                                "
+                            >
+                                قيد التشغيل
+                            </span>
+
+                        {% elif shift.is_finished %}
+
+                            <span
+                                class="
+                                    status-badge
+                                    status-ended
+                                "
+                            >
+                                منتهية
+                            </span>
+
+                        {% else %}
+
+                            <span
+                                class="
+                                    status-badge
+                                    status-preparation
+                                "
+                            >
+                                جاهزة
+                            </span>
+
+                        {% endif %}
+
+                    </div>
+
+
+                    <div class="shift-times">
+
+                        <div class="time-box">
+
+                            <span>
+                                وقت البداية
+                            </span>
+
+                            <strong>
+                                {% if shift.effective_start_time %}
+                                    {{ shift.effective_start_time|time:"H:i" }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </strong>
+
+                        </div>
+
+
+                        <div class="time-box">
+
+                            <span>
+                                وقت النهاية
+                            </span>
+
+                            <strong>
+                                {% if shift.effective_end_time %}
+                                    {{ shift.effective_end_time|time:"H:i" }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="shift-info">
+
+                        <div>
+                            <strong>التاريخ:</strong>
+                            {{ shift.date }}
+                        </div>
+
+                        <div>
+                            <strong>النوع:</strong>
+                            {{ shift.get_category_display }}
+                        </div>
+
+                        <div>
+                            <strong>ملاحظات:</strong>
+                            {{ shift.notes|default:"—" }}
+                        </div>
+
+                    </div>
+
+
+                    <div class="shift-actions">
+
+                        {% if perms.scheduling.can_activate_shift %}
+
+                            {% if shift.is_active %}
+
+                                <button
+                                    type="button"
+                                    class="disabled"
+                                    disabled
+                                >
+                                    مفعّلة
+                                </button>
+
+                            {% elif shift.is_finished %}
+
+                                <button
+                                    type="button"
+                                    class="disabled"
+                                    disabled
+                                >
+                                    منتهية
+                                </button>
+
+                            {% else %}
+
+                                <button
+                                    type="button"
+                                    class="activate-shift-button"
+                                    data-shift-id="{{ shift.id }}"
+                                >
+                                    <span aria-hidden="true">▶</span>
+                                    تفعيل الوردية
+                                </button>
+
+                            {% endif %}
+
+                        {% endif %}
+
+
+                        <a href="{% url 'scheduling:assignments' %}">
+                            <span aria-hidden="true">👥</span>
+                            الموظفون
+                        </a>
+
+                    </div>
+
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+    {% else %}
+
+        <div class="empty-box">
+            لا توجد ورديات مسجلة.
+        </div>
+
+    {% endif %}
+
+</div>
+
+
+<div
+    id="shiftUpsertModal"
+    class="shift-modal-backdrop"
+    aria-hidden="true"
+>
+    <form
+        id="shiftUpsertForm"
+        class="shift-modal-form"
+        method="post"
+        novalidate
+    >
+        {% csrf_token %}
+
+        <header class="shift-modal-header">
+            <div>
+                <span class="shift-modal-kicker">إدارة التخطيط التشغيلي</span>
+                <h3>إدارة إنشاء الورديات</h3>
+                <p>أنشئ وردية يومية أو موسمًا تشغيليًا ضمن مسار موثّق.</p>
+            </div>
+            <button type="button" id="shiftModalTopClose" class="shift-modal-close" aria-label="إغلاق">×</button>
+        </header>
+
+
+        <div class="schedule-mode">
+
+            <label
+                class="
+                    schedule-mode-item
+                    selected
+                "
+            >
+                <input
+                    type="radio"
+                    name="schedule_mode"
+                    value="regular"
+                    checked
+                >
+
+                <span>
+                    <b>وردية اعتيادية</b>
+                    <small>خطة تشغيل ليوم واحد ووردية محددة</small>
+                </span>
+            </label>
+
+
+            <label class="schedule-mode-item">
+
+                <input
+                    type="radio"
+                    name="schedule_mode"
+                    value="seasonal"
+                >
+
+                <span>
+                    <b>وردية موسمية</b>
+                    <small>عدة أيام وأوقات تشغيل مخصصة</small>
+                </span>
+
+            </label>
+
+        </div>
+
+
+        <div id="regularShiftSection">
+
+            <div class="form-section">
+
+                <h4 class="form-section-title">
+                    <span>01</span>
+                    بيانات الوردية الاعتيادية
+                </h4>
+
+
+                <div class="form-group">
+
+                    <label for="su_date">
+                        التاريخ
+                        <i class="shift-required">مطلوب</i>
+                    </label>
+
+                    <input
+                        type="date"
+                        id="su_date"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="su_shift_type">
+                        الوردية
+                        <i class="shift-required">مطلوب</i>
+                    </label>
+
+                    <select
+                        id="su_shift_type"
+                        required
+                    >
+                        <option value="">
+                            اختر
+                        </option>
+
+                        {% for st in shift_types %}
+
+                            <option value="{{ st.id }}">
+                                {{ st.name }}
+
+                                {% if st.start_time and st.end_time %}
+                                    —
+                                    {{ st.start_time|time:"H:i" }}
+                                    إلى
+                                    {{ st.end_time|time:"H:i" }}
+                                {% endif %}
+                            </option>
+
+                        {% endfor %}
+                    </select>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="su_notes">
+                        ملاحظات
+                        <i class="shift-optional">اختياري</i>
+                    </label>
+
+                    <textarea
+                        id="su_notes"
+                        rows="3"
+                        placeholder="اختياري"
+                    ></textarea>
+
+                </div>
+
+
+                <label class="shift-activation-toggle">
+                    <input
+                        type="checkbox"
+                        id="su_make_active"
+                    >
+                    <span class="shift-toggle-track" aria-hidden="true"><i></i></span>
+                    <span><b>تفعيل مباشرة</b><small>تصبح الوردية نشطة فور إنشائها</small></span>
+                </label>
+
+                <aside class="regular-shift-summary" aria-live="polite">
+                    <span>ملخص الإنشاء</span>
+                    <strong id="regularShiftSummary">اختر التاريخ والوردية للمعاينة</strong>
+                </aside>
+
+            </div>
+
+        </div>
+
+
+        <div
+            id="seasonalShiftSection"
+            style="display:none"
+        >
+
+            <div class="form-section">
+
+                <h4 class="form-section-title">
+                    بيانات الموسم
+                </h4>
+
+
+                <div class="form-row-two">
+
+                    <div class="form-group">
+
+                        <label for="season_type">
+                            الموسم
+                        </label>
+
+                        <select id="season_type">
+                            <option value="ramadan">
+                                رمضان
+                            </option>
+
+                            <option value="hajj">
+                                الحج
+                            </option>
+                        </select>
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="season_name">
+                            الاسم
+                        </label>
+
+                        <input
+                            type="text"
+                            id="season_name"
+                            placeholder="رمضان 1448"
+                        >
+
+                    </div>
+
+                </div>
+
+
+                <div class="form-row-two">
+
+                    <div class="form-group">
+
+                        <label for="season_start">
+                            البداية
+                        </label>
+
+                        <input
+                            type="date"
+                            id="season_start"
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="season_end">
+                            النهاية
+                        </label>
+
+                        <input
+                            type="date"
+                            id="season_end"
+                        >
+
+                    </div>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="season_notes">
+                        ملاحظات
+                    </label>
+
+                    <textarea
+                        id="season_notes"
+                        rows="3"
+                        placeholder="اختياري"
+                    ></textarea>
+
+                </div>
+
+
+                <div class="seasonal-summary">
+
+                    <div>
+                        <span>الأيام</span>
+                        <strong id="seasonDaysCount">
+                            0
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>الورديات</span>
+                        <strong id="seasonShiftsCount">
+                            0
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>الخطط</span>
+                        <strong id="seasonPlansCount">
+                            0
+                        </strong>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="form-section">
+
+                <h4 class="form-section-title">
+                    أوقات الورديات
+                </h4>
+
+
+                <div class="seasonal-shifts-grid">
+
+                    {% for st in shift_types %}
+
+                        <article
+                            class="seasonal-shift-card"
+                            data-shift-card="{{ st.id }}"
+                        >
+
+                            <div class="seasonal-shift-head">
+
+                                <label
+                                    class="
+                                        seasonal-shift-title
+                                    "
+                                >
+                                    <input
+                                        type="checkbox"
+                                        class="
+                                            season-shift-enabled
+                                        "
+                                        data-shift-id="{{ st.id }}"
+                                        checked
+                                    >
+
+                                    <span>
+                                        {{ st.name }}
+                                    </span>
+                                </label>
+
+                            </div>
+
+
+                            <div class="seasonal-time-row">
+
+                                <div class="form-group">
+
+                                    <label
+                                        for="
+                                            season_start_{{ st.id }}
+                                        "
+                                    >
+                                        البداية
+                                    </label>
+
+                                    <input
+                                        type="time"
+                                        id="
+                                            season_start_{{ st.id }}
+                                        "
+                                        class="season-time-input"
+                                        value="{% if st.start_time %}{{ st.start_time|time:'H:i' }}{% endif %}"
+                                    >
+
+                                </div>
+
+
+                                <div class="form-group">
+
+                                    <label
+                                        for="
+                                            season_end_{{ st.id }}
+                                        "
+                                    >
+                                        النهاية
+                                    </label>
+
+                                    <input
+                                        type="time"
+                                        id="
+                                            season_end_{{ st.id }}
+                                        "
+                                        class="season-time-input"
+                                        value="{% if st.end_time %}{{ st.end_time|time:'H:i' }}{% endif %}"
+                                    >
+
+                                </div>
+
+                            </div>
+
+                        </article>
+
+                    {% endfor %}
+
+                </div>
+
+
+                <p class="seasonal-hint">
+                    الأوقات الموسمية مستقلة عن الأوقات
+                    الاعتيادية.
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <div class="modal-actions">
+
+            <button
+                type="submit"
+                class="btn-save"
+                id="shiftSubmitButton"
+            >
+                <span class="shift-save-icon" aria-hidden="true">✓</span>
+                <span id="shiftSubmitLabel">حفظ الوردية</span>
+            </button>
+
+
+            <button
+                type="button"
+                id="closeShiftModalButton"
+                class="btn-cancel"
+            >
+                <span aria-hidden="true">×</span>
+                إلغاء
+            </button>
+
+        </div>
+
+
+        <div
+            id="su_msg"
+            class="form-message"
+        ></div>
+
+    </form>
+</div>
+
+
+<script>
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+        "use strict";
+
+        const openButton =
+            document.getElementById(
+                "openShiftModalButton"
+            );
+
+        const closeButton =
+            document.getElementById(
+                "closeShiftModalButton"
+            );
+
+        const topCloseButton =
+            document.getElementById(
+                "shiftModalTopClose"
+            );
+
+        const modal =
+            document.getElementById(
+                "shiftUpsertModal"
+            );
+
+        const form =
+            document.getElementById(
+                "shiftUpsertForm"
+            );
+
+        const regularSection =
+            document.getElementById(
+                "regularShiftSection"
+            );
+
+        const seasonalSection =
+            document.getElementById(
+                "seasonalShiftSection"
+            );
+
+        const submitButton =
+            document.getElementById(
+                "shiftSubmitButton"
+            );
+
+        const submitLabel =
+            document.getElementById(
+                "shiftSubmitLabel"
+            );
+
+        const regularSummary =
+            document.getElementById(
+                "regularShiftSummary"
+            );
+
+        const messageBox =
+            document.getElementById(
+                "su_msg"
+            );
+
+
+        if (
+            !modal ||
+            !form ||
+            !regularSection ||
+            !seasonalSection ||
+            !submitButton ||
+            !messageBox
+        ) {
+            console.error(
+                "عناصر نافذة الورديات غير مكتملة."
+            );
+
+            return;
+        }
+
+
+        if (
+            modal.parentElement !==
+            document.body
+        ) {
+            document.body.appendChild(
+                modal
+            );
+        }
+
+
+        function getCSRFToken() {
+            return (
+                form.querySelector(
+                    "[name=csrfmiddlewaretoken]"
+                )?.value || ""
+            );
+        }
+
+
+        function getLocalToday() {
+            const now = new Date();
+
+            const local = new Date(
+                now.getTime() -
+                now.getTimezoneOffset() *
+                60000
+            );
+
+            return local
+                .toISOString()
+                .slice(0, 10);
+        }
+
+
+        function getScheduleMode() {
+            return (
+                form.querySelector(
+                    'input[name="schedule_mode"]:checked'
+                )?.value || "regular"
+            );
+        }
+
+
+        function clearMessage() {
+            messageBox.textContent = "";
+            messageBox.className =
+                "form-message";
+        }
+
+
+        function showMessage(
+            text,
+            type
+        ) {
+            messageBox.textContent =
+                text || "";
+
+            messageBox.className =
+                "form-message " +
+                (type || "error");
+        }
+
+
+        function updateModeCards() {
+            form.querySelectorAll(
+                ".schedule-mode-item"
+            ).forEach(function (label) {
+                const radio =
+                    label.querySelector(
+                        'input[type="radio"]'
+                    );
+
+                label.classList.toggle(
+                    "selected",
+                    Boolean(
+                        radio &&
+                        radio.checked
+                    )
+                );
+            });
+        }
+
+
+        function updateSubmitText() {
+            submitLabel.textContent =
+                getScheduleMode() ===
+                "seasonal"
+                    ? "إنشاء الموسم"
+                    : "حفظ الوردية";
+        }
+
+
+        function updateRegularSummary() {
+            if (!regularSummary) {
+                return;
+            }
+
+            const date = document.getElementById("su_date")?.value;
+            const shiftSelect = document.getElementById("su_shift_type");
+            const shiftName = shiftSelect?.options[shiftSelect.selectedIndex]?.text.trim();
+
+            regularSummary.textContent = date && shiftSelect?.value
+                ? `${shiftName} · ${date}`
+                : "اختر التاريخ والوردية للمعاينة";
+        }
+
+
+        function applyScheduleMode() {
+            const seasonal =
+                getScheduleMode() ===
+                "seasonal";
+
+            regularSection.style.display =
+                seasonal
+                    ? "none"
+                    : "block";
+
+            seasonalSection.style.display =
+                seasonal
+                    ? "block"
+                    : "none";
+
+            updateModeCards();
+            updateSubmitText();
+            clearMessage();
+
+            if (seasonal) {
+                updateSeasonSummary();
+            }
+        }
+
+
+        function openModal() {
+            clearMessage();
+
+            const dateInput =
+                document.getElementById(
+                    "su_date"
+                );
+
+            if (
+                dateInput &&
+                !dateInput.value
+            ) {
+                dateInput.value =
+                    getLocalToday();
+            }
+
+            modal.classList.add(
+                "is-open"
+            );
+
+            modal.setAttribute(
+                "aria-hidden",
+                "false"
+            );
+
+            document.body.classList.add(
+                "shift-modal-open"
+            );
+
+            applyScheduleMode();
+            updateRegularSummary();
+
+            window.setTimeout(
+                function () {
+                    const firstInput =
+                        modal.querySelector(
+                            "input:not([disabled]), " +
+                            "select:not([disabled]), " +
+                            "textarea:not([disabled]), " +
+                            "button:not([disabled])"
+                        );
+
+                    firstInput?.focus();
+                },
+                50
+            );
+        }
+
+
+        function closeModal() {
+            modal.classList.remove(
+                "is-open"
+            );
+
+            modal.setAttribute(
+                "aria-hidden",
+                "true"
+            );
+
+            document.body.classList.remove(
+                "shift-modal-open"
+            );
+
+            clearMessage();
+        }
+
+
+        if (openButton) {
+            openButton.addEventListener(
+                "click",
+                function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    openModal();
+                }
+            );
+        }
+
+
+        if (closeButton) {
+            closeButton.addEventListener(
+                "click",
+                function (event) {
+                    event.preventDefault();
+
+                    closeModal();
+                }
+            );
+        }
+
+        topCloseButton?.addEventListener(
+            "click",
+            function (event) {
+                event.preventDefault();
+                closeModal();
+            }
+        );
+
+
+        modal.addEventListener(
+            "click",
+            function (event) {
+                if (
+                    event.target === modal
+                ) {
+                    closeModal();
+                }
+            }
+        );
+
+
+        form.addEventListener(
+            "click",
+            function (event) {
+                event.stopPropagation();
+            }
+        );
+
+
+        document.addEventListener(
+            "keydown",
+            function (event) {
+                if (
+                    event.key === "Escape" &&
+                    modal.classList.contains(
+                        "is-open"
+                    )
+                ) {
+                    closeModal();
+                }
+            }
+        );
+
+
+        window.openShiftUpsertModal =
+            openModal;
+
+        window.closeShiftUpsertModal =
+            closeModal;
+
+
+        function calculateDays(
+            startValue,
+            endValue
+        ) {
+            if (
+                !startValue ||
+                !endValue
+            ) {
+                return 0;
+            }
+
+            const start =
+                new Date(
+                    startValue +
+                    "T00:00:00"
+                );
+
+            const end =
+                new Date(
+                    endValue +
+                    "T00:00:00"
+                );
+
+            if (
+                Number.isNaN(
+                    start.getTime()
+                ) ||
+                Number.isNaN(
+                    end.getTime()
+                ) ||
+                end < start
+            ) {
+                return 0;
+            }
+
+            return (
+                Math.floor(
+                    (
+                        end.getTime() -
+                        start.getTime()
+                    ) / 86400000
+                ) + 1
+            );
+        }
+
+
+        function updateSeasonSummary() {
+            const start =
+                document.getElementById(
+                    "season_start"
+                )?.value || "";
+
+            const end =
+                document.getElementById(
+                    "season_end"
+                )?.value || "";
+
+            const days =
+                calculateDays(
+                    start,
+                    end
+                );
+
+            const shifts =
+                form.querySelectorAll(
+                    ".season-shift-enabled:checked"
+                ).length;
+
+            document.getElementById(
+                "seasonDaysCount"
+            ).textContent = days;
+
+            document.getElementById(
+                "seasonShiftsCount"
+            ).textContent = shifts;
+
+            document.getElementById(
+                "seasonPlansCount"
+            ).textContent =
+                days * shifts;
+        }
+
+
+        function toggleSeasonCard(
+            checkbox
+        ) {
+            const shiftId =
+                checkbox.dataset.shiftId;
+
+            const card =
+                form.querySelector(
+                    '[data-shift-card="' +
+                    shiftId +
+                    '"]'
+                );
+
+            if (!card) {
+                return;
+            }
+
+            card.classList.toggle(
+                "disabled",
+                !checkbox.checked
+            );
+
+            card.querySelectorAll(
+                ".season-time-input"
+            ).forEach(function (input) {
+                input.disabled =
+                    !checkbox.checked;
+            });
+
+            updateSeasonSummary();
+        }
+
+
+        form.querySelectorAll(
+            'input[name="schedule_mode"]'
+        ).forEach(function (radio) {
+            radio.addEventListener(
+                "change",
+                applyScheduleMode
+            );
+        });
+
+        document.getElementById("su_date")?.addEventListener(
+            "change",
+            updateRegularSummary
+        );
+
+        document.getElementById("su_shift_type")?.addEventListener(
+            "change",
+            updateRegularSummary
+        );
+
+
+        form.querySelectorAll(
+            ".season-shift-enabled"
+        ).forEach(function (checkbox) {
+            checkbox.addEventListener(
+                "change",
+                function () {
+                    toggleSeasonCard(
+                        checkbox
+                    );
+                }
+            );
+
+            toggleSeasonCard(
+                checkbox
+            );
+        });
+
+
+        [
+            "season_start",
+            "season_end"
+        ].forEach(function (id) {
+            const input =
+                document.getElementById(
+                    id
+                );
+
+            if (input) {
+                input.addEventListener(
+                    "input",
+                    updateSeasonSummary
+                );
+
+                input.addEventListener(
+                    "change",
+                    updateSeasonSummary
+                );
+            }
+        });
+
+
+        async function readResponse(
+            response
+        ) {
+            const contentType =
+                response.headers.get(
+                    "content-type"
+                ) || "";
+
+            if (
+                contentType.includes(
+                    "application/json"
+                )
+            ) {
+                return await response.json();
+            }
+
+            const responseText =
+                await response.text();
+
+            console.error(
+                "استجابة الخادم:",
+                response.status,
+                responseText
+            );
+
+            if (
+                response.status === 403
+            ) {
+                throw new Error(
+                    "ليست لديك الصلاحية المطلوبة."
+                );
+            }
+
+            if (
+                response.status === 404
+            ) {
+                throw new Error(
+                    "مسار العملية غير موجود."
+                );
+            }
+
+            if (
+                response.status >= 500
+            ) {
+                throw new Error(
+                    "حدث خطأ داخلي في الخادم."
+                );
+            }
+
+            if (response.redirected) {
+                throw new Error(
+                    "انتهت جلسة الدخول."
+                );
+            }
+
+            throw new Error(
+                "أعاد الخادم استجابة غير متوقعة."
+            );
+        }
+
+
+        async function submitRegular() {
+            const date =
+                document.getElementById(
+                    "su_date"
+                )?.value || "";
+
+            const shiftTypeId =
+                document.getElementById(
+                    "su_shift_type"
+                )?.value || "";
+
+            const notes =
+                document.getElementById(
+                    "su_notes"
+                )?.value || "";
+
+            const makeActive =
+                document.getElementById(
+                    "su_make_active"
+                )?.checked || false;
+
+
+            if (
+                !date ||
+                !shiftTypeId
+            ) {
+                throw new Error(
+                    "التاريخ والوردية مطلوبان."
+                );
+            }
+
+
+            const body =
+                new URLSearchParams();
+
+            body.append(
+                "date",
+                date
+            );
+
+            body.append(
+                "shift_type_id",
+                shiftTypeId
+            );
+
+            body.append(
+                "notes",
+                notes
+            );
+
+            body.append(
+                "make_active",
+                makeActive ? "1" : "0"
+            );
+
+
+            const response =
+                await fetch(
+                    "{% url 'scheduling:shift-upsert-ajax' %}",
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/x-www-form-urlencoded;charset=UTF-8",
+
+                            "X-CSRFToken":
+                                getCSRFToken(),
+
+                            "X-Requested-With":
+                                "XMLHttpRequest"
+                        },
+
+                        credentials:
+                            "same-origin",
+
+                        body:
+                            body.toString()
+                    }
+                );
+
+
+            const data =
+                await readResponse(
+                    response
+                );
+
+
+            if (
+                !response.ok ||
+                !data.success
+            ) {
+                throw new Error(
+                    data.error ||
+                    "تعذر حفظ الوردية."
+                );
+            }
+
+            return data;
+        }
+
+
+        async function submitSeasonal() {
+            const seasonType =
+                document.getElementById(
+                    "season_type"
+                )?.value || "";
+
+            const name =
+                document.getElementById(
+                    "season_name"
+                )?.value.trim() || "";
+
+            const startDate =
+                document.getElementById(
+                    "season_start"
+                )?.value || "";
+
+            const endDate =
+                document.getElementById(
+                    "season_end"
+                )?.value || "";
+
+            const notes =
+                document.getElementById(
+                    "season_notes"
+                )?.value.trim() || "";
+
+
+            if (
+                !seasonType ||
+                !startDate ||
+                !endDate
+            ) {
+                throw new Error(
+                    "بيانات الموسم مطلوبة."
+                );
+            }
+
+
+            const days =
+                calculateDays(
+                    startDate,
+                    endDate
+                );
+
+
+            if (days <= 0) {
+                throw new Error(
+                    "تاريخ الموسم غير صحيح."
+                );
+            }
+
+
+            if (days > 90) {
+                throw new Error(
+                    "الحد الأقصى للموسم 90 يومًا."
+                );
+            }
+
+
+            const enabledShifts = [
+                ...form.querySelectorAll(
+                    ".season-shift-enabled:checked"
+                )
+            ];
+
+
+            if (
+                enabledShifts.length === 0
+            ) {
+                throw new Error(
+                    "اختر وردية واحدة على الأقل."
+                );
+            }
+
+
+            const body =
+                new URLSearchParams();
+
+            body.append(
+                "season_type",
+                seasonType
+            );
+
+            body.append(
+                "name",
+                name
+            );
+
+            body.append(
+                "start_date",
+                startDate
+            );
+
+            body.append(
+                "end_date",
+                endDate
+            );
+
+            body.append(
+                "notes",
+                notes
+            );
+
+
+            enabledShifts.forEach(
+                function (checkbox) {
+                    const shiftId =
+                        checkbox.dataset.shiftId;
+
+                    const startInput =
+                        document.getElementById(
+                            "season_start_" +
+                            shiftId
+                        );
+
+                    const endInput =
+                        document.getElementById(
+                            "season_end_" +
+                            shiftId
+                        );
+
+
+                    if (
+                        !startInput?.value ||
+                        !endInput?.value
+                    ) {
+                        throw new Error(
+                            "حدد أوقات جميع الورديات."
+                        );
+                    }
+
+
+                    body.append(
+                        "shift_" +
+                        shiftId +
+                        "_enabled",
+                        "1"
+                    );
+
+                    body.append(
+                        "shift_" +
+                        shiftId +
+                        "_start",
+                        startInput.value
+                    );
+
+                    body.append(
+                        "shift_" +
+                        shiftId +
+                        "_end",
+                        endInput.value
+                    );
+                }
+            );
+
+
+            const response =
+                await fetch(
+                    "{% url 'scheduling:seasonal-shift-create-ajax' %}",
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/x-www-form-urlencoded;charset=UTF-8",
+
+                            "X-CSRFToken":
+                                getCSRFToken(),
+
+                            "X-Requested-With":
+                                "XMLHttpRequest"
+                        },
+
+                        credentials:
+                            "same-origin",
+
+                        body:
+                            body.toString()
+                    }
+                );
+
+
+            const data =
+                await readResponse(
+                    response
+                );
+
+
+            if (
+                !response.ok ||
+                !data.success
+            ) {
+                throw new Error(
+                    data.error ||
+                    "تعذر إنشاء الموسم."
+                );
+            }
+
+            return data;
+        }
+
+
+        form.addEventListener(
+            "submit",
+            async function (event) {
+                event.preventDefault();
+
+                clearMessage();
+
+                submitButton.disabled = true;
+                submitLabel.textContent =
+                    "جاري الحفظ...";
+
+                try {
+                    const mode =
+                        getScheduleMode();
+
+                    const data =
+                        mode === "seasonal"
+                            ? await submitSeasonal()
+                            : await submitRegular();
+
+                    showMessage(
+                        data.message ||
+                        "تم الحفظ بنجاح.",
+                        "success"
+                    );
+
+                    window.setTimeout(
+                        function () {
+                            window.location.reload();
+                        },
+                        900
+                    );
+
+                } catch (error) {
+                    showMessage(
+                        error.message ||
+                        "حدث خطأ غير متوقع.",
+                        "error"
+                    );
+
+                } finally {
+                    submitButton.disabled =
+                        false;
+
+                    updateSubmitText();
+                }
+            }
+        );
+
+
+        document.querySelectorAll(
+            ".activate-shift-button"
+        ).forEach(function (button) {
+            button.addEventListener(
+                "click",
+                async function () {
+                    const shiftId =
+                        button.dataset.shiftId;
+
+                    if (
+                        !shiftId ||
+                        !window.confirm(
+                            "تفعيل الوردية؟"
+                        )
+                    ) {
+                        return;
+                    }
+
+
+                    button.disabled = true;
+                    button.textContent =
+                        "جاري التفعيل...";
+
+
+                    try {
+                        const response =
+                            await fetch(
+                                "/scheduling/shifts/" +
+                                shiftId +
+                                "/activate/ajax/",
+                                {
+                                    method: "POST",
+
+                                    headers: {
+                                        "X-CSRFToken":
+                                            getCSRFToken(),
+
+                                        "X-Requested-With":
+                                            "XMLHttpRequest"
+                                    },
+
+                                    credentials:
+                                        "same-origin"
+                                }
+                            );
+
+
+                        const data =
+                            await readResponse(
+                                response
+                            );
+
+
+                        if (
+                            !response.ok ||
+                            !data.success
+                        ) {
+                            throw new Error(
+                                data.error ||
+                                "تعذر تفعيل الوردية."
+                            );
+                        }
+
+
+                        window.location.reload();
+
+                    } catch (error) {
+                        window.alert(
+                            error.message ||
+                            "تعذر التفعيل."
+                        );
+
+                        button.disabled =
+                            false;
+
+                        button.textContent =
+                            "▶ تفعيل";
+                    }
+                }
+            );
+        });
+
+
+        applyScheduleMode();
+        updateSeasonSummary();
+    }
+);
+</script>
+
+{% endblock %}

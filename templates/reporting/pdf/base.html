@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+<meta charset="UTF-8">
+
+<title>تقرير وردية تشغيلية</title>
+
+<style>
+@page{
+    size:A4;
+    margin:0;
+}
+
+@font-face{
+    font-family:"Cairo";
+    src:url("file:///C:/Users/stone/princesahmad/static/fonts/Cairo-Regular.ttf");
+}
+
+*{
+    box-sizing:border-box;
+}
+
+html,
+body{
+    margin:0;
+    padding:0;
+    font-family:"Cairo",sans-serif;
+    background:#f6f7f9;
+}
+
+.page{
+    width:210mm;
+    min-height:297mm;
+    display:grid;
+    grid-template-columns:235px 1fr;
+    background:white;
+    page-break-after:always;
+}
+
+.content{
+    padding:16px 20px 12px;
+}
+
+.report-header{
+    text-align:center;
+    margin-bottom:10px;
+}
+
+.report-header h1{
+    margin:0;
+    color:#0f7b5c;
+    font-size:34px;
+    font-weight:900;
+}
+
+.report-header p{
+    margin:5px 0;
+    font-size:15px;
+    font-weight:700;
+}
+
+.gold-line{
+    width:320px;
+    height:2px;
+    background:#d4af37;
+    margin:auto;
+}
+
+.section{
+    margin-top:8px;
+    page-break-inside:avoid;
+}
+
+.section-title{
+    background:#0f7b5c;
+    color:white;
+    padding:7px;
+    border-radius:9px;
+    text-align:center;
+    font-size:15px;
+    font-weight:900;
+    margin-bottom:7px;
+}
+
+.summary-grid,
+.kpi-grid,
+.charts-grid,
+.maintenance-card,
+.sidebar{
+    page-break-inside:avoid;
+}
+
+table{
+    page-break-inside:auto;
+}
+
+tr{
+    page-break-inside:avoid;
+}
+
+thead{
+    display:table-header-group;
+}
+</style>
+</head>
+
+<body>
+
+<div class="page">
+
+    {% include "reporting/pdf/sidebar.html" %}
+
+    <div class="content">
+
+        <div class="report-header">
+            <div class="report-classification">
+                <span>التقارير التشغيلية</span>
+                <strong>{{ report.report_number|default:"—" }}</strong>
+            </div>
+            <h1>تقرير وردية تشغيلية</h1>
+            <p>تقرير شامل لأداء الوردية التشغيلية</p>
+            <div class="gold-line"></div>
+        </div>
+
+        {% include "reporting/pdf/kpi.html" %}
+        {% include "reporting/pdf/charts.html" %}
+        {% include "reporting/pdf/maintenance.html" %}
+        {% include "reporting/pdf/summary.html" %}
+        {% include "reporting/pdf/footer.html" %}
+
+    </div>
+
+</div>
+
+{% include "reporting/pdf/enterprise_styles.html" %}
+
+</body>
+</html>

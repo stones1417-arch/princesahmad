@@ -1,0 +1,691 @@
+{% load static %}
+<!DOCTYPE html>
+
+<html
+    lang="ar"
+    dir="rtl"
+    data-theme="light"
+>
+
+<head>
+    <!-- يجب أن يكون تعريف الترميز أول عنصر داخل head -->
+    <meta charset="UTF-8">
+
+    <meta
+        http-equiv="Content-Type"
+        content="text/html; charset=UTF-8"
+    >
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    >
+
+    <meta
+        name="color-scheme"
+        content="light dark"
+    >
+
+    <meta
+        name="theme-color"
+        content="#08765a"
+    >
+
+    {# Ensures Django issues a CSRF cookie for AJAX-only pages. #}
+    <meta
+        name="csrf-token"
+        content="{{ csrf_token }}"
+    >
+
+    <meta
+        name="description"
+        content="{% block meta_description %}منصة أبواب لإدارة العمليات التشغيلية والموارد والتقارير.{% endblock %}"
+    >
+
+    <title>
+        {% block title %}
+            منصة أبواب
+        {% endblock %}
+    </title>
+
+    <!-- ==================================================
+         الهوية العامة والنظام التصميمي
+    ================================================== -->
+
+    <link
+        rel="stylesheet"
+        href="{% static 'css/design-system.css' %}?v=20260802-utf8-1"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{% static 'css/components.css' %}?v=20260802-utf8-1"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{% static 'css/forms.css' %}?v=20260802-utf8-1"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{% static 'css/tables.css' %}?v=20260802-utf8-1"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{% static 'css/responsive.css' %}?v=20260802-utf8-1"
+    >
+
+    <!-- ==================================================
+         ملفات المكونات القديمة المدعومة مؤقتًا
+    ================================================== -->
+
+    {% include "components/styles.html" %}
+
+    <link
+        rel="stylesheet"
+        href="{% static 'css/components/unified_header_menus.css' %}?v=20260802-utf8-1"
+    >
+
+    <!-- ==================================================
+         تثبيت اللغة العربية والترميز والتخطيط العام
+    ================================================== -->
+
+    <style>
+        :root {
+            direction: rtl;
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+        }
+
+        html {
+            width: 100%;
+            min-height: 100%;
+
+            margin: 0;
+            padding: 0;
+
+            direction: rtl;
+
+            font-family:
+                "Tajawal",
+                "Noto Kufi Arabic",
+                "Noto Sans Arabic",
+                "Segoe UI",
+                Tahoma,
+                Arial,
+                sans-serif;
+
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+        }
+
+        body {
+            width: 100%;
+            min-height: 100%;
+
+            margin: 0;
+            padding: 0;
+
+            direction: rtl;
+            text-align: right;
+
+            overflow-x: hidden;
+
+            color: #173229;
+            background: #f6f9f7;
+
+            font-family:
+                "Tajawal",
+                "Noto Kufi Arabic",
+                "Noto Sans Arabic",
+                "Segoe UI",
+                Tahoma,
+                Arial,
+                sans-serif;
+
+            font-synthesis: none;
+            text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        input,
+        select,
+        textarea,
+        button {
+            font: inherit;
+        }
+
+        input,
+        select,
+        textarea {
+            direction: rtl;
+            text-align: right;
+        }
+
+        [dir="ltr"],
+        .ltr,
+        .english-text,
+        .code-text,
+        code,
+        pre {
+            direction: ltr;
+        }
+
+        code,
+        pre {
+            unicode-bidi: embed;
+            text-align: left;
+        }
+
+        .app-shell {
+            position: relative;
+
+            width: 100%;
+            min-height: 100vh;
+
+            display: flex;
+            flex-direction: column;
+
+            visibility: visible;
+            opacity: 1;
+
+            overflow: visible;
+        }
+
+        .app-topbar-wrapper,
+        .app-header-wrapper {
+            position: relative;
+
+            width: 100%;
+
+            display: block;
+
+            visibility: visible;
+            opacity: 1;
+
+            flex: 0 0 auto;
+
+            overflow: visible;
+        }
+
+        .app-header-wrapper {
+            z-index: 50000;
+        }
+
+        .app-topbar-wrapper {
+            z-index: 60000;
+        }
+
+        .app-main-wrapper {
+            position: relative;
+
+            width: 100%;
+            min-width: 0;
+            min-height: 1px;
+
+            display: block;
+
+            visibility: visible;
+            opacity: 1;
+
+            flex: 1 1 auto;
+
+            overflow: visible;
+        }
+
+        .app-main-content,
+        .main-content,
+        #mainContent {
+            position: relative;
+
+            width: 100%;
+            min-width: 0;
+            min-height: 1px;
+
+            display: block;
+
+            visibility: visible;
+            opacity: 1;
+
+            direction: rtl;
+            text-align: right;
+
+            overflow: visible;
+
+            box-sizing: border-box;
+        }
+
+        .app-messages-region,
+        .app-breadcrumbs-wrapper,
+        .app-footer-wrapper {
+            position: relative;
+
+            width: 100%;
+
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .main-system-header,
+        .main-header-navigation {
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+
+        body.app-overlay-open {
+            overflow: hidden;
+        }
+    </style>
+
+    <!-- ==================================================
+         تنسيقات خاصة بكل صفحة
+    ================================================== -->
+
+    {% block extra_css %}
+    {% endblock %}
+</head>
+
+<body
+    class="{% block body_class %}app-body{% endblock %}"
+    data-page="{% block page_name %}default{% endblock %}"
+    dir="rtl"
+>
+
+    <!-- ==================================================
+         رابط الوصول السريع
+    ================================================== -->
+
+    <a
+        href="#mainContent"
+        class="skip-link"
+    >
+        الانتقال إلى المحتوى الرئيسي
+    </a>
+
+    <!-- ==================================================
+         طبقة التحميل العامة
+    ================================================== -->
+
+    <div
+        id="globalLoadingOverlay"
+        class="app-loading-overlay"
+        hidden
+        aria-hidden="true"
+    >
+        <div
+            class="app-loading-card"
+            role="status"
+            aria-live="polite"
+        >
+            <span class="app-loading-spinner"></span>
+
+            <strong id="globalLoadingTitle">
+                جارٍ تنفيذ العملية
+            </strong>
+
+            <span id="globalLoadingMessage">
+                يرجى الانتظار قليلًا...
+            </span>
+        </div>
+    </div>
+
+    <!-- ==================================================
+         هيكل التطبيق
+    ================================================== -->
+
+    <div
+        id="appShell"
+        class="app-shell"
+    >
+        <!-- الشريط العلوي -->
+
+        <div class="app-topbar-wrapper">
+            {% include "components/topbar.html" %}
+        </div>
+
+        <!-- رأس المنصة والتنقل -->
+
+        <header
+            id="appHeader"
+            class="app-header-wrapper"
+        >
+            {% include "components/main_header.html" %}
+        </header>
+
+        <!-- ==================================================
+             القائمة الجانبية
+        ================================================== -->
+
+        {% block sidebar %}
+
+            {% if sidebar_template %}
+                <aside
+                    id="appSidebar"
+                    class="app-sidebar"
+                    aria-label="القائمة الجانبية"
+                >
+                    {% include sidebar_template %}
+                </aside>
+            {% endif %}
+
+        {% endblock %}
+
+        <!-- ==================================================
+             محتوى التطبيق
+        ================================================== -->
+
+        <div class="app-main-wrapper">
+
+            <!-- رسائل Django -->
+
+            <section
+                id="appMessages"
+                class="app-messages-region"
+                aria-live="polite"
+                aria-atomic="true"
+            >
+                {% if messages %}
+                    <div class="messages-container">
+
+                        {% for message in messages %}
+                            <article
+                                class="
+                                    app-alert
+                                    app-alert-{{ message.tags|default:'info' }}
+                                "
+                                role="alert"
+                                data-auto-dismiss="true"
+                            >
+                                <span class="app-alert-icon">
+
+                                    {% if message.tags == "success" %}
+                                        <svg
+                                            viewBox="0 0 24 24"
+                                            aria-hidden="true"
+                                        >
+                                            <circle
+                                                cx="12"
+                                                cy="12"
+                                                r="9"
+                                            ></circle>
+
+                                            <path d="m8.5 12 2.3 2.3 4.8-5"></path>
+                                        </svg>
+
+                                    {% elif message.tags == "warning" %}
+                                        <svg
+                                            viewBox="0 0 24 24"
+                                            aria-hidden="true"
+                                        >
+                                            <path d="M12 3 2.8 20h18.4L12 3Z"></path>
+                                            <path d="M12 9v4"></path>
+                                            <path d="M12 17h.01"></path>
+                                        </svg>
+
+                                    {% elif message.tags == "error" or message.tags == "danger" %}
+                                        <svg
+                                            viewBox="0 0 24 24"
+                                            aria-hidden="true"
+                                        >
+                                            <circle
+                                                cx="12"
+                                                cy="12"
+                                                r="9"
+                                            ></circle>
+
+                                            <path d="M12 7v6"></path>
+                                            <path d="M12 17h.01"></path>
+                                        </svg>
+
+                                    {% else %}
+                                        <svg
+                                            viewBox="0 0 24 24"
+                                            aria-hidden="true"
+                                        >
+                                            <circle
+                                                cx="12"
+                                                cy="12"
+                                                r="9"
+                                            ></circle>
+
+                                            <path d="M12 11v5"></path>
+                                            <path d="M12 8h.01"></path>
+                                        </svg>
+                                    {% endif %}
+
+                                </span>
+
+                                <div class="app-alert-content">
+                                    <strong class="app-alert-title">
+
+                                        {% if message.tags == "success" %}
+                                            تمت العملية بنجاح
+                                        {% elif message.tags == "warning" %}
+                                            تنبيه
+                                        {% elif message.tags == "error" or message.tags == "danger" %}
+                                            تعذر تنفيذ العملية
+                                        {% else %}
+                                            إشعار
+                                        {% endif %}
+
+                                    </strong>
+
+                                    <p class="app-alert-message">
+                                        {{ message }}
+                                    </p>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    class="app-alert-close"
+                                    data-dismiss-alert
+                                    aria-label="إغلاق الرسالة"
+                                    title="إغلاق"
+                                >
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        aria-hidden="true"
+                                    >
+                                        <path d="m7 7 10 10"></path>
+                                        <path d="m17 7-10 10"></path>
+                                    </svg>
+                                </button>
+                            </article>
+                        {% endfor %}
+
+                    </div>
+                {% endif %}
+            </section>
+
+            <!-- مسار التنقل -->
+
+            {% block breadcrumbs %}
+
+                {% if breadcrumbs %}
+                    <div class="app-breadcrumbs-wrapper">
+                        {% include "components/layout/breadcrumb.html" %}
+                    </div>
+                {% endif %}
+
+            {% endblock %}
+
+            <!-- المحتوى الرئيسي -->
+
+            <main
+                id="mainContent"
+                class="main-content app-main-content"
+                tabindex="-1"
+                dir="rtl"
+            >
+                {% block content %}
+                {% endblock %}
+            </main>
+
+            <!-- التذييل -->
+
+            {% block footer %}
+                <footer class="app-footer-wrapper">
+                    {% include "components/footer.html" %}
+                </footer>
+            {% endblock %}
+
+        </div>
+    </div>
+
+    <!-- ==================================================
+         حاوية النوافذ المنبثقة
+    ================================================== -->
+
+    <div
+        id="appModalRoot"
+        class="app-modal-root"
+        aria-live="polite"
+    >
+        {% block modals %}
+        {% endblock %}
+    </div>
+
+    <!-- ==================================================
+         نافذة التأكيد العامة
+    ================================================== -->
+
+    <div
+        id="appConfirmDialog"
+        class="app-modal"
+        hidden
+        aria-hidden="true"
+    >
+        <div
+            class="app-modal-backdrop"
+            data-modal-close
+        ></div>
+
+        <section
+            class="app-modal-dialog app-confirm-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="appConfirmTitle"
+            aria-describedby="appConfirmMessage"
+        >
+            <header class="app-modal-header">
+
+                <div class="app-modal-heading">
+
+                    <span class="app-modal-icon app-modal-icon-warning">
+                        <svg
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <path d="M12 3 2.8 20h18.4L12 3Z"></path>
+                            <path d="M12 9v4"></path>
+                            <path d="M12 17h.01"></path>
+                        </svg>
+                    </span>
+
+                    <div>
+                        <h2 id="appConfirmTitle">
+                            تأكيد العملية
+                        </h2>
+
+                        <p>
+                            راجع تفاصيل العملية قبل المتابعة.
+                        </p>
+                    </div>
+
+                </div>
+
+                <button
+                    type="button"
+                    class="app-modal-close"
+                    data-modal-close
+                    aria-label="إغلاق"
+                >
+                    <svg
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                    >
+                        <path d="m7 7 10 10"></path>
+                        <path d="m17 7-10 10"></path>
+                    </svg>
+                </button>
+
+            </header>
+
+            <div class="app-modal-body">
+                <p id="appConfirmMessage">
+                    هل أنت متأكد من تنفيذ هذه العملية؟
+                </p>
+            </div>
+
+            <footer class="app-modal-footer">
+                <button
+                    type="button"
+                    class="app-btn app-btn-secondary"
+                    data-modal-close
+                >
+                    إلغاء
+                </button>
+
+                <button
+                    type="button"
+                    id="appConfirmButton"
+                    class="app-btn app-btn-danger"
+                >
+                    تأكيد
+                </button>
+            </footer>
+        </section>
+    </div>
+
+    <!-- ==================================================
+         منطقة رسائل JavaScript
+    ================================================== -->
+
+    <div
+        id="appToastContainer"
+        class="app-toast-container"
+        aria-live="polite"
+        aria-atomic="true"
+    ></div>
+
+    <!-- ==================================================
+         JavaScript العام
+    ================================================== -->
+
+    {% include "components/scripts.html" %}
+
+    <script
+        src="{% static 'js/app.js' %}?v=20260802-utf8-1"
+        defer
+    ></script>
+
+    <script
+        src="{% static 'js/modals.js' %}?v=20260802-utf8-1"
+        defer
+    ></script>
+
+    <script
+        src="{% static 'js/ajax.js' %}?v=20260802-utf8-1"
+        defer
+    ></script>
+
+    <!-- ==================================================
+         JavaScript خاص بكل صفحة
+    ================================================== -->
+
+    {% block extra_js %}
+    {% endblock %}
+
+</body>
+</html>

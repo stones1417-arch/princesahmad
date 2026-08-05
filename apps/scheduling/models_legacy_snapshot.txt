@@ -1,0 +1,643 @@
+Legacy scheduling model snapshot. Runtime models live in apps/scheduling/models/.
+
+from __future__ import annotations
+
+from django.core.exceptions import ValidationError
+from django.db import models
+
+from apps.hr.models import Employee
+
+
+# ==================================================
+# نوع الوردية
+# ==================================================
+class ShiftType(models.Model):
+    """
+    نوع الوردية الرسمي:
+
+    - الفجر
+    - الضحى
+    - المسائية
+    - المشتركة
+
+    أوقات البداية والنهاية هنا هي الأوقات الرسمية المعتادة.
+    أما أوقات رمضان والحج، فتُحفظ داخل ShiftPlan حتى لا تتغير
+    الأوقات الرسمية الأساسية.
+    """
+
+    name = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name="اسم الوردية",
+    )
+
+start_time = models.TimeField(
+    null=True,
+    blank=True,
+    verbose_name="وقت البداية",
+)
+
+end_time = models.TimeField(
+    null=True,
+    blank=True,
+    verbose_name="وقت النهاية",
+)
+
+ class Meta:
+        verbose_name = "نوع وردية"
+        verbose_name_plural = "أنواع الورديات"
+        ordering = ["id"]
+
+    def __str__(self):
+        return self.name
+
+
+# ==================================================
+# مجموعة الورديات الموسمية
+# ==================================================
+class SeasonalShiftSchedule(models.Model):
+    """
+    تمثل عملية إنشاء موسم كامل، مثل:
+
+    - ورديات رمضان 1448
+    - ورديات الحج 1448
+
+    ترتبط بها خطط الورديات اليومية التي يتم إنشاؤها تلقائيًا
+    خلال الفترة المحددة.
+    """
+
+    class SeasonType(models.TextChoices):
+        RAMADAN = "ramadan", "رمضان"
+        HAJJ = "hajj", "الحج"
+
+    name = models.CharField(
+        max_length=150,
+        verbose_name="اسم الجدولة الموسمية",
+    )
+
+    season_type = models.CharField(
+        max_length=20,
+        choices=SeasonType.choices,
+        db_index=True,
+        verbose_name="نوع الموسم",
+    )
+
+    start_date = models.DateField(
+        verbose_name="تاريخ بداية الموسم",
+    )
+
+    end_date = models.DateField(
+        verbose_name="تاريخ نهاية الموسم",
+    )
+
+    notes = models.TextField(
+        blank=True,
+        verbose_name="ملاحظات",
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+        db_index=True,
+        verbose_name="جدولة موسمية نشطة",
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="تاريخ الإنشاء",
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name="تاريخ آخر تحديث",
+    )
+
+    class Meta:
+        ordering = ["-start_date", "-created_at"]
+        verbose_name = "جدولة ورديات موسمية"
+        verbose_name_plural = "جدولات الورديات الموسمية"
+
+        indexes = [
+            models.Index(fields=["season_type"]),
+            models.Index(fields=["start_date", "end_date"]),
+            models.Index(fields=["is_active"]),
+        ]
+
+        permissions = [
+            (
+                "can_create_seasonal_schedule",
+                "يمكن إنشاء جدولة ورديات موسمية",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.name} - "
+            f"{self.get_season_type_display()} "
+            f"({self.start_date} إلى {self.end_date})"
+        )
+
+    def clean(self):
+        super().clean()
+
+        if (
+            self.start_date
+            and self.end_date
+            and self.end_date < self.start_date
+        ):
+            raise ValidationError(
+                {
+                    "end_date": (
+                        "تاريخ نهاية الموسم يجب أن يكون مساويًا "
+                        "لتاريخ البداية أو بعده."
+                    )
+                }
+            )
+
+
+# ==================================================
+# أوقات الورديات الأربع داخل الموسم
+# ==================================================
+class SeasonalShiftTime(models.Model):
+    """
+    الوقت الموسمي المحدد لكل نوع وردية داخل موسم معين.
+
+    مثال:
+    رمضان 1448:
+    - الفجر: 01:30 إلى 07:30
+    - الضحى: 07:30 إلى 14:00
+    - المسائية: 14:00 إلى 20:30
+    - المشتركة: 20:30 إلى 02:00
+    """
+
+    seasonal_schedule = models.ForeignKey(
+        SeasonalShiftSchedule,
+        on_delete=models.CASCADE,
+        related_name="shift_times",
+        verbose_name="الجدولة الموسمية",
+    )
+
+    shift_type = models.ForeignKey(
+        ShiftType,
+        on_delete=models.PROTECT,
+        related_name="seasonal_times",
+        verbose_name="نوع الوردية",
+    )
+
+   start_time = models.TimeField(
+    null=True,
+    blank=True,
+    verbose_name="وقت البداية",
+)
+
+start_time = models.TimeField(
+    null=True,
+    blank=True,
+    verbose_name="وقت البداية",
+)
+
+end_time = models.TimeField(
+    null=True,
+    blank=True,
+    verbose_name="وقت النهاية",
+)
+
+    class Meta:
+        ordering = ["shift_type__id"]
+        verbose_name = "وقت وردية موسمية"
+        verbose_name_plural = "أوقات الورديات الموسمية"
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "seasonal_schedule",
+                    "shift_type",
+                ],
+                name="unique_shift_type_per_seasonal_schedule",
+            ),
+        ]
+
+        indexes = [
+            models.Index(fields=["seasonal_schedule"]),
+            models.Index(fields=["shift_type"]),
+            models.Index(fields=["is_enabled"]),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.seasonal_schedule.name} - "
+            f"{self.shift_type.name} "
+            f"({self.start_time} - {self.end_time})"
+        )
+
+
+# ==================================================
+# خطة الوردية
+# ==================================================
+class ShiftPlan(models.Model):
+    """
+    خطة وردية ليوم محدد.
+
+    تدعم نوعين من الخطط:
+
+    1. وردية اعتيادية:
+       تستخدم أوقات ShiftType الرسمية.
+
+    2. وردية موسمية:
+       تستخدم start_time_override وend_time_override،
+       وترتبط بجدولة موسمية لرمضان أو الحج.
+    """
+
+    class ShiftStatus(models.TextChoices):
+        PREPARATION = "preparation", "قيد التجهيز"
+        RUNNING = "running", "قيد التشغيل"
+        PAUSED = "paused", "متوقفة مؤقتًا"
+        ENDED = "ended", "منتهية"
+
+    class ScheduleKind(models.TextChoices):
+        REGULAR = "regular", "اعتيادية"
+        SEASONAL = "seasonal", "موسمية"
+
+    date = models.DateField(
+        verbose_name="التاريخ",
+        db_index=True,
+    )
+
+    shift_type = models.ForeignKey(
+        ShiftType,
+        on_delete=models.PROTECT,
+        related_name="shift_plans",
+        verbose_name="نوع الوردية",
+    )
+
+    schedule_kind = models.CharField(
+        max_length=20,
+        choices=ScheduleKind.choices,
+        default=ScheduleKind.REGULAR,
+        db_index=True,
+        verbose_name="نوع الجدولة",
+    )
+
+    seasonal_schedule = models.ForeignKey(
+        SeasonalShiftSchedule,
+        on_delete=models.PROTECT,
+        related_name="shift_plans",
+        null=True,
+        blank=True,
+        verbose_name="الجدولة الموسمية",
+    )
+
+    start_time_override = models.TimeField(
+        null=True,
+        blank=True,
+        verbose_name="وقت البداية الموسمي",
+    )
+
+    end_time_override = models.TimeField(
+        null=True,
+        blank=True,
+        verbose_name="وقت النهاية الموسمي",
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=ShiftStatus.choices,
+        default=ShiftStatus.PREPARATION,
+        verbose_name="حالة الوردية",
+        db_index=True,
+    )
+
+    is_active = models.BooleanField(
+        default=False,
+        verbose_name="وردية نشطة",
+        db_index=True,
+    )
+
+    notes = models.TextField(
+        blank=True,
+        verbose_name="ملاحظات",
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="تاريخ الإنشاء",
+    )
+
+    class Meta:
+        ordering = [
+            "-date",
+            "shift_type__id",
+        ]
+
+        verbose_name = "خطة وردية"
+        verbose_name_plural = "خطط الورديات"
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "date",
+                    "shift_type",
+                    "schedule_kind",
+                ],
+                name="unique_shift_plan_per_date_type_and_kind",
+            ),
+        ]
+
+        indexes = [
+            models.Index(fields=["date"]),
+            models.Index(fields=["status"]),
+            models.Index(fields=["is_active"]),
+            models.Index(fields=["schedule_kind"]),
+            models.Index(fields=["seasonal_schedule"]),
+        ]
+
+        permissions = [
+            (
+                "can_activate_shift",
+                "يمكن تفعيل الوردية",
+            ),
+            (
+                "can_update_shift_status",
+                "يمكن تغيير حالة الوردية",
+            ),
+        ]
+
+    def __str__(self):
+        kind = self.get_schedule_kind_display()
+
+        return (
+            f"{self.shift_type} - "
+            f"{self.date} - "
+            f"{kind} "
+            f"({self.get_status_display()})"
+        )
+
+    def clean(self):
+        super().clean()
+
+        if self.is_active:
+            active_queryset = (
+                ShiftPlan.objects
+                .filter(is_active=True)
+                .exclude(pk=self.pk)
+            )
+
+            if active_queryset.exists():
+                raise ValidationError(
+                    "لا يمكن تفعيل أكثر من وردية واحدة."
+                )
+
+        if self.schedule_kind == self.ScheduleKind.REGULAR:
+            if self.seasonal_schedule_id:
+                raise ValidationError(
+                    {
+                        "seasonal_schedule": (
+                            "لا يمكن ربط الوردية الاعتيادية "
+                            "بجدولة موسمية."
+                        )
+                    }
+                )
+
+            if self.start_time_override:
+                raise ValidationError(
+                    {
+                        "start_time_override": (
+                            "لا يمكن تعيين وقت موسمي "
+                            "للوردية الاعتيادية."
+                        )
+                    }
+                )
+
+            if self.end_time_override:
+                raise ValidationError(
+                    {
+                        "end_time_override": (
+                            "لا يمكن تعيين وقت موسمي "
+                            "للوردية الاعتيادية."
+                        )
+                    }
+                )
+
+        if self.schedule_kind == self.ScheduleKind.SEASONAL:
+            errors = {}
+
+            if not self.seasonal_schedule_id:
+                errors["seasonal_schedule"] = (
+                    "يجب تحديد الجدولة الموسمية."
+                )
+
+            if not self.start_time_override:
+                errors["start_time_override"] = (
+                    "يجب تحديد وقت بداية الوردية الموسمية."
+                )
+
+            if not self.end_time_override:
+                errors["end_time_override"] = (
+                    "يجب تحديد وقت نهاية الوردية الموسمية."
+                )
+
+            if (
+                self.seasonal_schedule_id
+                and self.date
+                and (
+                    self.date < self.seasonal_schedule.start_date
+                    or self.date > self.seasonal_schedule.end_date
+                )
+            ):
+                errors["date"] = (
+                    "تاريخ الوردية خارج فترة الجدولة الموسمية."
+                )
+
+            if errors:
+                raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if self.schedule_kind == self.ScheduleKind.REGULAR:
+            self.seasonal_schedule = None
+            self.start_time_override = None
+            self.end_time_override = None
+
+        if self.is_active:
+            (
+                ShiftPlan.objects
+                .exclude(pk=self.pk)
+                .update(
+                    is_active=False,
+                    status=ShiftPlan.ShiftStatus.ENDED,
+                )
+            )
+
+            self.status = ShiftPlan.ShiftStatus.RUNNING
+
+        self.full_clean()
+
+        super().save(*args, **kwargs)
+
+    @property
+    def effective_start_time(self):
+        """
+        وقت البداية المستخدم فعليًا في الواجهة والتشغيل.
+        """
+        if (
+            self.schedule_kind == self.ScheduleKind.SEASONAL
+            and self.start_time_override
+        ):
+            return self.start_time_override
+
+        return self.shift_type.start_time
+
+    @property
+    def effective_end_time(self):
+        """
+        وقت النهاية المستخدم فعليًا في الواجهة والتشغيل.
+        """
+        if (
+            self.schedule_kind == self.ScheduleKind.SEASONAL
+            and self.end_time_override
+        ):
+            return self.end_time_override
+
+        return self.shift_type.end_time
+
+    @property
+    def is_seasonal(self) -> bool:
+        return self.schedule_kind == self.ScheduleKind.SEASONAL
+
+    @property
+    def season_name(self) -> str:
+        if not self.seasonal_schedule_id:
+            return ""
+
+        return self.seasonal_schedule.get_season_type_display()
+
+    @property
+    def is_running(self) -> bool:
+        return self.status == self.ShiftStatus.RUNNING
+
+    @property
+    def is_finished(self) -> bool:
+        return self.status == self.ShiftStatus.ENDED
+
+
+# ==================================================
+# تسكين الموظفين في الوردية
+# ==================================================
+class ShiftAssignment(models.Model):
+    """
+    تسكين الموظف في وردية مع تحديد دوره التشغيلي.
+    """
+
+    class OperationalRole(models.TextChoices):
+        SHIFT_HEAD = "shift_head", "رئيس الوردية"
+        SHIFT_DEPUTY = "shift_deputy", "نائب الوردية"
+        SUPERVISOR = "supervisor", "مشرف"
+        MONITOR = "monitor", "مراقب"
+        TECHNICIAN = "technician", "فني"
+        ADMIN = "admin", "إداري"
+        SENIOR_ADMIN = "senior_admin", "كبير الإداريين"
+        SUPPORT = "support", "مساند"
+
+    shift_plan = models.ForeignKey(
+        ShiftPlan,
+        on_delete=models.CASCADE,
+        related_name="assignments",
+        verbose_name="الوردية",
+    )
+
+    employee = models.ForeignKey(
+        Employee,
+        on_delete=models.PROTECT,
+        related_name="shift_assignments",
+        verbose_name="الموظف",
+    )
+
+    role = models.CharField(
+        max_length=30,
+        choices=OperationalRole.choices,
+        default=OperationalRole.MONITOR,
+        db_index=True,
+        verbose_name="الدور التشغيلي",
+    )
+
+    is_confirmed = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name="تم التأكيد",
+    )
+
+    notes = models.TextField(
+        blank=True,
+        verbose_name="ملاحظات",
+    )
+
+    assigned_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="تاريخ التسكين",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "shift_plan",
+                    "employee",
+                ],
+                name="unique_employee_per_shift_plan",
+            ),
+        ]
+
+        ordering = [
+            "shift_plan",
+            "role",
+            "employee__employee_number",
+        ]
+
+        verbose_name = "تسكين موظف"
+        verbose_name_plural = "تسكين الموظفين"
+
+        indexes = [
+            models.Index(fields=["shift_plan"]),
+            models.Index(fields=["employee"]),
+            models.Index(fields=["role"]),
+            models.Index(fields=["is_confirmed"]),
+        ]
+
+        permissions = [
+            (
+                "can_assign_employee",
+                "يمكن تسكين الموظف في وردية",
+            ),
+            (
+                "can_confirm_assignment",
+                "يمكن تأكيد التسكين",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.employee} → "
+            f"{self.shift_plan} "
+            f"({self.get_role_display()})"
+        )
+
+    def clean(self):
+        super().clean()
+
+        if (
+            self.shift_plan_id
+            and self.shift_plan.is_finished
+        ):
+            raise ValidationError(
+                "لا يمكن تسكين موظف في وردية منتهية."
+            )
+
+        if (
+            self.employee_id
+            and not self.employee.is_active
+        ):
+            raise ValidationError(
+                "لا يمكن تسكين موظف غير نشط."
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)

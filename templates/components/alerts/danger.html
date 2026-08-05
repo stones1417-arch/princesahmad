@@ -1,0 +1,7 @@
+<div class="alert-box alert-danger-box">
+    <strong>🚨 {{ title|default:"حدث خطأ" }}</strong>
+
+    {% if message %}
+        <p>{{ message }}</p>
+    {% endif %}
+</div>

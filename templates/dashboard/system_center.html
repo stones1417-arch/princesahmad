@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}مركز إدارة النظام | منصة أبواب{% endblock %}
+{% block meta_description %}مركز الحوكمة والإدارة التقنية لمنصة أبواب.{% endblock %}
+{% block body_class %}app-body system-center-body{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/dashboard/system_center.css' %}?v=20260804-1">{% endblock %}
+
+{% block content %}
+<main class="system-center" dir="rtl">
+  {% include "components/system_page_nav.html" %}
+  <nav class="system-breadcrumb" aria-label="مسار التنقل">
+    <a href="{% url 'dashboard:index' %}">الرئيسية</a><span>/</span><strong>إدارة النظام</strong>
+  </nav>
+
+  <section class="system-hero">
+    <div class="system-hero-copy">
+      <span class="system-kicker"><i></i> مركز الحوكمة والتحكم</span>
+      <h1>إدارة النظام</h1>
+      <p>واجهة مركزية لإدارة مكونات المنصة، المستخدمين والصلاحيات، ومراقبة سلامة التشغيل والسجلات الرقابية.</p>
+      <div class="system-health"><span class="system-health-dot"></span><strong>النظام يعمل بصورة طبيعية</strong><small>آخر تحقق {% now "H:i" %}</small></div>
+    </div>
+    <div class="system-hero-mark" aria-hidden="true">
+      <svg viewBox="0 0 64 64"><path d="M32 5 54 13v16c0 14-8.8 24-22 29-13.2-5-22-15-22-29V13L32 5Z"/><circle cx="32" cy="29" r="9"/><path d="M32 15v5M32 38v6M18 29h5M41 29h5M22 19l4 4M38 35l4 4M22 39l4-4M38 23l4-4"/></svg>
+    </div>
+  </section>
+
+  <section class="system-metrics" aria-label="مؤشرات النظام">
+    <article><span class="metric-icon users">م</span><div><small>المستخدمون النشطون</small><strong>{{ active_users }}</strong><em>{{ staff_users }} حسابًا إداريًا</em></div></article>
+    <article><span class="metric-icon roles">ص</span><div><small>مجموعات الصلاحيات</small><strong>{{ groups_count }}</strong><em>أدوار وصول مسجلة</em></div></article>
+    <article><span class="metric-icon data">ب</span><div><small>نماذج البيانات</small><strong>{{ registered_models }}</strong><em>ضمن قاعدة {{ database_vendor|upper }}</em></div></article>
+    <article><span class="metric-icon pulse">ن</span><div><small>نشاط اليوم</small><strong>{{ today_activity }}</strong><em>عملية موثقة</em></div></article>
+  </section>
+
+  <div class="system-layout">
+    <section class="system-panel system-services">
+      <header><div><span>مساحات الإدارة</span><h2>التحكم والحوكمة</h2></div><span class="panel-badge">صلاحية مدير النظام</span></header>
+      <div class="service-grid">
+        <a href="{% url 'admin:index' %}" class="service-card featured">
+          <span class="service-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 15a2 2 0 0 0 .4 2l-2.4 2.4a2 2 0 0 0-2-.4 2 2 0 0 0-1 1.8V21h-4v-.2A2 2 0 0 0 9 19a2 2 0 0 0-2 .4L4.6 17A2 2 0 0 0 5 15a2 2 0 0 0-1.8-1H3v-4h.2A2 2 0 0 0 5 9a2 2 0 0 0-.4-2L7 4.6A2 2 0 0 0 9 5a2 2 0 0 0 1-1.8V3h4v.2A2 2 0 0 0 15 5a2 2 0 0 0 2-.4L19.4 7A2 2 0 0 0 19 9a2 2 0 0 0 1.8 1h.2v4h-.2A2 2 0 0 0 19 15Z"/></svg></span>
+          <span><strong>إعدادات البيانات</strong><small>إدارة سجلات المنصة والتهيئة المتقدمة</small></span><i>‹</i>
+        </a>
+        <a href="{% url 'admin:auth_user_changelist' %}" class="service-card">
+          <span class="service-icon"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-5 3-8 7-8s7 3 7 8M17 9h5M19.5 6.5v5"/></svg></span>
+          <span><strong>المستخدمون والحسابات</strong><small>التفعيل، الوصول، والبيانات التعريفية</small></span><i>‹</i>
+        </a>
+        <a href="{% url 'admin:roles_role_changelist' %}" class="service-card">
+          <span class="service-icon"><svg viewBox="0 0 24 24"><path d="M12 3 20 6v6c0 5-3 8-8 10-5-2-8-5-8-10V6l8-3Z"/><path d="m9 12 2 2 4-5"/></svg></span>
+          <span><strong>الأدوار والصلاحيات</strong><small>ضبط سياسات الوصول ومجموعات العمل</small></span><i>‹</i>
+        </a>
+        <a href="{% url 'audit:history-list' %}" class="service-card">
+          <span class="service-icon"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"/></svg></span>
+          <span><strong>سجل المراجعة</strong><small>تتبع انتقالات الحالات والتغييرات الحساسة</small></span><i>‹</i>
+        </a>
+        <a href="{% url 'dashboard:system-logs' %}" class="service-card">
+          <span class="service-icon"><svg viewBox="0 0 24 24"><path d="M5 3h14v18H5zM8 8h8M8 12h8M8 16h5"/></svg></span>
+          <span><strong>نشاط النظام</strong><small>مراقبة العمليات والاستخدام والتصدير</small></span><i>‹</i>
+        </a>
+        <a href="{% url 'exports_center:logs' %}" class="service-card">
+          <span class="service-icon"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg></span>
+          <span><strong>سجل التصدير</strong><small>الملفات المنشأة وحالات المعالجة والتنزيل</small></span><i>‹</i>
+        </a>
+      </div>
+    </section>
+
+    <aside class="system-panel system-feed">
+      <header><div><span>مراقبة مباشرة</span><h2>أحدث الأنشطة</h2></div><a href="{% url 'dashboard:system-logs' %}">عرض الكل</a></header>
+      <div class="feed-list">
+        {% for log in recent_activity %}
+          <article><span class="feed-dot action-{{ log.action }}"></span><div><strong>{{ log.description|default:log.get_action_display }}</strong><small>{{ log.user.get_full_name|default:log.user.username|default:"عملية نظامية" }} · {{ log.created_at|timesince }}</small></div></article>
+        {% empty %}
+          <div class="feed-empty"><span>✓</span><strong>لا توجد أنشطة حديثة</strong><small>ستظهر العمليات الموثقة هنا تلقائيًا.</small></div>
+        {% endfor %}
+      </div>
+      <footer><span>وقت النظام</span><strong>{{ system_time|date:"Y/m/d · H:i" }}</strong></footer>
+    </aside>
+  </div>
+</main>
+{% endblock %}

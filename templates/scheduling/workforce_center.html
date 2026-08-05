@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}مركز إدارة القوى العاملة | منصة أبواب{% endblock %}
+{% block content %}
+<main class="wf-page" dir="rtl">
+  <section class="wf-hero">
+    <div><span>إدارة الموارد والتشغيل</span><h1>مركز إدارة القوى العاملة</h1><p>منظومة موحدة تبدأ من ملف الموظف، مرورًا بالتسكين، وتنتهي بإدارة الورديات الاعتيادية والموسمية ومتابعة التغطية.</p></div>
+    <div class="wf-hero-actions"><a href="{% url 'hr:create' %}">+ موظف جديد</a><a href="{% url 'scheduling:status' %}">إدارة الورديات</a></div>
+  </section>
+
+  <section class="wf-stats">
+    <article><i class="green">01</i><span>إجمالي الموظفين</span><strong>{{ total_employees }}</strong><small>ملف وظيفي مسجل</small></article>
+    <article><i class="blue">02</i><span>الجاهزون للتسكين</span><strong>{{ ready_employees }}</strong><small>نشطون وعلى رأس العمل</small></article>
+    <article><i class="red">03</i><span>غير المتاحين</span><strong>{{ unavailable_employees }}</strong><small>إجازة، إيقاف أو غير نشط</small></article>
+    <article><i class="gold">04</i><span>فريق الصيانة</span><strong>{{ maintenance_employees }}</strong><small>مؤهلون للتنفيذ الفني</small></article>
+  </section>
+
+  <section class="wf-flow">
+    <div class="wf-title"><div><span>دورة العمل المتكاملة</span><h2>من الموظف إلى الوردية</h2></div><small>تسلسل تشغيلي واضح وقابل للتتبع</small></div>
+    <div class="wf-steps">
+      <a href="{% url 'hr:list' %}"><b>1</b><i>ملف الموظف</i><strong>البيانات والأهلية</strong><span>إدارة الهوية الوظيفية والحالة وصلاحية العمل.</span></a>
+      <a href="{% url 'scheduling:assignments' %}"><b>2</b><i>التسكين</i><strong>تحديد الدور</strong><span>إسناد الموظف للوردية وتأكيد مشاركته.</span></a>
+      <a href="{% url 'distribution:dashboard' %}"><b>3</b><i>التوزيع</i><strong>المواقع والأبواب</strong><span>توزيع الكادر والتحقق من التعارض والتغطية.</span></a>
+      <a href="{% url 'scheduling:status' %}"><b>4</b><i>التشغيل</i><strong>إدارة الوردية</strong><span>إنشاء وتفعيل ومتابعة الاعتيادية والموسمية.</span></a>
+    </div>
+  </section>
+
+  <div class="wf-grid">
+    <section class="wf-card active-card">
+      <div class="wf-title"><div><span>التشغيل الآن</span><h2>الوردية الحالية</h2></div>{% if active_shift %}<em>نشطة</em>{% else %}<em class="off">لا توجد</em>{% endif %}</div>
+      {% if active_shift %}
+        <div class="shift-name"><strong>{{ active_shift.shift_type.name }}</strong><span>{{ active_shift.date }} · {{ active_shift.effective_start_time|time:"H:i" }} — {{ active_shift.effective_end_time|time:"H:i" }}</span></div>
+        <div class="coverage"><div><span>المسكنون</span><b>{{ active_assignments|length }}</b></div><div><span>المؤكدون</span><b>{{ confirmed_assignments }}</b></div><div><span>نوع الوردية</span><b>{% if active_shift.is_seasonal %}موسمية{% else %}اعتيادية{% endif %}</b></div></div>
+        <div class="card-actions"><a href="{% url 'scheduling:assignments' %}">إدارة التسكين</a><a href="{% url 'scheduling:current' %}">عرض الوردية</a><a href="{% url 'distribution:dashboard' %}">توزيع الأبواب</a></div>
+      {% else %}<div class="empty">لا توجد وردية نشطة. انتقل إلى إدارة الورديات لإنشاء خطة اليوم أو تفعيلها.</div><div class="card-actions"><a href="{% url 'scheduling:status' %}">فتح إدارة الورديات</a></div>{% endif %}
+    </section>
+
+    <section class="wf-card">
+      <div class="wf-title"><div><span>التخطيط</span><h2>الورديات القادمة</h2></div><a href="{% url 'scheduling:status' %}">إدارة الكل</a></div>
+      <div class="shift-list">{% for shift in upcoming_shifts %}<div><i class="{% if shift.is_seasonal %}seasonal{% endif %}">{{ shift.date|date:"d" }}<small>{{ shift.date|date:"m" }}</small></i><p><strong>{{ shift.shift_type.name }}</strong><span>{% if shift.is_seasonal %}{{ shift.season.name|default:"وردية موسمية" }}{% else %}وردية اعتيادية{% endif %}</span></p><b>{{ shift.staff_count }} موظف</b></div>{% empty %}<div class="empty">لا توجد خطط ورديات قادمة.</div>{% endfor %}</div>
+    </section>
+  </div>
+
+  <section class="wf-card seasons-card">
+    <div class="wf-title"><div><span>المواسم التشغيلية</span><h2>الورديات الموسمية</h2></div><em>{{ active_seasons }} موسم نشط</em></div>
+    <div class="season-grid">{% for season in seasons %}<article><span class="season-status {{ season.status }}">{{ season.get_status_display }}</span><h3>{{ season.name }}</h3><p>{{ season.get_season_type_display }}</p><div><span>{{ season.start_date }}</span><b>←</b><span>{{ season.end_date }}</span></div></article>{% empty %}<div class="empty">لم تُنشأ مواسم تشغيلية بعد. يمكن إنشاؤها من شاشة إدارة الورديات.</div>{% endfor %}</div>
+    <div class="card-actions"><a href="{% url 'scheduling:status' %}">إنشاء وإدارة جدول موسمي</a></div>
+  </section>
+</main>
+<style>
+.wf-page{--g:#0b6b50;--gold:#c8a85b;--ink:#17212b;max-width:1500px;margin:auto;padding:28px 34px 80px;background:#f4f7f6;color:var(--ink)}
+.wf-hero{display:flex;justify-content:space-between;gap:30px;align-items:center;padding:38px;border-radius:28px;background:linear-gradient(120deg,#075c45,#0b8060);color:#fff;box-shadow:0 20px 45px #075c4530}.wf-hero span,.wf-title>div>span{font-size:12px;font-weight:900;letter-spacing:.06em}.wf-hero h1{font-size:34px;margin:8px 0}.wf-hero p{max-width:750px;line-height:1.8;margin:0;color:#d8f5eb}.wf-hero-actions,.card-actions{display:flex;gap:10px;flex-wrap:wrap}.wf-hero-actions a,.card-actions a{padding:11px 16px;border-radius:12px;text-decoration:none;font-weight:900}.wf-hero-actions a{background:#fff;color:var(--g)}.wf-hero-actions a:first-child{background:var(--gold);color:#17212b}
+.wf-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:22px 0}.wf-stats article,.wf-card,.wf-flow{background:#fff;border:1px solid #e5ebe8;border-radius:22px;padding:22px;box-shadow:0 10px 30px #193c2e0c}.wf-stats i{display:inline-grid;place-items:center;width:38px;height:38px;border-radius:12px;background:#e8f5ef;color:var(--g);font-style:normal;font-weight:900}.wf-stats span,.wf-stats small{display:block;color:#69756f}.wf-stats span{margin-top:14px;font-weight:800}.wf-stats strong{display:block;font-size:30px;margin:5px 0}.wf-title{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:20px}.wf-title h2{margin:5px 0 0;font-size:21px}.wf-title>div>span{color:var(--g)}.wf-title small{color:#7b8681}.wf-title>a{color:var(--g);font-weight:900;text-decoration:none}.wf-title em,.season-status{background:#ddf7ea;color:#08734f;padding:6px 10px;border-radius:999px;font-style:normal;font-size:12px;font-weight:900}.wf-title em.off{background:#f1f3f2;color:#6b7280}
+.wf-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.wf-steps a{position:relative;text-decoration:none;color:var(--ink);padding:20px;border:1px solid #e5ebe8;border-radius:17px;background:#fafcfb}.wf-steps b{position:absolute;left:15px;top:14px;color:#cbd5d0;font-size:24px}.wf-steps i,.wf-steps strong,.wf-steps span{display:block}.wf-steps i{color:var(--g);font-style:normal;font-size:12px;font-weight:900}.wf-steps strong{font-size:18px;margin:10px 0}.wf-steps span{color:#6b756f;line-height:1.7;font-size:13px}.wf-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px;margin:18px 0}.shift-name{padding:20px;border-radius:16px;background:#f1f8f5}.shift-name strong{display:block;font-size:25px;color:var(--g)}.shift-name span{display:block;margin-top:7px;color:#66736d}.coverage{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}.coverage div{border:1px solid #e8ecea;border-radius:14px;padding:14px}.coverage span,.coverage b{display:block}.coverage span{font-size:12px;color:#6b756f}.coverage b{margin-top:7px}.card-actions a{background:#edf6f2;color:var(--g)}.shift-list>div{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #edf0ee}.shift-list i{display:grid;place-items:center;width:46px;height:46px;border-radius:12px;background:#edf6f2;color:var(--g);font-style:normal;font-weight:900}.shift-list i.seasonal{background:#fff3d8;color:#8a6616}.shift-list i small{font-size:9px}.shift-list p{flex:1;margin:0}.shift-list p strong,.shift-list p span{display:block}.shift-list p span{color:#79837e;font-size:12px;margin-top:4px}.shift-list>div>b{font-size:12px;color:#58645e}.season-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.season-grid article{padding:18px;border:1px solid #e4eae7;border-radius:16px}.season-grid h3{margin:14px 0 4px}.season-grid p{color:#748079;margin:0 0 16px}.season-grid article>div{display:flex;justify-content:space-between;color:#59655f;font-size:12px}.season-status.draft{background:#fff3cd;color:#806000}.season-status.archived,.season-status.inactive{background:#eee;color:#666}.empty{padding:22px;text-align:center;color:#758079;background:#f8faf9;border-radius:14px}
+.unified-nav-main-icon svg{width:24px;height:24px;display:block}
+@media(max-width:1050px){.wf-stats,.wf-steps{grid-template-columns:1fr 1fr}.wf-grid{grid-template-columns:1fr}.season-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:650px){.wf-page{padding:18px 14px 60px}.wf-hero{align-items:flex-start;flex-direction:column;padding:26px}.wf-hero h1{font-size:27px}.wf-stats,.wf-steps,.season-grid{grid-template-columns:1fr}.coverage{grid-template-columns:1fr}}
+</style>
+{% endblock %}

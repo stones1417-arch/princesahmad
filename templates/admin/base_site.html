@@ -1,0 +1,18 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | إدارة منصة أبواب{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/admin/abwaab_admin.css' %}?v=20260804-1">{% endblock %}
+
+{% block branding %}
+<div class="abwaab-admin-brand">
+  <span class="abwaab-admin-mark" aria-hidden="true">
+    <svg viewBox="0 0 24 24"><path d="M12 2.5 20 5.6v5.8c0 5.1-3.2 8.6-8 10.1-4.8-1.5-8-5-8-10.1V5.6L12 2.5Z"/><circle cx="12" cy="11.2" r="3"/><path d="M12 6v2M12 14.2v2M7 11.2h2M15 11.2h2"/></svg>
+  </span>
+  <span><strong>إدارة منصة أبواب</strong><small>مركز البيانات والتهيئة المؤسسية</small></span>
+</div>
+{% endblock %}
+
+{% block nav-global %}
+<a class="abwaab-admin-return" href="{% url 'dashboard:system-center' %}"><span>‹</span> العودة إلى مركز النظام</a>
+{% endblock %}

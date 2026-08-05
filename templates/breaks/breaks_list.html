@@ -1,0 +1,1843 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+إدارة الراحات الأسبوعية
+{% endblock %}
+
+
+{% block extra_css %}
+
+    {{ block.super }}
+
+    <link
+        rel="stylesheet"
+        href="{% static 'css/breaks/break_list.css' %}?v=20260801-2"
+    >
+    <link rel="stylesheet" href="{% static 'css/breaks/breaks_enterprise.css' %}?v=20260803-1">
+
+{% endblock %}
+
+
+{% block content %}
+
+<div class="breaks-page" dir="rtl">
+
+    <!-- =====================================================
+         رأس الصفحة
+    ====================================================== -->
+
+    <section class="breaks-hero">
+
+        <div class="breaks-hero-decoration decoration-one"></div>
+        <div class="breaks-hero-decoration decoration-two"></div>
+
+        <div class="breaks-hero-content">
+
+            <div class="breaks-hero-title">
+
+                <div class="breaks-hero-icon">
+                    🗓️
+                </div>
+
+                <div>
+
+                    <span class="breaks-hero-eyebrow">
+                        الموارد البشرية
+                    </span>
+
+                    <h1>
+                        إدارة الراحات الأسبوعية
+                    </h1>
+
+                    <p>
+                        إدارة وتوزيع أيام الراحة على الموظفين حسب الوردية
+                        والمسمى التشغيلي، مع متابعة السجلات النشطة والمعطلة.
+                    </p>
+
+                </div>
+
+            </div>
+
+            <div class="breaks-hero-actions">
+
+                <button
+                    type="button"
+                    class="breaks-hero-button primary"
+                    onclick="scrollToBreakCreate()"
+                >
+                    <span class="button-icon">＋</span>
+                    إضافة راحة
+                </button>
+
+                <button
+                    type="button"
+                    class="breaks-hero-button secondary"
+                    onclick="scrollToBreakList()"
+                >
+                    <span class="button-icon">📋</span>
+                    قائمة الراحات
+                </button>
+
+            </div>
+
+        </div>
+
+    </section>
+
+    <section class="breaks-coverage-strip" aria-label="مؤشر تغطية الراحات">
+        <div class="coverage-copy">
+            <span>مؤشر التغطية التشغيلية</span>
+            <strong>{{ break_coverage_rate }}%</strong>
+            <small>{{ employees_with_breaks }} من أصل {{ active_employee_count }} موظف نشط لديهم راحة معتمدة.</small>
+        </div>
+        <div class="coverage-progress" role="progressbar" aria-valuenow="{{ break_coverage_rate }}" aria-valuemin="0" aria-valuemax="100">
+            <i style="width:{{ break_coverage_rate }}%"></i>
+        </div>
+        <div class="coverage-gap {% if employees_without_breaks == 0 %}is-complete{% endif %}">
+            <span>بحاجة إلى جدولة</span>
+            <strong>{{ employees_without_breaks }}</strong>
+        </div>
+    </section>
+
+
+    <!-- =====================================================
+         الرسائل
+    ====================================================== -->
+
+    {% if messages %}
+
+        <section class="breaks-messages">
+
+            {% for message in messages %}
+
+                <div
+                    class="breaks-message
+                    {% if message.tags %}{{ message.tags }}{% endif %}"
+                >
+
+                    <div class="breaks-message-icon">
+
+                        {% if message.tags == "success" %}
+                            ✓
+                        {% elif message.tags == "error" %}
+                            !
+                        {% elif message.tags == "warning" %}
+                            ⚠
+                        {% else %}
+                            ℹ
+                        {% endif %}
+
+                    </div>
+
+                    <div class="breaks-message-content">
+                        {{ message }}
+                    </div>
+
+                    <button
+                        type="button"
+                        class="breaks-message-close"
+                        onclick="this.parentElement.remove()"
+                        aria-label="إغلاق"
+                    >
+                        ×
+                    </button>
+
+                </div>
+
+            {% endfor %}
+
+        </section>
+
+    {% endif %}
+
+
+    <!-- =====================================================
+         بطاقات الإحصائيات
+    ====================================================== -->
+
+    <section class="breaks-statistics">
+
+        <article class="break-stat-card total">
+
+            <div class="break-stat-decoration"></div>
+
+            <div class="break-stat-icon">
+                📅
+            </div>
+
+            <div class="break-stat-content">
+
+                <span class="break-stat-label">
+                    إجمالي الراحات
+                </span>
+
+                <strong class="break-stat-value">
+                    {{ total_breaks }}
+                </strong>
+
+                <small class="break-stat-description">
+                    جميع السجلات المسجلة
+                </small>
+
+            </div>
+
+        </article>
+
+
+        <article class="break-stat-card active">
+
+            <div class="break-stat-decoration"></div>
+
+            <div class="break-stat-icon">
+                ✓
+            </div>
+
+            <div class="break-stat-content">
+
+                <span class="break-stat-label">
+                    الراحات النشطة
+                </span>
+
+                <strong class="break-stat-value">
+                    {{ active_breaks }}
+                </strong>
+
+                <small class="break-stat-description">
+                    السجلات المعتمدة حاليًا
+                </small>
+
+            </div>
+
+        </article>
+
+
+        <article class="break-stat-card inactive">
+
+            <div class="break-stat-decoration"></div>
+
+            <div class="break-stat-icon">
+                ⏸
+            </div>
+
+            <div class="break-stat-content">
+
+                <span class="break-stat-label">
+                    الراحات غير النشطة
+                </span>
+
+                <strong class="break-stat-value">
+                    {{ inactive_breaks }}
+                </strong>
+
+                <small class="break-stat-description">
+                    السجلات المعطلة
+                </small>
+
+            </div>
+
+        </article>
+
+
+        <article class="break-stat-card employees">
+
+            <div class="break-stat-decoration"></div>
+
+            <div class="break-stat-icon">
+                👥
+            </div>
+
+            <div class="break-stat-content">
+
+                <span class="break-stat-label">
+                    الموظفون
+                </span>
+
+                <strong class="break-stat-value">
+                    {{ employees_with_breaks }}
+                </strong>
+
+                <small class="break-stat-description">
+                    لديهم راحة نشطة
+                </small>
+
+            </div>
+
+        </article>
+
+    </section>
+
+
+    <!-- =====================================================
+         توزيع الراحات حسب الورديات
+    ====================================================== -->
+
+    <section class="break-panel shift-distribution-panel">
+
+        <div class="break-panel-header">
+
+            <div class="break-panel-heading">
+
+                <div class="break-panel-icon">
+                    🕒
+                </div>
+
+                <div>
+
+                    <h2>
+                        توزيع الراحات حسب الورديات
+                    </h2>
+
+                    <p>
+                        عدد الراحات النشطة المسجلة في كل وردية.
+                    </p>
+
+                </div>
+
+            </div>
+
+            <div class="break-panel-badge">
+                {{ active_breaks }} راحة نشطة
+            </div>
+
+        </div>
+
+
+        {% if shift_stats %}
+
+            <div class="shift-distribution-grid">
+
+                {% for item in shift_stats %}
+
+                    <article class="shift-distribution-card">
+
+                        <div class="shift-card-top">
+
+                            <div class="shift-card-icon">
+                                🕘
+                            </div>
+
+                            <span class="shift-card-number">
+                                {{ item.total }}
+                            </span>
+
+                        </div>
+
+                        <div class="shift-card-content">
+
+                            <span class="shift-card-label">
+                                الوردية
+                            </span>
+
+                            <strong>
+                                {{ item.shift_type__name|default:"غير محددة" }}
+                            </strong>
+
+                        </div>
+
+                        <div class="shift-card-progress">
+
+                            <span
+                                style="width:
+                                {% widthratio item.total active_breaks 100 %}%"
+                            ></span>
+
+                        </div>
+
+                    </article>
+
+                {% endfor %}
+
+            </div>
+
+        {% else %}
+
+            <div class="shift-distribution-empty">
+
+                <div class="shift-empty-icon">
+                    🗓️
+                </div>
+
+                <div>
+
+                    <h3>
+                        لا توجد بيانات توزيع
+                    </h3>
+
+                    <p>
+                        ستظهر إحصائيات الورديات بعد إضافة الراحات النشطة.
+                    </p>
+
+                </div>
+
+            </div>
+
+        {% endif %}
+
+    </section>
+    <!-- =====================================================
+     إضافة راحة أسبوعية
+====================================================== -->
+
+<section
+    class="break-panel"
+    id="break-create-section"
+>
+
+    <div class="break-panel-header">
+
+        <div class="break-panel-heading">
+
+            <div class="break-panel-icon">
+                ✏️
+            </div>
+
+            <div>
+
+                <h2>
+                    إضافة راحة أسبوعية
+                </h2>
+
+                <p>
+
+                    قم بتحديد الموظف والوردية والمسمى التشغيلي
+                    ثم أيام الراحة الخاصة به.
+
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <form
+        method="post"
+        action="{% url 'breaks:create' %}"
+        id="breakCreateForm"
+    >
+
+        {% csrf_token %}
+
+        <div class="break-create-layout">
+
+            <!-- ===========================
+                 النموذج
+            ============================ -->
+
+            <div class="break-form-card">
+
+                <div class="break-form-grid">
+
+                    <div class="break-field">
+
+                        <label for="employeeSelect">الموظف <small>مطلوب</small></label>
+
+                        <select
+                            id="employeeSelect"
+                            name="employee_id"
+                            required
+                        >
+
+                            <option value="">
+                                اختر الموظف
+                            </option>
+
+                            {% for emp in employees %}
+
+                                <option
+                                    value="{{ emp.id }}"
+                                    data-name="{{ emp.full_name }}"
+                                    data-number="{{ emp.employee_number }}"
+                                >
+
+                                    {{ emp.full_name }}
+                                    —
+                                    {{ emp.employee_number }}
+
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="break-field">
+
+                        <label for="shiftSelect">نوع الوردية <small>مطلوب</small></label>
+
+                        <select
+                            id="shiftSelect"
+                            name="shift_type_id"
+                            required
+                        >
+
+                            <option value="">
+                                اختر الوردية
+                            </option>
+
+                            {% for shift in shift_types %}
+
+                                <option
+                                    value="{{ shift.id }}"
+                                    data-name="{{ shift.name }}"
+                                >
+
+                                    {{ shift.name }}
+
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="break-field">
+
+                        <label for="jobTitleSelect">المسمى التشغيلي <small>مطلوب</small></label>
+
+                        <select
+                            id="jobTitleSelect"
+                            name="job_title"
+                            required
+                        >
+
+                            <option value="">
+                                اختر المسمى
+                            </option>
+
+                            {% for value,label in job_title_choices %}
+
+                                <option
+                                    value="{{ value }}"
+                                    data-name="{{ label }}"
+                                >
+
+                                    {{ label }}
+
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="break-field">
+
+                        <label for="restDaysSelect">أيام الراحة <small>مطلوب</small></label>
+
+                        <select
+                            id="restDaysSelect"
+                            name="rest_days"
+                            required
+                        >
+
+                            <option value="">
+                                اختر أيام الراحة
+                            </option>
+
+                            {% for value,label in rest_days_choices %}
+
+                                <option
+                                    value="{{ value }}"
+                                    data-name="{{ label }}"
+                                >
+
+                                    {{ label }}
+
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="break-field break-notes">
+
+                        <label for="breakCreateNotes">الملاحظات <small class="optional">اختياري</small></label>
+
+                        <textarea
+                            id="breakCreateNotes"
+                            name="notes"
+                            maxlength="1000"
+                            rows="5"
+                            placeholder="اكتب أي ملاحظات إضافية..."
+                        ></textarea>
+                        <div class="break-field-meta"><span>تفاصيل إضافية لفريق الموارد البشرية</span><b id="breakNotesCount">0/1000</b></div>
+
+                    </div>
+
+
+                    <div class="break-submit">
+
+                        <button
+                            class="break-save-button"
+                            type="submit"
+                        >
+
+                            <span aria-hidden="true">✓</span>
+                            <b>حفظ واعتماد الراحة</b>
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- ===========================
+                 الملخص المباشر
+            ============================ -->
+
+            <aside class="break-preview-card">
+
+                <div class="preview-header">
+
+                    <div class="preview-icon">
+
+                        👁
+
+                    </div>
+
+                    <div>
+
+                        <h3>
+
+                            ملخص العملية
+
+                        </h3>
+
+                        <span>
+
+                            يتحدث تلقائياً
+
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <div class="preview-items">
+
+                    <div class="preview-item">
+
+                        <span>
+
+                            الموظف
+
+                        </span>
+
+                        <strong id="previewEmployee">
+
+                            —
+
+                        </strong>
+
+                    </div>
+
+
+                    <div class="preview-item">
+
+                        <span>
+
+                            الرقم الوظيفي
+
+                        </span>
+
+                        <strong id="previewEmployeeNumber">
+
+                            —
+
+                        </strong>
+
+                    </div>
+
+
+                    <div class="preview-item">
+
+                        <span>
+
+                            الوردية
+
+                        </span>
+
+                        <strong id="previewShift">
+
+                            —
+
+                        </strong>
+
+                    </div>
+
+
+                    <div class="preview-item">
+
+                        <span>
+
+                            المسمى
+
+                        </span>
+
+                        <strong id="previewJob">
+
+                            —
+
+                        </strong>
+
+                    </div>
+
+
+                    <div class="preview-item">
+
+                        <span>
+
+                            أيام الراحة
+
+                        </span>
+
+                        <strong id="previewRest">
+
+                            —
+
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <div class="preview-alert">
+
+                    سيتم إنشاء الراحة
+                    وربطها مباشرة بالموظف
+                    بعد الضغط على زر الحفظ.
+
+                </div>
+
+            </aside>
+
+        </div>
+
+    </form>
+
+</section>
+<!-- =====================================================
+     البحث والفلاتر
+====================================================== -->
+
+<section class="break-panel" id="break-filters-section">
+
+    <div class="break-panel-header">
+
+        <div class="break-panel-heading">
+
+            <div class="break-panel-icon">
+                🔎
+            </div>
+
+            <div>
+
+                <h2>
+                    البحث والفلترة
+                </h2>
+
+                <p>
+                    ابحث باسم الموظف أو رقمه الوظيفي،
+                    وحدد الوردية أو المسمى أو حالة الراحة.
+                </p>
+
+            </div>
+
+        </div>
+
+        <div class="break-panel-badge">
+            {{ breaks|length }} نتيجة
+        </div>
+
+    </div>
+
+
+    <form
+        method="get"
+        action="{% url 'breaks:list' %}"
+        id="breakFiltersForm"
+    >
+
+        <div class="break-filters-grid">
+
+            <div class="break-filter-field search">
+
+                <label for="breakSearch">
+                    البحث
+                </label>
+
+                <div class="break-search-wrapper">
+
+                    <span class="break-search-icon">
+                        🔎
+                    </span>
+
+                    <input
+                        type="search"
+                        id="breakSearch"
+                        name="q"
+                        value="{{ q }}"
+                        placeholder="اسم الموظف، الرقم الوظيفي، الجوال أو الملاحظات"
+                    >
+
+                </div>
+
+            </div>
+
+
+            <div class="break-filter-field">
+
+                <label for="filterShift">
+                    الوردية
+                </label>
+
+                <select
+                    id="filterShift"
+                    name="shift_type"
+                >
+
+                    <option value="">
+                        كل الورديات
+                    </option>
+
+                    {% for shift in shift_types %}
+
+                        <option
+                            value="{{ shift.id }}"
+                            {% if selected_shift_type == shift.id|stringformat:"s" %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ shift.name }}
+                        </option>
+
+                    {% endfor %}
+
+                </select>
+
+            </div>
+
+
+            <div class="break-filter-field">
+
+                <label for="filterJob">
+                    المسمى
+                </label>
+
+                <select
+                    id="filterJob"
+                    name="job_title"
+                >
+
+                    <option value="">
+                        كل المسميات
+                    </option>
+
+                    {% for value,label in job_title_choices %}
+
+                        <option
+                            value="{{ value }}"
+                            {% if selected_job_title == value %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ label }}
+                        </option>
+
+                    {% endfor %}
+
+                </select>
+
+            </div>
+
+
+            <div class="break-filter-field">
+
+                <label for="filterRestDays">
+                    أيام الراحة
+                </label>
+
+                <select
+                    id="filterRestDays"
+                    name="rest_days"
+                >
+
+                    <option value="">
+                        كل أيام الراحة
+                    </option>
+
+                    {% for value,label in rest_days_choices %}
+
+                        <option
+                            value="{{ value }}"
+                            {% if selected_rest_days == value %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ label }}
+                        </option>
+
+                    {% endfor %}
+
+                </select>
+
+            </div>
+
+
+            <div class="break-filter-field">
+
+                <label for="filterStatus">
+                    الحالة
+                </label>
+
+                <select
+                    id="filterStatus"
+                    name="active"
+                >
+
+                    <option value="">
+                        كل الحالات
+                    </option>
+
+                    <option
+                        value="active"
+                        {% if selected_active == "active" %}
+                            selected
+                        {% endif %}
+                    >
+                        نشط
+                    </option>
+
+                    <option
+                        value="inactive"
+                        {% if selected_active == "inactive" %}
+                            selected
+                        {% endif %}
+                    >
+                        غير نشط
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <div class="break-filter-actions">
+
+                <button
+                    type="submit"
+                    class="break-filter-button primary"
+                >
+                    تطبيق الفلاتر
+                </button>
+
+                <a
+                    href="{% url 'breaks:list' %}"
+                    class="break-filter-button secondary"
+                >
+                    إعادة ضبط
+                </a>
+
+            </div>
+
+        </div>
+
+        <div class="break-active-filters" aria-live="polite">
+            <strong>الفلاتر النشطة</strong>
+            {% if q %}<span>بحث: {{ q|truncatechars:25 }}</span>{% endif %}
+            {% if selected_shift_type %}<span>وردية محددة</span>{% endif %}
+            {% if selected_job_title %}<span>مسمى محدد</span>{% endif %}
+            {% if selected_rest_days %}<span>أيام محددة</span>{% endif %}
+            {% if selected_active %}<span>حالة محددة</span>{% endif %}
+            {% if not q and not selected_shift_type and not selected_job_title and not selected_rest_days and not selected_active %}<em>يتم عرض جميع السجلات</em>{% endif %}
+        </div>
+
+    </form>
+
+</section>
+
+{% if recent_break_history %}
+<section class="break-panel break-audit-panel">
+    <div class="break-panel-header">
+        <div class="break-panel-heading"><div class="break-panel-icon">↺</div><div><h2>سجل العمليات الأخير</h2><p>آخر الإجراءات الموثقة على الراحات الأسبوعية.</p></div></div>
+        <div class="break-panel-badge">آخر {{ recent_break_history|length }} إجراء</div>
+    </div>
+    <div class="break-audit-list">
+        {% for item in recent_break_history %}
+        <article class="break-audit-item action-{{ item.action }}">
+            <i aria-hidden="true">{% if item.action == 'create' %}＋{% elif item.action == 'update' %}✎{% elif item.action == 'delete' %}×{% elif item.action == 'activate' %}✓{% else %}Ⅱ{% endif %}</i>
+            <div><strong>{{ item.get_action_display }}</strong><span>{{ item.employee.full_name }} · {{ item.shift_type.name }}</span>{% if item.reason %}<small>{{ item.reason|truncatechars:80 }}</small>{% endif %}</div>
+            <time datetime="{{ item.created_at|date:'c' }}">{{ item.created_at|date:"Y/m/d" }}<small>{{ item.created_at|time:"H:i" }}</small></time>
+            <em>{% if item.performed_by %}{{ item.performed_by.get_full_name|default:item.performed_by.username }}{% else %}النظام{% endif %}</em>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+
+<!-- =====================================================
+     قائمة الراحات
+====================================================== -->
+
+<section
+    class="break-panel"
+    id="break-list-section"
+>
+
+    <div class="break-panel-header">
+
+        <div class="break-panel-heading">
+
+            <div class="break-panel-icon">
+                📋
+            </div>
+
+            <div>
+
+                <h2>
+                    قائمة الراحات الأسبوعية
+                </h2>
+
+                <p>
+                    عرض وإدارة جميع الراحات المسجلة في النظام.
+                </p>
+
+            </div>
+
+        </div>
+
+        <div class="break-panel-badge">
+            {{ breaks|length }} سجل
+        </div>
+
+    </div>
+
+
+    <div class="breaks-table-wrapper">
+
+        <table class="breaks-table">
+
+            <thead>
+
+                <tr>
+
+                    <th>
+                        #
+                    </th>
+
+                    <th>
+                        الموظف
+                    </th>
+
+                    <th>
+                        الوردية
+                    </th>
+
+                    <th>
+                        المسمى
+                    </th>
+
+                    <th>
+                        أيام الراحة
+                    </th>
+
+                    <th>
+                        الحالة
+                    </th>
+
+                    <th>
+                        الملاحظات
+                    </th>
+
+                    <th>
+                        آخر تحديث
+                    </th>
+
+                    <th>
+                        الإجراءات
+                    </th>
+
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+                {% for break_obj in breaks %}
+
+                    <tr
+                        class="{% if not break_obj.is_active %}inactive-row{% endif %}"
+                    >
+
+                        <td>
+
+                            <span class="break-row-number">
+                                {{ forloop.counter }}
+                            </span>
+
+                        </td>
+
+                        <td>
+
+                            <div class="break-employee-cell">
+
+                                <div class="break-employee-avatar">
+                                    {{ break_obj.employee.full_name|first }}
+                                </div>
+
+                                <div class="break-employee-info">
+
+                                    <strong>
+                                        {{ break_obj.employee.full_name }}
+                                    </strong>
+
+                                    <span>
+                                        {{ break_obj.employee.employee_number }}
+                                    </span>
+
+                                    {% if break_obj.employee.phone_number %}
+
+                                        <small>
+                                            {{ break_obj.employee.phone_number }}
+                                        </small>
+
+                                    {% endif %}
+
+                                </div>
+
+                            </div>
+
+                        </td>
+
+                        <td>
+
+                            <span class="break-shift-badge">
+
+                                <span class="break-badge-dot"></span>
+
+                                {{ break_obj.shift_type.name }}
+
+                            </span>
+
+                        </td>
+
+                        <td>
+
+                            <span class="break-job-badge">
+                                {{ break_obj.get_job_title_display }}
+                            </span>
+
+                        </td>
+
+                        <td>
+
+                            <span class="break-days-badge">
+                                🗓️
+                                {{ break_obj.get_rest_days_display }}
+                            </span>
+
+                        </td>
+
+                        <td>
+
+                            {% if break_obj.is_active %}
+
+                                <span class="break-status-badge active">
+
+                                    <span class="break-status-dot"></span>
+
+                                    نشط
+
+                                </span>
+
+                            {% else %}
+
+                                <span class="break-status-badge inactive">
+
+                                    <span class="break-status-dot"></span>
+
+                                    غير نشط
+
+                                </span>
+
+                            {% endif %}
+
+                        </td>
+
+                        <td>
+
+                            {% if break_obj.notes %}
+
+                                <span
+                                    class="break-notes-text"
+                                    title="{{ break_obj.notes }}"
+                                >
+                                    {{ break_obj.notes|truncatechars:45 }}
+                                </span>
+
+                            {% else %}
+
+                                <span class="break-empty-text">
+                                    لا توجد ملاحظات
+                                </span>
+
+                            {% endif %}
+
+                        </td>
+
+                        <td>
+
+                            <div class="break-date-cell">
+
+                                <strong>
+                                    {{ break_obj.updated_at|date:"Y/m/d" }}
+                                </strong>
+
+                                <span>
+                                    {{ break_obj.updated_at|time:"h:i A" }}
+                                </span>
+
+                            </div>
+
+                        </td>
+
+                        <td>
+
+                            <div class="break-actions">
+
+                                <button
+                                    type="button"
+                                    class="break-action-button details"
+                                    title="عرض التفاصيل"
+                                    onclick="openBreakDetails(
+                                        '{{ break_obj.id }}',
+                                        '{{ break_obj.employee.full_name|escapejs }}',
+                                        '{{ break_obj.employee.employee_number|escapejs }}',
+                                        '{{ break_obj.shift_type.name|escapejs }}',
+                                        '{{ break_obj.get_job_title_display|escapejs }}',
+                                        '{{ break_obj.get_rest_days_display|escapejs }}',
+                                        '{{ break_obj.notes|default:"—"|escapejs }}',
+                                        '{% if break_obj.is_active %}نشط{% else %}غير نشط{% endif %}',
+                                        '{{ break_obj.created_at|date:"Y/m/d h:i A" }}',
+                                        '{{ break_obj.updated_at|date:"Y/m/d h:i A" }}'
+                                    )"
+                                >
+                                    👁
+                                </button>
+
+
+                                <button
+                                    type="button"
+                                    class="break-action-button edit"
+                                    title="تعديل الراحة"
+                                    onclick="openBreakEdit(
+                                        '{{ break_obj.id }}',
+                                        '{{ break_obj.employee.id }}',
+                                        '{{ break_obj.employee.full_name|escapejs }}',
+                                        '{{ break_obj.employee.employee_number|escapejs }}',
+                                        '{{ break_obj.shift_type.id }}',
+                                        '{{ break_obj.job_title|escapejs }}',
+                                        '{{ break_obj.rest_days|escapejs }}',
+                                        '{{ break_obj.notes|default:""|escapejs }}',
+                                        '{% url "breaks:update" break_obj.id %}'
+                                    )"
+                                >
+                                    ✏️
+                                </button>
+
+
+                                <form
+                                    method="post"
+                                    action="{% url 'breaks:toggle' break_obj.id %}"
+                                    class="break-inline-form"
+                                    onsubmit="return confirmBreakToggle(
+                                        '{% if break_obj.is_active %}تعطيل{% else %}تفعيل{% endif %}',
+                                        '{{ break_obj.employee.full_name|escapejs }}'
+                                    )"
+                                >
+
+                                    {% csrf_token %}
+
+                                    {% if break_obj.is_active %}
+
+                                        <button
+                                            type="submit"
+                                            class="break-action-button disable"
+                                            title="تعطيل الراحة"
+                                        >
+                                            ⏸
+                                        </button>
+
+                                    {% else %}
+
+                                        <button
+                                            type="submit"
+                                            class="break-action-button enable"
+                                            title="تفعيل الراحة"
+                                        >
+                                            ✓
+                                        </button>
+
+                                    {% endif %}
+
+                                </form>
+
+
+                                <form
+                                    method="post"
+                                    action="{% url 'breaks:delete' break_obj.id %}"
+                                    class="break-inline-form"
+                                    onsubmit="return confirmBreakDelete(
+                                        '{{ break_obj.employee.full_name|escapejs }}'
+                                    )"
+                                >
+
+                                    {% csrf_token %}
+
+                                    <button
+                                        type="submit"
+                                        class="break-action-button delete"
+                                        title="حذف الراحة"
+                                    >
+                                        🗑
+                                    </button>
+
+                                </form>
+
+                            </div>
+
+                        </td>
+
+                    </tr>
+
+                {% empty %}
+
+                    <tr>
+
+                        <td
+                            colspan="9"
+                            class="break-empty-table-cell"
+                        >
+
+                            <div class="break-empty-state">
+
+                                <div class="break-empty-state-icon">
+                                    🗓️
+                                </div>
+
+                                <h3>
+                                    لا توجد راحات مطابقة
+                                </h3>
+
+                                <p>
+                                    لم يتم العثور على سجلات وفق معايير البحث الحالية.
+                                </p>
+
+                                <a
+                                    href="{% url 'breaks:list' %}"
+                                    class="break-empty-reset"
+                                >
+                                    عرض جميع الراحات
+                                </a>
+
+                            </div>
+
+                        </td>
+
+                    </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</section>
+
+
+<!-- =====================================================
+     نافذة تعديل الراحة
+====================================================== -->
+
+<div
+    class="break-details-modal"
+    id="breakEditModal"
+    aria-hidden="true"
+>
+
+    <div
+        class="break-modal-backdrop"
+        data-close-break-edit
+    ></div>
+
+    <div
+        class="break-modal-dialog break-edit-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="breakEditModalTitle"
+    >
+
+        <div class="break-modal-header">
+
+            <div>
+
+                <span class="break-modal-eyebrow">
+                    تعديل الراحة
+                </span>
+
+                <h2 id="breakEditModalTitle">
+                    تحديث بيانات الراحة الأسبوعية
+                </h2>
+
+            </div>
+
+            <button
+                type="button"
+                class="break-modal-close"
+                id="breakEditModalClose"
+                aria-label="إغلاق نافذة التعديل"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <form
+            method="post"
+            action=""
+            id="breakEditForm"
+        >
+
+            {% csrf_token %}
+
+            <div class="break-modal-body">
+
+                <section class="break-edit-employee-summary">
+
+                    <div
+                        class="break-modal-avatar"
+                        id="editEmployeeAvatar"
+                    >
+                        —
+                    </div>
+
+                    <div>
+
+                        <h3 id="editEmployeeName">
+                            —
+                        </h3>
+
+                        <span id="editEmployeeNumber">
+                            —
+                        </span>
+
+                    </div>
+
+                </section>
+
+
+                <div class="break-edit-grid">
+
+                    <div class="break-field">
+
+                        <label for="editEmployeeSelect">
+                            الموظف
+                        </label>
+
+                        <select
+                            id="editEmployeeSelect"
+                            name="employee_id"
+                            required
+                        >
+
+                            <option value="">
+                                اختر الموظف
+                            </option>
+
+                            {% for emp in employees %}
+
+                                <option
+                                    value="{{ emp.id }}"
+                                    data-name="{{ emp.full_name }}"
+                                    data-number="{{ emp.employee_number }}"
+                                >
+                                    {{ emp.full_name }}
+                                    —
+                                    {{ emp.employee_number }}
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="break-field">
+
+                        <label for="editShiftSelect">
+                            نوع الوردية
+                        </label>
+
+                        <select
+                            id="editShiftSelect"
+                            name="shift_type_id"
+                            required
+                        >
+
+                            <option value="">
+                                اختر الوردية
+                            </option>
+
+                            {% for shift in shift_types %}
+
+                                <option value="{{ shift.id }}">
+                                    {{ shift.name }}
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="break-field">
+
+                        <label for="editJobTitleSelect">
+                            المسمى التشغيلي
+                        </label>
+
+                        <select
+                            id="editJobTitleSelect"
+                            name="job_title"
+                            required
+                        >
+
+                            <option value="">
+                                اختر المسمى
+                            </option>
+
+                            {% for value,label in job_title_choices %}
+
+                                <option value="{{ value }}">
+                                    {{ label }}
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="break-field">
+
+                        <label for="editRestDaysSelect">
+                            أيام الراحة
+                        </label>
+
+                        <select
+                            id="editRestDaysSelect"
+                            name="rest_days"
+                            required
+                        >
+
+                            <option value="">
+                                اختر أيام الراحة
+                            </option>
+
+                            {% for value,label in rest_days_choices %}
+
+                                <option value="{{ value }}">
+                                    {{ label }}
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="break-field break-notes break-edit-full">
+
+                        <label for="editNotes">
+                            الملاحظات
+                        </label>
+
+                        <textarea
+                            id="editNotes"
+                            name="notes"
+                            rows="4"
+                            maxlength="2000"
+                            placeholder="اكتب الملاحظات..."
+                        ></textarea>
+
+                    </div>
+
+
+                    <div class="break-field break-edit-full">
+
+                        <label for="editChangeReason">
+                            سبب التعديل
+                        </label>
+
+                        <textarea
+                            id="editChangeReason"
+                            name="change_reason"
+                            rows="3"
+                            maxlength="1000"
+                            placeholder="اكتب سبب التعديل لتسجيله في سجل التدقيق..."
+                            required
+                        ></textarea>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="break-modal-footer">
+
+                <button
+                    type="button"
+                    class="break-modal-button secondary"
+                    data-close-break-edit
+                >
+                    إلغاء
+                </button>
+
+                <button
+                    type="submit"
+                    class="break-modal-button primary"
+                    id="breakEditSubmit"
+                >
+                    💾 حفظ التعديلات
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+<!-- =====================================================
+     نافذة تفاصيل الراحة
+====================================================== -->
+
+<div
+    class="break-details-modal"
+    id="breakDetailsModal"
+    aria-hidden="true"
+>
+
+    <div
+        class="break-modal-backdrop"
+        onclick="closeBreakDetails()"
+    ></div>
+
+    <div
+        class="break-modal-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="breakModalTitle"
+    >
+
+        <div class="break-modal-header">
+
+            <div>
+
+                <span class="break-modal-eyebrow">
+                    تفاصيل الراحة
+                </span>
+
+                <h2 id="breakModalTitle">
+                    معلومات الراحة الأسبوعية
+                </h2>
+
+            </div>
+
+            <button
+                type="button"
+                class="break-modal-close"
+                onclick="closeBreakDetails()"
+                aria-label="إغلاق"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <div class="break-modal-body">
+
+            <div class="break-modal-employee">
+
+                <div
+                    class="break-modal-avatar"
+                    id="modalEmployeeAvatar"
+                >
+                    —
+                </div>
+
+                <div>
+
+                    <h3 id="modalEmployeeName">
+                        —
+                    </h3>
+
+                    <span id="modalEmployeeNumber">
+                        —
+                    </span>
+
+                </div>
+
+                <span
+                    class="break-modal-status"
+                    id="modalBreakStatus"
+                >
+                    —
+                </span>
+
+            </div>
+
+
+            <div class="break-modal-grid">
+
+                <div class="break-modal-item">
+
+                    <span>
+                        الوردية
+                    </span>
+
+                    <strong id="modalShift">
+                        —
+                    </strong>
+
+                </div>
+
+                <div class="break-modal-item">
+
+                    <span>
+                        المسمى
+                    </span>
+
+                    <strong id="modalJob">
+                        —
+                    </strong>
+
+                </div>
+
+                <div class="break-modal-item full">
+
+                    <span>
+                        أيام الراحة
+                    </span>
+
+                    <strong id="modalRestDays">
+                        —
+                    </strong>
+
+                </div>
+
+                <div class="break-modal-item full">
+
+                    <span>
+                        الملاحظات
+                    </span>
+
+                    <strong id="modalNotes">
+                        —
+                    </strong>
+
+                </div>
+
+                <div class="break-modal-item">
+
+                    <span>
+                        تاريخ الإنشاء
+                    </span>
+
+                    <strong id="modalCreatedAt">
+                        —
+                    </strong>
+
+                </div>
+
+                <div class="break-modal-item">
+
+                    <span>
+                        آخر تحديث
+                    </span>
+
+                    <strong id="modalUpdatedAt">
+                        —
+                    </strong>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="break-modal-footer">
+
+            <button
+                type="button"
+                class="break-modal-button"
+                onclick="closeBreakDetails()"
+            >
+                إغلاق
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+</div>
+
+{% endblock %}
+
+
+{% block extra_js %}
+
+    {{ block.super }}
+
+    <script
+        src="{% static 'js/breaks/break_list.js' %}?v=20260801-2"
+        defer
+    ></script>
+    <script src="{% static 'js/breaks/breaks_enterprise.js' %}?v=20260803-1" defer></script>
+
+{% endblock %}

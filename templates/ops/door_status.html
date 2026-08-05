@@ -1,0 +1,836 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="doors-page" dir="rtl">
+
+  <div class="page-head enterprise-door-head">
+    <div>
+      <span class="door-eyebrow">إدارة الأصول التشغيلية</span><h2>حالات الأبواب</h2>
+
+      {% if active_shift %}
+        <div class="door-shift-summary">
+          <span>الوردية النشطة</span>
+          <strong>{{ active_shift.shift_type.name }}</strong>
+          <b>{{ active_shift.date|date:"Y-m-d" }}</b>
+          <small>
+            {% if active_shift.start_time %}{{ active_shift.start_time|time:"H:i" }}{% else %}{{ active_shift.shift_type.start_time|time:"H:i" }}{% endif %}
+            —
+            {% if active_shift.end_time %}{{ active_shift.end_time|time:"H:i" }}{% else %}{{ active_shift.shift_type.end_time|time:"H:i" }}{% endif %}
+          </small>
+        </div>
+      {% else %}
+        <p class="danger">لا توجد وردية نشطة حاليًا</p>
+      {% endif %}
+    </div>
+    <div class="door-head-actions"><a href="{% url 'ops:operations-center' %}">مركز العمليات</a><a href="{% url 'audit:history-list' %}">سجل التدقيق</a><a class="gold" href="{% url 'exports_center:dashboard' %}">تصدير الحالات</a></div>
+  </div>
+
+  {% if not active_shift %}
+
+    <div class="alert-box">
+      لا توجد وردية نشطة حاليًا. فعّل وردية من صفحة حالات الورديات.
+    </div>
+
+  {% else %}
+
+    <div class="stats-grid">
+
+      <div class="stat-card total"><span>إجمالي الأبواب</span><strong>{{ total_count }}</strong></div>
+
+      <div class="stat-card open">
+        <span>الأبواب المفتوحة</span>
+        <strong id="kpi-open">{{ open_count }}</strong>
+      </div>
+
+      <div class="stat-card closed">
+        <span>الأبواب المغلقة</span>
+        <strong id="kpi-closed">{{ closed_count }}</strong>
+      </div>
+
+      <div class="stat-card maintenance">
+        <span>تحت الصيانة</span>
+        <strong id="kpi-maintenance">{{ maintenance_count }}</strong>
+      </div>
+
+      <div class="stat-card secured">
+        <span>الأبواب المؤمنة</span>
+        <strong id="kpi-secured">{{ secured_count }}</strong>
+      </div>
+
+      <div class="stat-card readiness"><span>نسبة الجاهزية</span><strong>{{ readiness_rate }}%</strong></div>
+
+    </div>
+
+    <div class="filter-card">
+      <input
+        id="searchInput"
+        type="text"
+        placeholder="بحث برقم الباب أو اسم المشرف"
+        onkeyup="applyDoorFilters()">
+
+      <select id="stateFilter" onchange="applyDoorFilters()">
+        <option value="all">كل الحالات</option>
+        <option value="open">مفتوح</option>
+        <option value="closed">مغلق</option>
+        <option value="maintenance">تحت صيانة</option>
+        <option value="secured">مؤمّن</option>
+      </select>
+
+      <select id="directionFilter" onchange="applyDoorFilters()"><option value="all">كل الجهات</option><option value="south">الجهة الجنوبية</option><option value="west">الجهة الغربية</option><option value="north">الجهة الشمالية</option><option value="east">الجهة الشرقية</option><option value="southeast">الجهة الجنوبية الشرقية</option></select>
+
+      <button type="button" onclick="resetDoorFilters()">
+        إعادة تعيين
+      </button>
+    </div>
+
+    <div class="doors-grid">
+
+      {% for shift in active_door_shifts %}
+
+        <div
+          id="door-card-{{ shift.id }}"
+          class="door-card {{ shift.state }}"
+          data-state="{{ shift.state }}"
+          data-direction="{{ shift.direction_key }}"
+          data-door-number="{{ shift.door_number }}"
+          data-supervisor="
+            {% if shift.supervisor and shift.supervisor.employee %}
+              {{ shift.supervisor.employee.full_name }}
+            {% elif shift.supervisor %}
+              {{ shift.supervisor.username }}
+            {% endif %}
+          ">
+
+          <div class="door-top">
+            <div>
+              <div class="door-number">باب {{ shift.door_number }}</div>
+              <div class="door-sub">
+                آخر تحديث:
+                <span id="updated-{{ shift.id }}">
+                  {{ shift.updated_at|date:"Y-m-d H:i" }}
+                </span>
+              </div>
+            </div>
+
+            <span id="state-{{ shift.id }}" class="status-pill {{ shift.state }}">
+              {{ shift.get_state_display }}
+            </span>
+          </div>
+
+          <div class="door-body">
+
+            <div class="info-row"><span>الجهة</span><strong>{{ shift.direction_label }}</strong></div>
+
+            <div class="info-row">
+              <span>مشرف الوردية</span>
+              <strong>
+                {% if shift.supervisor and shift.supervisor.employee %}
+                  {{ shift.supervisor.employee.full_name }}
+                {% elif shift.supervisor %}
+                  {{ shift.supervisor.username }}
+                {% else %}
+                  —
+                {% endif %}
+              </strong>
+            </div>
+
+            <div class="door-live-metrics"><span>بلاغات مفتوحة <b>{{ shift.open_incidents_count }}</b></span><span>صيانة مفتوحة <b>{{ shift.open_maintenance_count }}</b></span></div>
+
+            <div class="info-row">
+              <span>الملاحظات</span>
+              <strong id="notes-{{ shift.id }}">
+                {{ shift.notes|default:"لا توجد ملاحظات" }}
+              </strong>
+            </div>
+
+          </div>
+
+          <div class="door-actions">
+
+            {% if shift.supervisor == user or user.is_staff %}
+
+              <button
+                type="button"
+                class="btn-edit"
+                onclick="openStateModal(
+                  '{{ shift.id }}',
+                  '{{ shift.door_number }}',
+                  '{{ shift.state }}',
+                  '{{ shift.notes|default_if_none:''|escapejs }}'
+                )">
+                تعديل الحالة
+              </button>
+
+              <button
+                type="button"
+                class="btn-maint"
+                onclick="openMaintenanceModal('{{ shift.id }}','{{ shift.door_number }}')">
+                طلب صيانة
+              </button>
+
+            {% else %}
+
+              <span class="muted">لا توجد صلاحية تعديل</span>
+
+            {% endif %}
+
+          </div>
+
+        </div>
+
+      {% empty %}
+
+        <div class="empty-box">
+          لا توجد بيانات أبواب لهذه الوردية.
+        </div>
+
+      {% endfor %}
+
+    </div>
+
+    <section class="recent-door-history"><header><div><span>المراجعة التشغيلية</span><h3>آخر تغييرات حالات الأبواب</h3></div><a href="{% url 'audit:history-list' %}">عرض السجل الكامل</a></header><div>{% for item in recent_state_changes %}<article><i>{{ item.door_shift.door_number }}</i><p><strong>باب {{ item.door_shift.door_number }}</strong><span>{{ item.change_reason|default:"تحديث حالة الباب" }}</span></p><b>{% if item.changed_by %}{{ item.changed_by.get_full_name|default:item.changed_by.username }}{% else %}النظام{% endif %}</b><time>{{ item.changed_at|date:"H:i" }}</time></article>{% empty %}<div class="empty-box">لا توجد تغييرات مسجلة لهذه الوردية.</div>{% endfor %}</div></section>
+
+  {% endif %}
+
+</div>
+
+<div id="stateModal" class="modal-backdrop">
+
+  <div class="modal-box">
+
+    <div class="modal-head">
+      <h3>تعديل حالة الباب <span id="stateDoorNumber"></span></h3>
+      <button onclick="closeStateModal()">×</button>
+    </div>
+
+    <input type="hidden" id="stateDoorId">
+
+    <div class="modal-body">
+
+      <label>الحالة الجديدة</label>
+      <select id="newState">
+        <option value="open">مفتوح</option>
+        <option value="closed">مغلق</option>
+        <option value="maintenance">تحت صيانة</option>
+        <option value="secured">مؤمّن</option>
+      </select>
+
+      <label>ملاحظات</label>
+      <textarea id="stateNotes" rows="4" placeholder="اكتب سبب التغيير أو الملاحظات"></textarea>
+
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeStateModal()">إلغاء</button>
+      <button class="btn-save" onclick="submitDoorState()">حفظ التغيير</button>
+    </div>
+
+  </div>
+
+</div>
+
+<div id="maintenanceModal" class="modal-backdrop">
+
+  <div class="modal-box">
+
+    <div class="modal-head maintenance-title">
+      <h3>طلب صيانة - باب <span id="maintDoorNumber"></span></h3>
+      <button onclick="closeMaintenanceModal()">×</button>
+    </div>
+
+    <input type="hidden" id="maintDoorId">
+
+    <div class="modal-body">
+
+      <label>الأولوية</label>
+      <select id="maintenancePriority">
+        <option value="low">منخفضة</option>
+        <option value="medium" selected>متوسطة</option>
+        <option value="high">عالية</option>
+        <option value="urgent">عاجلة</option>
+      </select>
+
+      <label>اسم الفني المنفذ</label>
+      <input id="maintenanceTechnician" placeholder="اختياري">
+
+      <label>وصف المشكلة</label>
+      <textarea id="maintDescription" rows="4" placeholder="اكتب وصف المشكلة"></textarea>
+
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeMaintenanceModal()">إلغاء</button>
+      <button class="btn-save maintenance" onclick="submitMaintenanceRequest()">إرسال الطلب</button>
+    </div>
+
+  </div>
+
+</div>
+
+<style>
+
+.doors-page{
+  padding:28px 36px 80px;
+  background:#f7f7f7;
+}
+.enterprise-door-head{display:flex;justify-content:space-between;align-items:center;gap:28px;padding:30px 34px;margin-bottom:20px;border-radius:24px;background:linear-gradient(125deg,#064e3b,#0b7658);color:#fff!important;box-shadow:0 18px 45px rgba(6,78,59,.2)}.doors-page .enterprise-door-head h2{margin:7px 0 14px!important;color:#fff!important;font-size:32px!important;line-height:1.35!important;text-shadow:0 2px 6px rgba(0,0,0,.16)}.doors-page .enterprise-door-head p{color:#fff!important;margin-bottom:0}.doors-page .door-eyebrow{display:block!important;color:#f0d77d!important;font-size:12px!important;font-weight:900!important}.door-shift-summary{display:flex;align-items:center;gap:9px;flex-wrap:wrap;color:#fff!important}.door-shift-summary>span{color:#cfe9df!important;font-size:12px!important}.door-shift-summary>strong{padding:5px 9px;border-radius:8px;background:rgba(255,255,255,.14);color:#fff!important;font-size:13px!important}.door-shift-summary>b,.door-shift-summary>small{color:#fff!important;font-size:12px!important}.door-shift-summary>small{direction:ltr;padding-right:8px;border-right:1px solid rgba(255,255,255,.3)}.door-head-actions{display:flex;gap:8px;flex-wrap:wrap}.door-head-actions a{padding:11px 14px;border-radius:10px;background:#fff!important;color:#075c45!important;text-decoration:none;font-size:11px;font-weight:900;box-shadow:0 4px 12px rgba(0,0,0,.1)}.door-head-actions a.gold{background:#d1b45f!important;color:#17231e!important}
+
+.page-head h2{
+  margin:0;
+  color:#0f7b5c;
+  font-size:28px;
+  font-weight:900;
+}
+
+.page-head p{
+  margin:8px 0 22px;
+  color:#6b7280;
+}
+
+.danger{
+  color:#b91c1c !important;
+  font-weight:900;
+}
+
+.alert-box{
+  background:#fef3c7;
+  color:#92400e;
+  padding:18px;
+  border-radius:18px;
+  font-weight:900;
+}
+
+.stats-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(220px,1fr));
+  gap:18px;
+  margin-bottom:22px;
+}
+
+.stat-card{
+  background:#fff;
+  border-radius:22px;
+  padding:22px;
+  min-height:120px;
+  box-shadow:0 12px 30px rgba(0,0,0,.07);
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+}
+
+.stat-card span{
+  color:#6b7280;
+  font-size:14px;
+  font-weight:700;
+}
+
+.stat-card strong{
+  font-size:42px;
+  font-weight:900;
+}
+
+.stat-card.open strong{color:#16a34a;}
+.stat-card.closed strong{color:#dc2626;}
+.stat-card.maintenance strong{color:#a16207;}
+.stat-card.secured strong{color:#2563eb;}
+.stat-card.total strong,.stat-card.readiness strong{color:#0f7b5c}
+
+.filter-card{
+  background:#fff;
+  padding:18px;
+  border-radius:22px;
+  box-shadow:0 12px 30px rgba(0,0,0,.07);
+  display:grid;
+  grid-template-columns:2fr 1fr 1fr 160px;
+  gap:12px;
+  margin-bottom:22px;
+}
+
+.filter-card input,
+.filter-card select{
+  height:48px;
+  border:1px solid #d1d5db;
+  border-radius:14px;
+  padding:0 12px;
+}
+
+.filter-card button{
+  border:none;
+  border-radius:14px;
+  background:#0f7b5c;
+  color:#fff;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.doors-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+  gap:18px;
+}
+
+.door-card{
+  background:#fff;
+  border-radius:24px;
+  padding:18px;
+  box-shadow:0 12px 30px rgba(0,0,0,.07);
+  border-right:7px solid #e5e7eb;
+}
+
+.door-card.open{border-right-color:#16a34a;}
+.door-card.closed{border-right-color:#dc2626;}
+.door-card.maintenance{border-right-color:#f59e0b;}
+.door-card.secured{border-right-color:#2563eb;}
+
+.door-top{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:flex-start;
+  margin-bottom:18px;
+}
+
+.door-number{
+  font-size:22px;
+  font-weight:900;
+  color:#111827;
+}
+
+.door-sub{
+  margin-top:5px;
+  color:#6b7280;
+  font-size:12px;
+}
+
+.status-pill{
+  padding:7px 12px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:900;
+  white-space:nowrap;
+}
+
+.status-pill.open{
+  background:#dcfce7;
+  color:#166534;
+}
+
+.status-pill.closed{
+  background:#fee2e2;
+  color:#991b1b;
+}
+
+.status-pill.maintenance{
+  background:#fef3c7;
+  color:#92400e;
+}
+
+.status-pill.secured{
+  background:#dbeafe;
+  color:#1d4ed8;
+}
+
+.door-body{
+  background:#f9fafb;
+  border:1px solid #eee;
+  border-radius:18px;
+  padding:14px;
+  margin-bottom:14px;
+}
+
+.info-row{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  border-bottom:1px dashed #e5e7eb;
+  padding:8px 0;
+}
+
+.info-row:last-child{
+  border-bottom:none;
+}
+
+.info-row span{
+  color:#6b7280;
+  font-size:13px;
+}
+
+.info-row strong{
+  color:#111827;
+  font-size:13px;
+  text-align:left;
+}
+.door-live-metrics{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:9px}.door-live-metrics span{padding:8px;border-radius:9px;background:#fff;color:#6b7280;font-size:10px;text-align:center}.door-live-metrics b{display:block;margin-top:4px;color:#0f7b5c;font-size:15px}.recent-door-history{margin-top:24px;padding:20px;border:1px solid #e0e7e4;border-radius:20px;background:#fff}.recent-door-history>header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.recent-door-history header span{color:#0b6b50;font-size:10px;font-weight:900}.recent-door-history h3{margin:4px 0;font-size:18px}.recent-door-history header a{color:#0b6b50;text-decoration:none;font-size:10px;font-weight:900}.recent-door-history article{display:grid;grid-template-columns:38px minmax(0,1fr) 150px 55px;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #edf1ef}.recent-door-history article>i{display:grid;place-items:center;width:35px;height:35px;border-radius:10px;background:#e6f3ed;color:#0b6b50;font-style:normal;font-weight:900}.recent-door-history p{margin:0}.recent-door-history p strong,.recent-door-history p span{display:block}.recent-door-history p span{margin-top:3px;color:#748079;font-size:10px}.recent-door-history article>b{font-size:10px}.recent-door-history time{color:#748079;font-size:10px}
+
+.door-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.btn-edit,
+.btn-maint{
+  flex:1;
+  border:none;
+  border-radius:14px;
+  padding:10px 12px;
+  color:#fff;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.btn-edit{
+  background:#2563eb;
+}
+
+.btn-maint{
+  background:#a16207;
+}
+
+.muted{
+  color:#6b7280;
+  font-size:13px;
+}
+
+.empty-box{
+  background:#fff;
+  border-radius:20px;
+  padding:25px;
+  color:#6b7280;
+  font-weight:900;
+}
+
+.modal-backdrop{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.55);
+  z-index:9999;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+}
+
+.modal-backdrop.active{
+  display:flex;
+}
+
+.modal-box{
+  background:#fff;
+  width:520px;
+  max-width:95%;
+  border-radius:24px;
+  overflow:hidden;
+  box-shadow:0 30px 90px rgba(0,0,0,.25);
+}
+
+.modal-head{
+  background:#0f7b5c;
+  color:#fff;
+  padding:18px 22px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.modal-head.maintenance-title{
+  background:#92400e;
+}
+
+.modal-head h3{
+  margin:0;
+  font-size:20px;
+  font-weight:900;
+}
+
+.modal-head button{
+  width:36px;
+  height:36px;
+  border:none;
+  border-radius:50%;
+  background:#fff;
+  font-size:24px;
+  cursor:pointer;
+}
+
+.modal-body{
+  padding:22px;
+}
+
+.modal-body label{
+  display:block;
+  margin-bottom:8px;
+  margin-top:14px;
+  font-weight:900;
+  color:#374151;
+}
+
+.modal-body label:first-child{
+  margin-top:0;
+}
+
+.modal-body input,
+.modal-body select,
+.modal-body textarea{
+  width:100%;
+  box-sizing:border-box;
+  border:1px solid #d1d5db;
+  border-radius:14px;
+  padding:12px;
+}
+
+.modal-actions{
+  padding:18px 22px;
+  display:flex;
+  gap:10px;
+  border-top:1px solid #eee;
+}
+
+.btn-cancel,
+.btn-save{
+  border:none;
+  border-radius:14px;
+  padding:12px 18px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.btn-cancel{
+  background:#f3f4f6;
+  color:#111827;
+}
+
+.btn-save{
+  background:#0f7b5c;
+  color:#fff;
+}
+
+.btn-save.maintenance{
+  background:#92400e;
+}
+
+@media(max-width:1000px){
+  .stats-grid,
+  .filter-card{
+    grid-template-columns:1fr 1fr;
+  }
+}
+@media(max-width:700px){.enterprise-door-head{align-items:flex-start;flex-direction:column}.recent-door-history article{grid-template-columns:38px minmax(0,1fr) 50px}.recent-door-history article>b{display:none}}
+
+@media(max-width:600px){
+  .stats-grid,
+  .filter-card{
+    grid-template-columns:1fr;
+  }
+}
+
+</style>
+
+<script>
+
+function getCookie(name){
+  let cookieValue = null;
+
+  if(document.cookie && document.cookie !== ""){
+    const cookies = document.cookie.split(";");
+
+    for(let i = 0; i < cookies.length; i++){
+      const cookie = cookies[i].trim();
+
+      if(cookie.substring(0, name.length + 1) === (name + "=")){
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+
+  return cookieValue;
+}
+
+function openStateModal(id, doorNumber, state, notes){
+  document.getElementById("stateModal").classList.add("active");
+  document.getElementById("stateDoorId").value = id;
+  document.getElementById("stateDoorNumber").innerText = doorNumber;
+  document.getElementById("newState").value = state;
+  document.getElementById("stateNotes").value = notes || "";
+}
+
+function closeStateModal(){
+  document.getElementById("stateModal").classList.remove("active");
+}
+
+function submitDoorState(){
+  const id = document.getElementById("stateDoorId").value;
+  const state = document.getElementById("newState").value;
+  const notes = document.getElementById("stateNotes").value.trim();
+
+  const body = new URLSearchParams();
+  body.append("state", state);
+  body.append("notes", notes);
+
+  fetch(`/ops/doors/${id}/update/ajax/`, {
+    method:"POST",
+    headers:{
+      "X-CSRFToken":getCookie("csrftoken"),
+      "Content-Type":"application/x-www-form-urlencoded"
+    },
+    body:body.toString()
+  })
+  .then(response => response.json())
+  .then(data => {
+    if(!data.success){
+      alert(data.error || "حدث خطأ أثناء التحديث");
+      return;
+    }
+
+    const card = document.getElementById(`door-card-${id}`);
+
+    card.classList.remove("open", "closed", "maintenance", "secured");
+    card.classList.add(data.door.state);
+    card.dataset.state = data.door.state;
+
+    const stateEl = document.getElementById(`state-${id}`);
+    stateEl.className = `status-pill ${data.door.state}`;
+    stateEl.innerText = data.door.state_label;
+
+    document.getElementById(`updated-${id}`).innerText = data.door.updated_at;
+    document.getElementById(`notes-${id}`).innerText =
+      data.door.notes || "لا توجد ملاحظات";
+
+    closeStateModal();
+    recalculateCounters();
+  })
+  .catch(() => {
+    alert("تعذر الاتصال بالخادم");
+  });
+}
+
+function openMaintenanceModal(id, doorNumber){
+  document.getElementById("maintenanceModal").classList.add("active");
+  document.getElementById("maintDoorId").value = id;
+  document.getElementById("maintDoorNumber").innerText = doorNumber;
+  document.getElementById("maintenancePriority").value = "medium";
+  document.getElementById("maintenanceTechnician").value = "";
+  document.getElementById("maintDescription").value = "";
+}
+
+function closeMaintenanceModal(){
+  document.getElementById("maintenanceModal").classList.remove("active");
+}
+
+function submitMaintenanceRequest(){
+  const doorId = document.getElementById("maintDoorId").value;
+  const desc = document.getElementById("maintDescription").value.trim();
+  const priority = document.getElementById("maintenancePriority").value;
+  const technician = document.getElementById("maintenanceTechnician").value.trim();
+
+  if(!desc){
+    alert("يرجى كتابة وصف المشكلة");
+    return;
+  }
+
+  const body = new URLSearchParams();
+  body.append("description", desc);
+  body.append("priority", priority);
+  body.append("technician_name", technician);
+
+  fetch(`/ops/doors/${doorId}/maintenance/create/ajax/`, {
+    method:"POST",
+    headers:{
+      "X-CSRFToken":getCookie("csrftoken"),
+      "Content-Type":"application/x-www-form-urlencoded"
+    },
+    body:body.toString()
+  })
+  .then(response => response.json())
+  .then(data => {
+    if(!data.success){
+      alert(data.error || "حدث خطأ أثناء إرسال الطلب");
+      return;
+    }
+
+    const card = document.getElementById(`door-card-${doorId}`);
+
+    card.classList.remove("open", "closed", "secured");
+    card.classList.add("maintenance");
+    card.dataset.state = "maintenance";
+
+    const stateEl = document.getElementById(`state-${doorId}`);
+    stateEl.className = "status-pill maintenance";
+    stateEl.innerText = "تحت صيانة";
+
+    document.getElementById(`notes-${doorId}`).innerText =
+      "تم إنشاء طلب صيانة: " + data.maintenance.request_number;
+function openDoorModal(card){
+    closeMaintenanceModal();
+    activeDoorCard = card;
+    alert("تم إنشاء طلب الصيانة بنجاح");
+  })
+  .catch(() => {
+    alert("تعذر الاتصال بالخادم");
+  });
+}
+
+function applyDoorFilters(){
+  const search = document.getElementById("searchInput").value.toLowerCase().trim();
+  const state = document.getElementById("stateFilter").value;
+  const direction = document.getElementById("directionFilter").value;
+
+  document.querySelectorAll(".door-card").forEach(card => {
+    const text = card.innerText.toLowerCase();
+    const cardState = card.dataset.state;
+    const cardDirection = card.dataset.direction;
+
+    let visible = true;
+
+    if(search && !text.includes(search)){
+      visible = false;
+    }
+
+    if(state !== "all" && cardState !== state){
+      visible = false;
+    }
+    if(direction !== "all" && cardDirection !== direction){
+      visible = false;
+    }
+
+    card.style.display = visible ? "" : "none";
+  });
+}
+
+function resetDoorFilters(){
+  document.getElementById("searchInput").value = "";
+  document.getElementById("stateFilter").value = "all";
+  document.getElementById("directionFilter").value = "all";
+
+  document.querySelectorAll(".door-card").forEach(card => {
+    card.style.display = "";
+  });
+}
+
+function recalculateCounters(){
+  const counts = {
+    open:0,
+    closed:0,
+    maintenance:0,
+    secured:0
+  };
+
+  document.querySelectorAll(".door-card").forEach(card => {
+    const state = card.dataset.state;
+    if(counts[state] !== undefined){
+      counts[state]++;
+    }
+  });
+
+  document.getElementById("kpi-open").innerText = counts.open;
+  document.getElementById("kpi-closed").innerText = counts.closed;
+  document.getElementById("kpi-maintenance").innerText = counts.maintenance;
+  document.getElementById("kpi-secured").innerText = counts.secured;
+}
+
+</script>
+
+{% endblock %}

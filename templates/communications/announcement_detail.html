@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+
+{% block title %}
+تفاصيل التعميم الإداري
+{% endblock %}
+
+{% block content %}
+
+{% include "components/layout/page_container_start.html" %}
+
+    {% include "components/layout/page_title.html" with title="تفاصيل التعميم الإداري" subtitle="عرض كامل بيانات التعميم ومحتواه" %}
+
+    <div class="announcement-detail-card">
+
+        <div class="announcement-detail-header">
+
+            <div class="announcement-detail-title">
+
+                <div class="announcement-detail-badges">
+
+                    {% if announcement.priority == "urgent" %}
+
+                        <span class="datagrid-badge danger">
+                            عاجل
+                        </span>
+
+                    {% elif announcement.priority == "important" %}
+
+                        <span class="datagrid-badge warning">
+                            مهم
+                        </span>
+
+                    {% else %}
+
+                        <span class="datagrid-badge info">
+                            عادي
+                        </span>
+
+                    {% endif %}
+
+                    {% if announcement.is_active %}
+
+                        <span class="datagrid-badge success">
+                            نشط
+                        </span>
+
+                    {% else %}
+
+                        <span class="datagrid-badge danger">
+                            معطل
+                        </span>
+
+                    {% endif %}
+
+                </div>
+
+                <h2>
+                    {{ announcement.title }}
+                </h2>
+
+                <p>
+                    تم إنشاء هذا التعميم بتاريخ
+                    {{ announcement.created_at|date:"Y-m-d H:i" }}
+                </p>
+
+            </div>
+
+            <div class="announcement-detail-actions">
+
+                <a
+                    href="{% url 'communications:edit' announcement.id %}"
+                    class="btn-edit"
+                >
+                    ✏️ تعديل
+                </a>
+
+                <form
+                    method="post"
+                    action="{% url 'communications:toggle-status' announcement.id %}"
+                >
+                    {% csrf_token %}
+
+                    {% if announcement.is_active %}
+
+                        <button
+                            type="submit"
+                            class="btn-disable"
+                        >
+                            ⛔ تعطيل
+                        </button>
+
+                    {% else %}
+
+                        <button
+                            type="submit"
+                            class="btn-enable"
+                        >
+                            ✅ تفعيل
+                        </button>
+
+                    {% endif %}
+
+                </form>
+
+                <a
+                    href="{% url 'communications:delete' announcement.id %}"
+                    class="btn-delete"
+                >
+                    🗑️ حذف
+                </a>
+
+            </div>
+
+        </div>
+
+        <div class="announcement-meta-grid">
+
+            <div class="announcement-meta-item">
+
+                <div class="announcement-meta-icon">
+                    👤
+                </div>
+
+                <div>
+
+                    <span>
+                        المنشئ
+                    </span>
+
+                    <strong>
+
+                        {% if announcement.created_by %}
+
+                            {% if announcement.created_by.get_full_name %}
+
+                                {{ announcement.created_by.get_full_name }}
+
+                            {% else %}
+
+                                {{ announcement.created_by.username }}
+
+                            {% endif %}
+
+                        {% else %}
+
+                            —
+
+                        {% endif %}
+
+                    </strong>
+
+                </div>
+
+            </div>
+
+            <div class="announcement-meta-item">
+
+                <div class="announcement-meta-icon">
+                    🚨
+                </div>
+
+                <div>
+
+                    <span>
+                        الأولوية
+                    </span>
+
+                    <strong>
+                        {{ announcement.get_priority_display }}
+                    </strong>
+
+                </div>
+
+            </div>
+
+            <div class="announcement-meta-item">
+
+                <div class="announcement-meta-icon">
+                    📅
+                </div>
+
+                <div>
+
+                    <span>
+                        تاريخ الإنشاء
+                    </span>
+
+                    <strong>
+                        {{ announcement.created_at|date:"Y-m-d H:i" }}
+                    </strong>
+
+                </div>
+
+            </div>
+
+            <div class="announcement-meta-item">
+
+                <div class="announcement-meta-icon">
+                    🕓
+                </div>
+
+                <div>
+
+                    <span>
+                        آخر تحديث
+                    </span>
+
+                    <strong>
+                        {{ announcement.updated_at|date:"Y-m-d H:i" }}
+                    </strong>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="announcement-content-section">
+
+            <div class="announcement-content-header">
+
+                <div>
+
+                    <h3>
+                        محتوى التعميم
+                    </h3>
+
+                    <p>
+                        النص الكامل للتعميم الإداري
+                    </p>
+
+                </div>
+
+                <div class="announcement-content-icon">
+                    📄
+                </div>
+
+            </div>
+
+            <div class="announcement-content-body">
+                {{ announcement.content|linebreaks }}
+            </div>
+
+        </div>
+
+        <div class="announcement-detail-footer">
+
+            <a
+                href="{% url 'communications:list' %}"
+                class="btn-reset"
+            >
+                ← العودة إلى سجل التعاميم
+            </a>
+
+        </div>
+
+    </div>
+
+{% include "components/layout/page_container_end.html" %}
+
+{% endblock %}

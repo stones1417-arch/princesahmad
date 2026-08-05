@@ -1,0 +1,425 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+
+<div class="report-wizard-page" dir="rtl">
+
+  <div class="wizard-head">
+    <div>
+      <span class="wizard-eyebrow">مركز التقارير · إنشاء</span>
+      <h2>إنشاء تقرير جديد</h2>
+      <p>اختر نوع التقرير: تشغيلي للوردية المنتهية، أو إداري للملاحظات والتوصيات.</p>
+    </div>
+
+    <a href="{% url 'reporting:list' %}" class="back-btn">
+      الرجوع للتقارير
+    </a>
+  </div>
+
+  <form method="post" class="wizard-form">
+    {% csrf_token %}
+
+    {% if form.errors %}
+      <div class="form-errors">
+        تحقق من الحقول المطلوبة قبل حفظ التقرير.
+      </div>
+    {% endif %}
+
+    <div class="wizard-layout">
+
+      <aside class="steps-card">
+        <div class="steps-progress"><i data-progress-bar></i></div>
+        <div class="step active" data-step="type"><span>1</span><div><strong>نوع التقرير</strong><small>تشغيلي أو إداري</small></div></div>
+        <div class="step" data-step="shift"><span>2</span><div><strong>الوردية</strong><small>مطلوبة للتشغيلي</small></div></div>
+        <div class="step" data-step="content"><span>3</span><div><strong>المحتوى</strong><small>آلي أو يدوي حسب النوع</small></div></div>
+        <div class="step" data-step="save"><span>4</span><div><strong>الحفظ</strong><small>مسودة قابلة للمراجعة</small></div></div>
+        <div class="wizard-security"><b>✓</b><div><strong>حفظ آمن</strong><small>تُسجّل هوية منشئ التقرير ووقت الإنشاء تلقائيًا.</small></div></div>
+      </aside>
+
+      <section class="wizard-content">
+
+        <div class="form-section">
+          <div class="section-title">
+            <span class="section-icon">📌</span>
+            <div>
+              <h3>نوع التقرير</h3>
+              <p>التقرير التشغيلي يعتمد على بيانات الوردية، والإداري يعتمد على الملخص والتوصيات اليدوية.</p>
+            </div>
+          </div>
+
+          <div class="field-box">
+            <label for="{{ form.report_type.id_for_label }}">نوع التقرير</label>
+            {{ form.report_type }}
+            {% if form.report_type.errors %}
+              <div class="field-error">{{ form.report_type.errors.0 }}</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="form-section shift-section">
+          <div class="section-title">
+            <span class="section-icon">🕒</span>
+            <div>
+              <h3>اختيار الوردية</h3>
+              <p>مطلوبة للتقرير التشغيلي، ويمكن تركها فارغة للتقرير الإداري.</p>
+            </div>
+          </div>
+
+          <div class="field-box">
+            <label for="{{ form.shift_plan.id_for_label }}">الوردية</label>
+            {{ form.shift_plan }}
+            <div class="field-support" data-shift-support>تظهر فقط الورديات المنتهية التي لم يُنشأ لها تقرير سابق.</div>
+            {% if form.shift_plan.errors %}
+              <div class="field-error">{{ form.shift_plan.errors.0 }}</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="form-section operational-info">
+          <div class="section-title">
+            <span class="section-icon">⚙️</span>
+            <div>
+              <h3>محتويات التقرير التشغيلي</h3>
+              <p>سيتم توليد المؤشرات والملخص والتوصيات تلقائيًا من بيانات الوردية.</p>
+            </div>
+          </div>
+
+          <div class="include-grid">
+            <div>الأبواب</div>
+            <div>الموظفون</div>
+            <div>طلبات الصيانة</div>
+            <div>مؤشرات الأداء</div>
+            <div>الملخص الآلي</div>
+            <div>التوصيات الآلية</div>
+          </div>
+        </div>
+
+        <div class="form-section manual-fields">
+          <div class="section-title">
+            <span class="section-icon">📝</span>
+            <div>
+              <h3>الملخص التنفيذي</h3>
+              <p>يظهر هذا الحقل للتقرير الإداري اليدوي.</p>
+            </div>
+          </div>
+
+          <div class="field-box">
+            <label for="{{ form.summary.id_for_label }}">الملخص التنفيذي</label>
+            {{ form.summary }}
+            <div class="field-meta"><span>اكتب خلاصة واضحة للقرار أو الموضوع</span><b data-counter="id_summary">0 / 2000</b></div>
+            {% if form.summary.errors %}
+              <div class="field-error">{{ form.summary.errors.0 }}</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="form-section manual-fields">
+          <div class="section-title">
+            <span class="section-icon">💡</span>
+            <div>
+              <h3>التوصيات</h3>
+              <p>أضف التوصيات الإدارية أو التشغيلية عند الحاجة.</p>
+            </div>
+          </div>
+
+          <div class="field-box">
+            <label for="{{ form.recommendations.id_for_label }}">التوصيات</label>
+            {{ form.recommendations }}
+            <div class="field-meta"><span>حوّل الملاحظات إلى توصيات قابلة للتنفيذ</span><b data-counter="id_recommendations">0 / 2000</b></div>
+            {% if form.recommendations.errors %}
+              <div class="field-error">{{ form.recommendations.errors.0 }}</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="submit-card">
+          <div>
+            <strong>جاهز لإنشاء التقرير؟</strong>
+            <span data-submit-status>أكمل البيانات المطلوبة وسيتم حفظ التقرير كمسودة قابلة للمراجعة.</span>
+          </div>
+
+          <button type="submit" data-submit-button>
+            <span>حفظ وإنشاء التقرير</span><i>←</i>
+          </button>
+        </div>
+
+      </section>
+
+    </div>
+  </form>
+
+</div>
+
+<style>
+.report-wizard-page{
+  padding:30px 38px 90px;
+  background:#f7f7f7;
+}
+
+.wizard-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:18px;
+  margin-bottom:26px;
+  flex-wrap:wrap;
+}
+
+.wizard-head h2{
+  margin:0;
+  color:#0f7b5c;
+  font-size:32px;
+  font-weight:900;
+}
+
+.wizard-head p{
+  margin:8px 0 0;
+  color:#6b7280;
+}
+
+.back-btn{
+  text-decoration:none;
+  background:#111827;
+  color:#fff;
+  padding:11px 18px;
+  border-radius:14px;
+  font-weight:900;
+}
+
+.form-errors{
+  background:#fee2e2;
+  color:#991b1b;
+  padding:14px 18px;
+  border-radius:16px;
+  margin-bottom:18px;
+  font-weight:900;
+}
+
+.wizard-layout{
+  display:grid;
+  grid-template-columns:320px 1fr;
+  gap:24px;
+  align-items:start;
+}
+
+.steps-card{
+  background:#fff;
+  border-radius:26px;
+  padding:22px;
+  box-shadow:0 16px 35px rgba(0,0,0,.07);
+  position:sticky;
+  top:120px;
+}
+
+.step{
+  display:flex;
+  gap:12px;
+  padding:14px;
+  border-radius:18px;
+  background:#f9fafb;
+  margin-bottom:12px;
+  border:1px solid #eee;
+}
+
+.step span{
+  width:34px;
+  height:34px;
+  background:#0f7b5c;
+  color:#fff;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:900;
+  flex-shrink:0;
+}
+
+.step strong{
+  display:block;
+  color:#111827;
+  font-size:14px;
+}
+
+.step small{
+  display:block;
+  color:#6b7280;
+  margin-top:4px;
+  line-height:1.6;
+}
+
+.wizard-content{
+  display:flex;
+  flex-direction:column;
+  gap:20px;
+}
+
+.form-section{
+  background:#fff;
+  border-radius:26px;
+  padding:24px;
+  box-shadow:0 16px 35px rgba(0,0,0,.07);
+}
+
+.section-title{
+  display:flex;
+  gap:14px;
+  align-items:flex-start;
+  margin-bottom:20px;
+}
+
+.section-icon{
+  width:48px;
+  height:48px;
+  background:#ecfdf5;
+  color:#0f7b5c;
+  border-radius:16px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:24px;
+  flex-shrink:0;
+}
+
+.section-title h3{
+  margin:0;
+  color:#111827;
+  font-size:22px;
+  font-weight:900;
+}
+
+.section-title p{
+  margin:6px 0 0;
+  color:#6b7280;
+  line-height:1.7;
+}
+
+.field-box label{
+  display:block;
+  margin-bottom:9px;
+  color:#374151;
+  font-weight:900;
+}
+
+.field-box select,
+.field-box textarea,
+.field-box input{
+  width:100%;
+  box-sizing:border-box;
+  border:1px solid #d1d5db;
+  border-radius:16px;
+  padding:14px 16px;
+  font-size:15px;
+  background:#fff;
+}
+
+.field-box select{
+  height:54px;
+}
+
+.field-box textarea{
+  min-height:170px;
+  resize:vertical;
+  line-height:1.8;
+}
+
+.field-box select:focus,
+.field-box textarea:focus,
+.field-box input:focus{
+  outline:none;
+  border-color:#d4af37;
+  box-shadow:0 0 0 4px rgba(212,175,55,.16);
+}
+
+.field-error{
+  margin-top:8px;
+  color:#b91c1c;
+  font-weight:800;
+  font-size:13px;
+}
+
+.include-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:12px;
+}
+
+.include-grid div{
+  background:#f9fafb;
+  border:1px solid #eee;
+  border-radius:16px;
+  padding:14px;
+  font-weight:900;
+  color:#0f7b5c;
+}
+
+.include-grid div::before{
+  content:"✓ ";
+  color:#16a34a;
+  font-weight:900;
+}
+
+.submit-card{
+  background:#0f7b5c;
+  color:#fff;
+  border-radius:26px;
+  padding:22px 24px;
+  display:flex;
+  justify-content:space-between;
+  gap:18px;
+  align-items:center;
+  box-shadow:0 16px 35px rgba(15,123,92,.22);
+}
+
+.submit-card strong{
+  display:block;
+  font-size:20px;
+  font-weight:900;
+}
+
+.submit-card span{
+  display:block;
+  margin-top:6px;
+  color:#d1fae5;
+}
+
+.submit-card button{
+  border:none;
+  background:#d4af37;
+  color:#111;
+  padding:14px 24px;
+  border-radius:16px;
+  font-weight:900;
+  cursor:pointer;
+  font-size:15px;
+}
+
+@media(max-width:1000px){
+  .wizard-layout{
+    grid-template-columns:1fr;
+  }
+
+  .steps-card{
+    position:relative;
+    top:auto;
+  }
+}
+
+@media(max-width:650px){
+  .report-wizard-page{
+    padding:20px 16px 70px;
+  }
+
+  .submit-card{
+    flex-direction:column;
+    align-items:stretch;
+  }
+
+  .submit-card button{
+    width:100%;
+  }
+}
+</style>
+<link rel="stylesheet" href="{% static 'css/reporting/report_form_enterprise.css' %}?v=20260803-1">
+<script src="{% static 'js/reporting/report_form.js' %}?v=20260803-1" defer></script>
+
+{% endblock %}

@@ -1,0 +1,3255 @@
+{% extends "base.html" %}
+
+{% block title %}
+البلاغات التشغيلية
+{% endblock %}
+
+{% block content %}
+
+<div
+    id="incidentsPage"
+    class="incidents-page"
+    dir="rtl"
+>
+
+    <!-- ==================================================
+         رسائل الصفحة
+    ================================================== -->
+
+    <div
+        id="incidentToastContainer"
+        class="incident-toast-container"
+        aria-live="polite"
+        aria-atomic="true"
+    ></div>
+
+
+    <!-- ==================================================
+         رأس الصفحة
+    ================================================== -->
+
+    <section class="incidents-page-header">
+
+        <div class="incidents-page-heading">
+
+            <div class="incidents-page-heading-icon">
+                🚨
+            </div>
+
+            <div>
+
+                <h1>
+                    البلاغات التشغيلية
+                </h1>
+
+                <p>
+                    تسجيل البلاغات الميدانية ومتابعة حالتها
+                    وتحويلها إلى الجهة أو الموظف المختص.
+                </p>
+
+            </div>
+
+        </div>
+
+        <div class="incidents-header-status">
+
+            {% if critical_incidents|default:0 > 0 %}
+
+                <span class="incidents-live-indicator critical">
+
+                    <span class="incidents-live-dot"></span>
+
+                    يوجد
+                    {{ critical_incidents }}
+                    بلاغ حرج
+
+                </span>
+
+            {% elif open_incidents|default:0 > 0 %}
+
+                <span class="incidents-live-indicator warning">
+
+                    <span class="incidents-live-dot"></span>
+
+                    يوجد
+                    {{ open_incidents }}
+                    بلاغ مفتوح
+
+                </span>
+
+            {% else %}
+
+                <span class="incidents-live-indicator success">
+
+                    <span class="incidents-live-dot"></span>
+
+                    لا توجد بلاغات مفتوحة
+
+                </span>
+
+            {% endif %}
+
+        </div>
+
+    </section>
+
+
+    <!-- ==================================================
+         الإحصائيات
+    ================================================== -->
+
+    <section class="incidents-stats-grid">
+
+        <article
+            class="incident-stat-card"
+            data-stat-card="total"
+        >
+
+            <div class="incident-stat-icon total">
+                📋
+            </div>
+
+            <div class="incident-stat-content">
+
+                <span>
+                    إجمالي البلاغات
+                </span>
+
+                <strong id="totalIncidentsCount">
+                    {{ total_incidents|default:0 }}
+                </strong>
+
+            </div>
+
+        </article>
+
+
+        <article
+            class="incident-stat-card"
+            data-stat-card="today"
+        >
+
+            <div class="incident-stat-icon today">
+                📅
+            </div>
+
+            <div class="incident-stat-content">
+
+                <span>
+                    بلاغات اليوم
+                </span>
+
+                <strong id="todayIncidentsCount">
+                    {{ today_incidents|default:0 }}
+                </strong>
+
+            </div>
+
+        </article>
+
+
+        <article
+            class="incident-stat-card"
+            data-stat-card="open"
+        >
+
+            <div class="incident-stat-icon open">
+                ⏳
+            </div>
+
+            <div class="incident-stat-content">
+
+                <span>
+                    البلاغات المفتوحة
+                </span>
+
+                <strong id="openIncidentsCount">
+                    {{ open_incidents|default:0 }}
+                </strong>
+
+            </div>
+
+        </article>
+
+
+        <article
+            class="incident-stat-card critical-card"
+            data-stat-card="critical"
+        >
+
+            <div class="incident-stat-icon critical">
+                !
+            </div>
+
+            <div class="incident-stat-content">
+
+                <span>
+                    البلاغات الحرجة
+                </span>
+
+                <strong id="criticalIncidentsCount">
+                    {{ critical_incidents|default:0 }}
+                </strong>
+
+            </div>
+
+        </article>
+
+
+        <article
+            class="incident-stat-card"
+            data-stat-card="closed"
+        >
+
+            <div class="incident-stat-icon closed">
+                ✓
+            </div>
+
+            <div class="incident-stat-content">
+
+                <span>
+                    المغلقة اليوم
+                </span>
+
+                <strong id="closedTodayCount">
+                    {{ closed_today|default:0 }}
+                </strong>
+
+            </div>
+
+        </article>
+
+    </section>
+
+
+    <!-- ==================================================
+         إنشاء بلاغ تشغيلي
+    ================================================== -->
+
+    <section class="incidents-card incident-create-card">
+
+        <div class="incidents-card-header">
+
+            <div class="incidents-card-heading">
+
+                <div class="incidents-card-heading-icon">
+                    +
+                </div>
+
+                <div>
+
+                    <h2>
+                        إنشاء بلاغ تشغيلي
+                    </h2>
+
+                    <p>
+                        أدخل بيانات البلاغ وحدد نوعه وأولويته
+                        والباب المرتبط به عند الحاجة.
+                    </p>
+
+                </div>
+
+            </div>
+
+            <span class="incidents-card-label">
+                بلاغ جديد
+            </span>
+
+        </div>
+
+
+        <!-- رسالة نجاح أو خطأ داخل نموذج الإنشاء -->
+
+        <div
+            id="incidentCreateMessage"
+            class="incident-form-message"
+            role="alert"
+            style="display:none;"
+        ></div>
+
+
+        <form
+            id="incidentCreateForm"
+            method="post"
+            action="{% url 'ops:incident-create' %}"
+            class="incident-create-form"
+            autocomplete="off"
+            novalidate
+        >
+
+            {% csrf_token %}
+
+
+            <div class="incident-form-grid">
+
+                <!-- نوع البلاغ -->
+
+                <div class="incident-form-field">
+
+                    <label for="incidentType">
+
+                        <span>
+                            نوع البلاغ
+                        </span>
+
+                        <strong class="required-mark">
+                            *
+                        </strong>
+
+                    </label>
+
+                    <select
+                        id="incidentType"
+                        name="incident_type"
+                        required
+                    >
+
+                        <option value="">
+                            اختر نوع البلاغ
+                        </option>
+
+                        {% for value, label in type_choices %}
+
+                            <option value="{{ value }}">
+
+                                {{ label }}
+
+                            </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                    <small
+                        id="incidentTypeError"
+                        class="incident-field-error"
+                    ></small>
+
+                </div>
+
+
+                <!-- الأولوية -->
+
+                <div class="incident-form-field">
+
+                    <label for="incidentPriority">
+
+                        <span>
+                            الأولوية
+                        </span>
+
+                        <strong class="required-mark">
+                            *
+                        </strong>
+
+                    </label>
+
+                    <select
+                        id="incidentPriority"
+                        name="priority"
+                        required
+                    >
+
+                        <option value="">
+                            اختر الأولوية
+                        </option>
+
+                        {% for value, label in priority_choices %}
+
+                            <option
+                                value="{{ value }}"
+                                {% if value == "medium" %}selected{% endif %}
+                            >
+
+                                {{ label }}
+
+                            </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                    <small
+                        id="incidentPriorityError"
+                        class="incident-field-error"
+                    ></small>
+
+                </div>
+
+
+                <!-- اختيار الباب -->
+
+                <div class="incident-form-field">
+
+                    <label for="incidentDoor">
+
+                        <span>
+                            الباب المرتبط
+                        </span>
+
+                        <small class="optional-mark">
+                            اختياري
+                        </small>
+
+                    </label>
+
+                    <select
+                        id="incidentDoor"
+                        name="door_shift_id"
+                    >
+
+                        <option value="">
+                            بلاغ عام بدون باب
+                        </option>
+
+                        {% for door in door_shifts %}
+
+                            <option
+                                value="{{ door.id }}"
+                                data-door-number="{{ door.door_number }}"
+                            >
+
+                                باب {{ door.door_number }}
+
+                            </option>
+
+                        {% empty %}
+
+                            <option
+                                value=""
+                                disabled
+                            >
+                                لا توجد أبواب في الوردية النشطة
+                            </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                    <small class="incident-field-help">
+                        اتركه «بلاغ عام» إذا لم يكن البلاغ متعلقًا بباب محدد.
+                    </small>
+
+                </div>
+
+
+                <!-- اسم المبلّغ -->
+
+                <div class="incident-form-field">
+
+                    <label for="reportedByName">
+
+                        <span>
+                            اسم المبلّغ
+                        </span>
+
+                    </label>
+
+                    <input
+                        id="reportedByName"
+                        name="reported_by_name"
+                        type="text"
+                        maxlength="150"
+                        value="{{ request.user.get_full_name|default:request.user.username }}"
+                        placeholder="اسم المبلّغ"
+                    >
+
+                    <small
+                        id="reportedByNameError"
+                        class="incident-field-error"
+                    ></small>
+
+                </div>
+
+
+                <!-- محوّل إلى -->
+
+                <div class="incident-form-field">
+
+                    <label for="assignedToName">
+
+                        <span>
+                            محوّل إلى
+                        </span>
+
+                        <small class="optional-mark">
+                            اختياري
+                        </small>
+
+                    </label>
+
+                    <input
+                        id="assignedToName"
+                        name="assigned_to_name"
+                        type="text"
+                        maxlength="150"
+                        placeholder="اسم الموظف أو الجهة المختصة"
+                    >
+
+                    <small
+                        id="assignedToNameError"
+                        class="incident-field-error"
+                    ></small>
+
+                </div>
+
+
+                <!-- وصف البلاغ -->
+
+                <div class="incident-form-field full">
+
+                    <div class="incident-description-label">
+
+                        <label for="incidentDescription">
+
+                            <span>
+                                وصف البلاغ
+                            </span>
+
+                            <strong class="required-mark">
+                                *
+                            </strong>
+
+                        </label>
+
+                        <div class="incident-description-counter">
+
+                            <span id="incidentDescriptionCount">
+                                0
+                            </span>
+
+                            <span>
+                                / 1000
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                    <textarea
+                        id="incidentDescription"
+                        name="description"
+                        rows="6"
+                        minlength="5"
+                        maxlength="1000"
+                        required
+                        placeholder="اكتب وصفًا واضحًا للبلاغ، مع ذكر الموقع والتفاصيل المهمة..."
+                    ></textarea>
+
+                    <small
+                        id="incidentDescriptionError"
+                        class="incident-field-error"
+                    ></small>
+
+                </div>
+
+            </div>
+
+
+            <!-- ملخص الباب المختار -->
+
+            <div
+                id="incidentSelectedDoorSummary"
+                class="incident-selected-door-summary"
+            >
+
+                <div class="incident-selected-door-icon">
+                    🚪
+                </div>
+
+                <div>
+
+                    <span>
+                        نطاق البلاغ
+                    </span>
+
+                    <strong id="incidentSelectedDoorText">
+                        بلاغ عام بدون باب
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <!-- أزرار نموذج الإنشاء -->
+
+            <div class="incident-form-actions">
+
+                <button
+                    id="incidentResetButton"
+                    type="reset"
+                    class="incident-reset-button"
+                >
+
+                    <span>
+                        ↺
+                    </span>
+
+                    مسح الحقول
+
+                </button>
+
+
+                <button
+                    id="incidentSaveButton"
+                    type="submit"
+                    class="incident-save-button"
+                >
+
+                    <span
+                        id="incidentSaveButtonIcon"
+                        class="incident-save-button-icon"
+                    >
+                        ✓
+                    </span>
+
+                    <span id="incidentSaveButtonText">
+                        حفظ البلاغ
+                    </span>
+
+                </button>
+
+            </div>
+
+        </form>
+
+    </section>    <!-- ==================================================
+         البحث والتصفية
+    ================================================== -->
+
+    <section class="incidents-card">
+
+        <div class="incidents-card-header">
+
+            <div class="incidents-card-heading">
+
+                <div class="incidents-card-heading-icon">
+                    🔎
+                </div>
+
+                <div>
+
+                    <h2>
+                        البحث والتصفية
+                    </h2>
+
+                    <p>
+                        ابحث عن البلاغات أو قم بتصفيتها حسب الحالة والأولوية والنوع.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <form
+            id="incidentFilterForm"
+            method="get"
+            class="incidents-filter-form"
+            autocomplete="off"
+        >
+
+            <div class="incidents-filter-grid">
+
+                <div class="incident-form-field search-field">
+
+                    <label for="incidentSearch">
+                        البحث
+                    </label>
+
+                    <input
+                        id="incidentSearch"
+                        name="q"
+                        type="search"
+                        value="{{ q }}"
+                        placeholder="رقم البلاغ أو الوصف أو اسم المبلّغ"
+                    >
+
+                </div>
+
+
+                <div class="incident-form-field">
+
+                    <label for="statusFilter">
+                        الحالة
+                    </label>
+
+                    <select
+                        id="statusFilter"
+                        name="status"
+                    >
+
+                        <option value="">
+                            جميع الحالات
+                        </option>
+
+                        {% for value,label in status_choices %}
+
+                        <option
+                            value="{{ value }}"
+                            {% if selected_status == value %}selected{% endif %}
+                        >
+                            {{ label }}
+                        </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+
+                <div class="incident-form-field">
+
+                    <label for="priorityFilter">
+                        الأولوية
+                    </label>
+
+                    <select
+                        id="priorityFilter"
+                        name="priority"
+                    >
+
+                        <option value="">
+                            جميع الأولويات
+                        </option>
+
+                        {% for value,label in priority_choices %}
+
+                        <option
+                            value="{{ value }}"
+                            {% if selected_priority == value %}selected{% endif %}
+                        >
+                            {{ label }}
+                        </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+
+                <div class="incident-form-field">
+
+                    <label for="typeFilter">
+                        النوع
+                    </label>
+
+                    <select
+                        id="typeFilter"
+                        name="type"
+                    >
+
+                        <option value="">
+                            جميع الأنواع
+                        </option>
+
+                        {% for value,label in type_choices %}
+
+                        <option
+                            value="{{ value }}"
+                            {% if selected_type == value %}selected{% endif %}
+                        >
+                            {{ label }}
+                        </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+            </div>
+
+            <div class="incident-filter-actions">
+
+                <a
+                    href="{% url 'ops:incidents' %}"
+                    class="incident-reset-button"
+                >
+                    إعادة ضبط
+                </a>
+
+                <button
+                    id="applyFiltersButton"
+                    type="submit"
+                    class="incident-search-button"
+                >
+                    تطبيق الفلاتر
+                </button>
+
+            </div>
+
+        </form>
+
+    </section>
+
+
+
+    <!-- ==================================================
+         جدول البلاغات
+    ================================================== -->
+
+    <section class="incidents-card">
+
+        <div class="incidents-card-header">
+
+            <div>
+
+                <h2>
+                    سجل البلاغات
+                </h2>
+
+                <p>
+                    جميع البلاغات التشغيلية المسجلة.
+                </p>
+
+            </div>
+
+            <span
+                id="incidentCountBadge"
+                class="incidents-list-count"
+            >
+                {{ incidents|length }} بلاغ
+            </span>
+
+        </div>
+
+
+        <div class="incidents-table-wrapper">
+
+            <table
+                id="incidentTable"
+                class="incidents-table"
+            >
+
+                <thead>
+
+                    <tr>
+
+                        <th>رقم البلاغ</th>
+
+                        <th>الباب</th>
+
+                        <th>النوع</th>
+
+                        <th>الأولوية</th>
+
+                        <th>الحالة</th>
+
+                        <th>المبلغ</th>
+
+                        <th>محول إلى</th>
+
+                        <th>التاريخ</th>
+
+                        <th>الإجراءات</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody id="incidentTableBody">
+
+                    {% for incident in incidents %}
+
+                    <tr
+                        data-id="{{ incident.id }}"
+                    >
+
+                        <td>
+
+                            <strong>
+                                {{ incident.incident_number }}
+                            </strong>
+
+                        </td>
+
+                        <td>
+
+                            {% if incident.door_shift %}
+
+                                <span class="incident-door-badge">
+
+                                    باب
+                                    {{ incident.door_shift.door_number }}
+
+                                </span>
+
+                            {% else %}
+
+                                <span class="incident-empty-value">
+
+                                    عام
+
+                                </span>
+
+                            {% endif %}
+
+                        </td>
+
+                        <td>
+
+                            {{ incident.get_incident_type_display }}
+
+                        </td>
+
+                        <td>
+
+                            <span class="incident-badge priority-{{ incident.priority }}">
+
+                                {{ incident.get_priority_display }}
+
+                            </span>
+
+                        </td>
+
+                        <td>
+
+                            <span class="incident-badge status-{{ incident.status }}">
+
+                                {{ incident.get_status_display }}
+
+                            </span>
+
+                        </td>
+
+                        <td>
+
+                            {{ incident.reported_by_name|default:"—" }}
+
+                        </td>
+
+                        <td>
+
+                            {{ incident.assigned_to_name|default:"—" }}
+
+                        </td>
+
+                        <td>
+
+                            {{ incident.created_at|date:"Y-m-d" }}
+
+                            <br>
+
+                            <small>
+
+                                {{ incident.created_at|date:"H:i" }}
+
+                            </small>
+
+                        </td>
+
+                        <td>
+
+                            <button
+                                type="button"
+                                class="incident-update-button"
+                                data-incident-id="{{ incident.id }}"
+                            >
+
+                                تحديث
+
+                            </button>
+
+                        </td>
+
+                    </tr>
+
+                    {% empty %}
+
+                    <tr id="incidentEmptyRow">
+
+                        <td colspan="9">
+
+                            <div class="incidents-empty-state">
+
+                                <span>
+                                    📭
+                                </span>
+
+                                <strong>
+
+                                    لا توجد بلاغات
+
+                                </strong>
+
+                                <p>
+
+                                    لم يتم العثور على بيانات.
+
+                                </p>
+
+                            </div>
+
+                        </td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section><style>
+
+/* ==================================================
+   الصفحة العامة
+================================================== */
+
+.incidents-page{
+    width:100%;
+    min-height:100vh;
+    box-sizing:border-box;
+    padding:30px 36px 80px;
+    background:
+        radial-gradient(
+            circle at 8% 8%,
+            rgba(212,175,55,.09),
+            transparent 32%
+        ),
+        radial-gradient(
+            circle at 92% 10%,
+            rgba(15,123,92,.08),
+            transparent 34%
+        ),
+        var(--background);
+}
+
+.incidents-page *{
+    box-sizing:border-box;
+}
+
+
+/* ==================================================
+   رأس الصفحة
+================================================== */
+
+.incidents-page-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:22px;
+    margin-bottom:26px;
+}
+
+.incidents-page-heading{
+    display:flex;
+    align-items:center;
+    gap:17px;
+}
+
+.incidents-page-heading-icon{
+    width:64px;
+    height:64px;
+    flex:0 0 64px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:20px;
+    background:
+        linear-gradient(
+            135deg,
+            var(--green),
+            var(--green-dark)
+        );
+    color:#fff;
+    font-size:29px;
+    box-shadow:
+        0 15px 34px rgba(15,123,92,.20);
+}
+
+.incidents-page-header h1{
+    margin:0;
+    color:var(--green-dark);
+    font-size:31px;
+    font-weight:950;
+    letter-spacing:-.4px;
+}
+
+.incidents-page-header p{
+    max-width:720px;
+    margin:8px 0 0;
+    color:var(--muted);
+    font-size:14px;
+    line-height:1.8;
+}
+
+
+/* ==================================================
+   مؤشر الحالة
+================================================== */
+
+.incidents-header-status{
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+}
+
+.incidents-live-indicator{
+    min-height:44px;
+    padding:0 15px;
+    display:inline-flex;
+    align-items:center;
+    gap:10px;
+    border-radius:999px;
+    font-size:12px;
+    font-weight:900;
+    white-space:nowrap;
+}
+
+.incidents-live-dot{
+    width:9px;
+    height:9px;
+    flex:0 0 9px;
+    border-radius:50%;
+}
+
+.incidents-live-indicator.critical{
+    background:#fee2e2;
+    color:#991b1b;
+    border:1px solid #fecaca;
+}
+
+.incidents-live-indicator.critical .incidents-live-dot{
+    background:#dc2626;
+    box-shadow:
+        0 0 0 5px rgba(220,38,38,.12);
+    animation:incidentPulse 1.5s infinite;
+}
+
+.incidents-live-indicator.warning{
+    background:#fef3c7;
+    color:#92400e;
+    border:1px solid #fde68a;
+}
+
+.incidents-live-indicator.warning .incidents-live-dot{
+    background:#f59e0b;
+}
+
+.incidents-live-indicator.success{
+    background:#dcfce7;
+    color:#166534;
+    border:1px solid #bbf7d0;
+}
+
+.incidents-live-indicator.success .incidents-live-dot{
+    background:#16a34a;
+}
+
+
+/* ==================================================
+   الإحصائيات
+================================================== */
+
+.incidents-stats-grid{
+    display:grid;
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:16px;
+    margin-bottom:28px;
+}
+
+.incident-stat-card{
+    min-height:116px;
+    padding:18px;
+    display:flex;
+    align-items:center;
+    gap:14px;
+    position:relative;
+    overflow:hidden;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:22px;
+    box-shadow:var(--shadow-sm);
+    transition:
+        transform .18s ease,
+        box-shadow .18s ease,
+        border-color .18s ease;
+}
+
+.incident-stat-card::after{
+    content:"";
+    position:absolute;
+    left:-30px;
+    bottom:-48px;
+    width:110px;
+    height:110px;
+    border-radius:50%;
+    background:rgba(15,123,92,.04);
+}
+
+.incident-stat-card:hover{
+    transform:translateY(-3px);
+    border-color:rgba(15,123,92,.18);
+    box-shadow:var(--shadow-md);
+}
+
+.incident-stat-icon{
+    width:52px;
+    height:52px;
+    flex:0 0 52px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    z-index:1;
+    border-radius:16px;
+    font-size:22px;
+    font-weight:950;
+}
+
+.incident-stat-icon.total{
+    background:#dbeafe;
+    color:#1d4ed8;
+}
+
+.incident-stat-icon.today{
+    background:#f3e8ff;
+    color:#7e22ce;
+}
+
+.incident-stat-icon.open{
+    background:#fef3c7;
+    color:#92400e;
+}
+
+.incident-stat-icon.critical{
+    background:#fee2e2;
+    color:#991b1b;
+    border:2px solid #ef4444;
+    border-radius:50%;
+}
+
+.incident-stat-icon.closed{
+    background:#dcfce7;
+    color:#166534;
+}
+
+.incident-stat-content{
+    position:relative;
+    z-index:1;
+}
+
+.incident-stat-content span{
+    display:block;
+    color:var(--muted);
+    font-size:12px;
+    font-weight:850;
+}
+
+.incident-stat-content strong{
+    display:block;
+    margin-top:7px;
+    color:var(--green-dark);
+    font-size:30px;
+    font-weight:950;
+    line-height:1;
+}
+
+.critical-card .incident-stat-content strong{
+    color:#dc2626;
+}
+
+
+/* ==================================================
+   البطاقات العامة
+================================================== */
+
+.incidents-card{
+    margin-bottom:27px;
+    padding:25px 27px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:25px;
+    box-shadow:var(--shadow-md);
+}
+
+.incident-create-card{
+    border-top:5px solid var(--green);
+}
+
+.incidents-card-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:18px;
+    margin-bottom:22px;
+    padding-bottom:18px;
+    border-bottom:1px solid var(--border);
+}
+
+.incidents-card-heading{
+    display:flex;
+    align-items:center;
+    gap:14px;
+}
+
+.incidents-card-heading-icon{
+    width:48px;
+    height:48px;
+    flex:0 0 48px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:15px;
+    background:var(--green-light);
+    color:var(--green-dark);
+    font-size:24px;
+    font-weight:950;
+}
+
+.incidents-card-header h2{
+    margin:0;
+    color:var(--text);
+    font-size:22px;
+    font-weight:950;
+}
+
+.incidents-card-header p{
+    margin:6px 0 0;
+    color:var(--muted);
+    font-size:13px;
+    line-height:1.7;
+}
+
+.incidents-card-label{
+    min-height:38px;
+    padding:0 13px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:999px;
+    background:#ecfdf5;
+    color:#166534;
+    border:1px solid #bbf7d0;
+    font-size:11px;
+    font-weight:900;
+}
+
+
+/* ==================================================
+   رسائل النموذج
+================================================== */
+
+.incident-form-message{
+    margin-bottom:20px;
+    padding:15px 17px;
+    border-radius:15px;
+    font-size:13px;
+    font-weight:850;
+    line-height:1.8;
+}
+
+.incident-form-message.success{
+    display:block !important;
+    background:#dcfce7;
+    color:#166534;
+    border:1px solid #bbf7d0;
+}
+
+.incident-form-message.danger{
+    display:block !important;
+    background:#fee2e2;
+    color:#991b1b;
+    border:1px solid #fecaca;
+}
+
+.incident-form-message.warning{
+    display:block !important;
+    background:#fef3c7;
+    color:#92400e;
+    border:1px solid #fde68a;
+}
+
+.incident-form-message.info{
+    display:block !important;
+    background:#dbeafe;
+    color:#1d4ed8;
+    border:1px solid #bfdbfe;
+}
+
+
+/* ==================================================
+   شبكة نموذج إنشاء البلاغ
+================================================== */
+
+.incident-create-form{
+    width:100%;
+}
+
+.incident-form-grid{
+    display:grid;
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:16px;
+}
+
+.incident-form-field{
+    min-width:0;
+}
+
+.incident-form-field.full{
+    grid-column:1 / -1;
+}
+
+.incident-form-field label{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    margin-bottom:9px;
+    color:var(--text);
+    font-size:13px;
+    font-weight:900;
+}
+
+.required-mark{
+    color:#dc2626;
+    font-size:14px;
+}
+
+.optional-mark{
+    color:var(--muted);
+    font-size:10px;
+    font-weight:800;
+}
+
+.incident-form-field input,
+.incident-form-field select,
+.incident-form-field textarea{
+    width:100%;
+    box-sizing:border-box;
+    border:1px solid var(--border);
+    border-radius:15px;
+    background:var(--surface);
+    color:var(--text);
+    font-size:14px;
+    transition:
+        border-color .18s ease,
+        box-shadow .18s ease,
+        background .18s ease;
+}
+
+.incident-form-field input,
+.incident-form-field select{
+    min-height:51px;
+    padding:0 14px;
+}
+
+.incident-form-field textarea{
+    min-height:145px;
+    padding:14px 15px;
+    resize:vertical;
+    line-height:1.9;
+}
+
+.incident-form-field input::placeholder,
+.incident-form-field textarea::placeholder{
+    color:#9ca3af;
+}
+
+.incident-form-field input:focus,
+.incident-form-field select:focus,
+.incident-form-field textarea:focus{
+    outline:none;
+    border-color:var(--gold);
+    box-shadow:
+        0 0 0 4px rgba(212,175,55,.14);
+}
+
+.incident-form-field.has-error input,
+.incident-form-field.has-error select,
+.incident-form-field.has-error textarea{
+    border-color:#ef4444;
+    box-shadow:
+        0 0 0 4px rgba(239,68,68,.10);
+}
+
+.incident-field-error{
+    min-height:18px;
+    margin-top:6px;
+    display:block;
+    color:#dc2626;
+    font-size:11px;
+    font-weight:800;
+}
+
+.incident-field-help{
+    margin-top:7px;
+    display:block;
+    color:var(--muted);
+    font-size:11px;
+    line-height:1.6;
+}
+
+
+/* ==================================================
+   وصف البلاغ
+================================================== */
+
+.incident-description-label{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+}
+
+.incident-description-label label{
+    margin-bottom:9px;
+}
+
+.incident-description-counter{
+    display:flex;
+    align-items:center;
+    gap:3px;
+    margin-bottom:9px;
+    color:var(--muted);
+    font-size:11px;
+    font-weight:800;
+}
+
+
+/* ==================================================
+   ملخص الباب المختار
+================================================== */
+
+.incident-selected-door-summary{
+    margin-top:18px;
+    padding:14px 16px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    background:#f8fafc;
+    border:1px solid var(--border);
+    border-radius:16px;
+}
+
+.incident-selected-door-icon{
+    width:42px;
+    height:42px;
+    flex:0 0 42px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:13px;
+    background:#dbeafe;
+    font-size:19px;
+}
+
+.incident-selected-door-summary span{
+    display:block;
+    color:var(--muted);
+    font-size:11px;
+    font-weight:800;
+}
+
+.incident-selected-door-summary strong{
+    display:block;
+    margin-top:4px;
+    color:var(--green-dark);
+    font-size:14px;
+    font-weight:950;
+}
+
+
+/* ==================================================
+   أزرار نموذج الإنشاء
+================================================== */
+
+.incident-form-actions{
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    gap:11px;
+    margin-top:20px;
+}
+
+.incident-save-button,
+.incident-reset-button,
+.incident-search-button{
+    min-width:145px;
+    min-height:47px;
+    padding:0 17px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    border-radius:14px;
+    text-decoration:none;
+    font-size:13px;
+    font-weight:950;
+    cursor:pointer;
+    transition:
+        transform .16s ease,
+        opacity .16s ease,
+        box-shadow .16s ease,
+        background .16s ease;
+}
+
+.incident-save-button{
+    border:none;
+    background:
+        linear-gradient(
+            135deg,
+            var(--green),
+            var(--green-dark)
+        );
+    color:#fff;
+    box-shadow:
+        0 11px 22px rgba(15,123,92,.20);
+}
+
+.incident-save-button:hover{
+    transform:translateY(-2px);
+    box-shadow:
+        0 15px 28px rgba(15,123,92,.25);
+}
+
+.incident-save-button:disabled{
+    opacity:.62;
+    cursor:not-allowed;
+    transform:none;
+    box-shadow:none;
+}
+
+.incident-reset-button{
+    border:1px solid var(--border);
+    background:#f3f4f6;
+    color:#374151;
+}
+
+.incident-reset-button:hover{
+    background:#e5e7eb;
+}
+
+.incident-save-button-icon.loading{
+    display:inline-block;
+    animation:incidentSpinner .8s linear infinite;
+}
+
+
+/* ==================================================
+   Toast
+================================================== */
+
+.incident-toast-container{
+    position:fixed;
+    top:90px;
+    left:24px;
+    z-index:20000;
+    width:min(390px,calc(100vw - 32px));
+    display:flex;
+    flex-direction:column;
+    gap:11px;
+    pointer-events:none;
+}
+
+.incident-toast{
+    padding:15px 16px;
+    display:flex;
+    align-items:flex-start;
+    gap:11px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:16px;
+    box-shadow:0 20px 50px rgba(0,0,0,.16);
+    pointer-events:auto;
+    animation:incidentToastIn .25s ease both;
+}
+
+.incident-toast.success{
+    border-right:5px solid #16a34a;
+}
+
+.incident-toast.danger{
+    border-right:5px solid #dc2626;
+}
+
+.incident-toast.warning{
+    border-right:5px solid #f59e0b;
+}
+
+.incident-toast.info{
+    border-right:5px solid #2563eb;
+}
+
+.incident-toast-icon{
+    width:30px;
+    height:30px;
+    flex:0 0 30px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:10px;
+    background:#f3f4f6;
+}
+
+.incident-toast-content{
+    flex:1;
+    min-width:0;
+}
+
+.incident-toast-title{
+    display:block;
+    color:var(--text);
+    font-size:13px;
+    font-weight:950;
+}
+
+.incident-toast-message{
+    margin-top:4px;
+    display:block;
+    color:var(--muted);
+    font-size:12px;
+    line-height:1.7;
+}
+
+.incident-toast-close{
+    width:28px;
+    height:28px;
+    border:none;
+    border-radius:9px;
+    background:#f3f4f6;
+    color:#4b5563;
+    cursor:pointer;
+}
+
+
+/* ==================================================
+   الحركات
+================================================== */
+
+@keyframes incidentPulse{
+    0%,
+    100%{
+        box-shadow:
+            0 0 0 4px rgba(220,38,38,.13);
+    }
+
+    50%{
+        box-shadow:
+            0 0 0 9px rgba(220,38,38,0);
+    }
+}
+
+@keyframes incidentSpinner{
+    from{
+        transform:rotate(0deg);
+    }
+
+    to{
+        transform:rotate(360deg);
+    }
+}
+
+@keyframes incidentToastIn{
+    from{
+        opacity:0;
+        transform:translateX(-18px);
+    }
+
+    to{
+        opacity:1;
+        transform:translateX(0);
+    }
+}/* ==================================================
+   FILTERS
+================================================== */
+
+.incidents-filter-form{
+    width:100%;
+}
+
+.incidents-filter-grid{
+    display:grid;
+    grid-template-columns:2fr repeat(3,minmax(0,1fr));
+    gap:16px;
+}
+
+.search-field{
+    position:relative;
+}
+
+.search-field input{
+    padding-right:18px;
+}
+
+
+/* ==================================================
+   TABLE
+================================================== */
+
+.incidents-list-count{
+    min-height:40px;
+    padding:0 14px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:999px;
+    background:#ecfdf5;
+    color:#166534;
+    border:1px solid #bbf7d0;
+    font-size:12px;
+    font-weight:900;
+}
+
+.incidents-table-wrapper{
+    width:100%;
+    overflow-x:auto;
+    border:1px solid var(--border);
+    border-radius:18px;
+    background:#fff;
+}
+
+.incidents-table{
+    width:100%;
+    min-width:1450px;
+    border-collapse:separate;
+    border-spacing:0;
+}
+
+.incidents-table thead th{
+    padding:16px 14px;
+    background:linear-gradient(
+        135deg,
+        var(--green),
+        var(--green-dark)
+    );
+    color:#fff;
+    text-align:center;
+    font-size:13px;
+    font-weight:900;
+    white-space:nowrap;
+}
+
+.incidents-table tbody td{
+    padding:15px 14px;
+    border-bottom:1px solid var(--border);
+    text-align:center;
+    vertical-align:middle;
+    font-size:13px;
+    color:var(--text);
+}
+
+.incidents-table tbody tr{
+    transition:
+        background .15s ease,
+        transform .15s ease;
+}
+
+.incidents-table tbody tr:nth-child(even){
+    background:#fafafa;
+}
+
+.incidents-table tbody tr:hover{
+    background:#f0fdf4;
+}
+
+.incidents-table tbody tr:last-child td{
+    border-bottom:none;
+}
+
+
+/* ==================================================
+   رقم البلاغ
+================================================== */
+
+.incident-number-cell{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+}
+
+.incident-number-cell strong{
+    color:#111827;
+    font-size:13px;
+}
+
+.incident-critical-dot{
+    width:9px;
+    height:9px;
+    border-radius:50%;
+    background:#dc2626;
+}
+
+
+/* ==================================================
+   Badge الباب
+================================================== */
+
+.incident-door-badge{
+    min-height:30px;
+    padding:0 10px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:999px;
+    background:#dbeafe;
+    color:#1d4ed8;
+    font-size:11px;
+    font-weight:900;
+}
+
+.incident-empty-value{
+    color:#9ca3af;
+    font-weight:700;
+}
+
+
+/* ==================================================
+   BADGES
+================================================== */
+
+.incident-badge{
+    min-height:30px;
+    padding:0 11px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:999px;
+    font-size:11px;
+    font-weight:900;
+    white-space:nowrap;
+}
+
+.priority-critical{
+    background:#fee2e2;
+    color:#991b1b;
+}
+
+.priority-high{
+    background:#ffedd5;
+    color:#9a3412;
+}
+
+.priority-medium{
+    background:#fef3c7;
+    color:#92400e;
+}
+
+.priority-low{
+    background:#dcfce7;
+    color:#166534;
+}
+
+.status-new{
+    background:#dbeafe;
+    color:#1d4ed8;
+}
+
+.status-in_progress{
+    background:#fef3c7;
+    color:#92400e;
+}
+
+.status-forwarded{
+    background:#ede9fe;
+    color:#6d28d9;
+}
+
+.status-resolved{
+    background:#dcfce7;
+    color:#166534;
+}
+
+.status-closed{
+    background:#e5e7eb;
+    color:#374151;
+}
+
+
+/* ==================================================
+   التاريخ
+================================================== */
+
+.incident-date-cell strong{
+    display:block;
+    color:#111827;
+}
+
+.incident-date-cell small{
+    display:block;
+    margin-top:5px;
+    color:#9ca3af;
+}
+
+
+/* ==================================================
+   زر التحديث
+================================================== */
+
+.incident-update-button{
+    min-width:100px;
+    min-height:38px;
+    border:none;
+    border-radius:11px;
+    background:#2563eb;
+    color:#fff;
+    font-size:12px;
+    font-weight:900;
+    cursor:pointer;
+    transition:.15s;
+}
+
+.incident-update-button:hover{
+    background:#1d4ed8;
+}
+
+
+/* ==================================================
+   نافذة التحديث
+================================================== */
+
+.incident-update-modal{
+    position:fixed;
+    inset:0;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    background:rgba(0,0,0,.55);
+    z-index:30000;
+}
+
+.incident-update-modal.active{
+    display:flex;
+}
+
+.incident-update-dialog{
+    width:620px;
+    max-width:96%;
+    background:#fff;
+    border-radius:22px;
+    overflow:hidden;
+    box-shadow:0 25px 60px rgba(0,0,0,.18);
+}
+
+.incident-update-header{
+    padding:20px 24px;
+    background:var(--green);
+    color:#fff;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.incident-update-header h3{
+    margin:0;
+    font-size:20px;
+}
+
+.incident-update-body{
+    padding:22px;
+}
+
+.incident-update-body label{
+    display:block;
+    margin-bottom:8px;
+    font-weight:900;
+    font-size:13px;
+}
+
+.incident-update-body input,
+.incident-update-body select,
+.incident-update-body textarea{
+    width:100%;
+    box-sizing:border-box;
+    padding:12px 14px;
+    border:1px solid var(--border);
+    border-radius:12px;
+    margin-bottom:16px;
+}
+
+.incident-update-footer{
+    padding:18px 22px;
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+    border-top:1px solid var(--border);
+}
+
+.incident-update-footer button{
+    min-width:120px;
+    min-height:42px;
+    border:none;
+    border-radius:12px;
+    cursor:pointer;
+    font-weight:900;
+}
+
+.incident-update-save{
+    background:var(--green);
+    color:#fff;
+}
+
+.incident-update-cancel{
+    background:#f3f4f6;
+}
+
+
+/* ==================================================
+   EMPTY
+================================================== */
+
+.incidents-empty-row td{
+    padding:55px 20px !important;
+}
+
+.incidents-empty-state{
+    text-align:center;
+}
+
+.incidents-empty-state span{
+    display:block;
+    font-size:40px;
+}
+
+.incidents-empty-state strong{
+    display:block;
+    margin-top:12px;
+    font-size:18px;
+    color:#111827;
+}
+
+.incidents-empty-state p{
+    margin-top:8px;
+    color:#9ca3af;
+}/* ==================================================
+   RESPONSIVE
+================================================== */
+
+@media(max-width:1400px){
+
+    .incidents-stats-grid{
+        grid-template-columns:repeat(3,minmax(0,1fr));
+    }
+
+    .incident-form-grid{
+        grid-template-columns:repeat(3,minmax(0,1fr));
+    }
+
+    .incidents-filter-grid{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+    }
+
+}
+
+
+@media(max-width:900px){
+
+    .incidents-page{
+        padding:20px 14px 60px;
+    }
+
+    .incidents-page-header{
+        flex-direction:column;
+        align-items:flex-start;
+        gap:14px;
+    }
+
+    .incidents-stats-grid{
+        grid-template-columns:1fr;
+    }
+
+    .incident-form-grid{
+        grid-template-columns:1fr;
+    }
+
+    .incidents-filter-grid{
+        grid-template-columns:1fr;
+    }
+
+    .incident-form-actions{
+        flex-direction:column;
+        align-items:stretch;
+    }
+
+    .incident-form-actions button{
+        width:100%;
+    }
+
+    .incident-update-dialog{
+        width:95%;
+    }
+
+}
+
+
+@media(max-width:600px){
+
+    .incidents-page-header h1{
+        font-size:24px;
+    }
+
+    .incident-stat-content strong{
+        font-size:24px;
+    }
+
+    .incident-form-field input,
+    .incident-form-field select,
+    .incident-form-field textarea{
+        font-size:13px;
+    }
+
+}
+
+
+/* ==================================================
+   DARK MODE
+================================================== */
+
+body.dark .incidents-page{
+    background:#0f172a;
+}
+
+body.dark .incidents-card,
+body.dark .incident-stat-card,
+body.dark .incidents-table-wrapper{
+    background:#111827;
+    border-color:#1f2937;
+}
+
+body.dark .incident-form-field input,
+body.dark .incident-form-field select,
+body.dark .incident-form-field textarea{
+    background:#0f172a;
+    border-color:#1f2937;
+    color:#e5e7eb;
+}
+
+body.dark .incident-form-field label{
+    color:#e5e7eb;
+}
+
+body.dark .incidents-table tbody tr:nth-child(even){
+    background:#0f172a;
+}
+
+body.dark .incidents-table tbody tr:hover{
+    background:#1f2937;
+}
+
+body.dark .incident-reset-button{
+    background:#1f2937;
+    color:#e5e7eb;
+}
+
+body.dark .incident-update-dialog{
+    background:#111827;
+}
+
+body.dark .incident-update-body input,
+body.dark .incident-update-body select,
+body.dark .incident-update-body textarea{
+    background:#0f172a;
+    color:#e5e7eb;
+    border-color:#1f2937;
+}
+
+
+/* ==================================================
+   تحسينات إضافية
+================================================== */
+
+.incident-form-field select{
+    cursor:pointer;
+}
+
+.incident-save-button:active{
+    transform:scale(.97);
+}
+
+.incident-update-button:active{
+    transform:scale(.96);
+}
+
+.incident-reset-button:active{
+    transform:scale(.96);
+}
+
+
+/* نهاية CSS */
+</style><script>
+"use strict";
+
+/* ==================================================
+   المتغيرات العامة
+================================================== */
+
+let incidentCreateMessageTimer = null;
+
+
+/* ==================================================
+   أدوات عامة
+================================================== */
+
+function incidentGetElement(id){
+    return document.getElementById(id);
+}
+
+
+function incidentGetCookie(name){
+    const cookies = document.cookie
+        ? document.cookie.split(";")
+        : [];
+
+    for(const cookieItem of cookies){
+        const cookie = cookieItem.trim();
+
+        if(cookie.startsWith(name + "=")){
+            return decodeURIComponent(
+                cookie.substring(name.length + 1)
+            );
+        }
+    }
+
+    return "";
+}
+
+
+async function incidentReadJson(response){
+    try{
+        return await response.json();
+    }catch(error){
+        throw new Error(
+            "استجابة الخادم غير صالحة."
+        );
+    }
+}
+
+
+function incidentEscapeHtml(value){
+    const div = document.createElement("div");
+
+    div.textContent =
+        String(value ?? "");
+
+    return div.innerHTML;
+}
+
+
+function incidentParseNumber(value){
+    const number =
+        Number.parseInt(value, 10);
+
+    return Number.isNaN(number)
+        ? 0
+        : number;
+}
+
+
+/* ==================================================
+   رسائل Toast
+================================================== */
+
+function showIncidentToast(
+    type,
+    title,
+    message,
+    duration = 5000
+){
+    const container =
+        incidentGetElement(
+            "incidentToastContainer"
+        );
+
+    if(!container){
+        return;
+    }
+
+    const iconMap = {
+        success: "✓",
+        danger: "!",
+        warning: "⚠",
+        info: "i",
+    };
+
+    const toast =
+        document.createElement("div");
+
+    toast.className =
+        "incident-toast " + type;
+
+    toast.innerHTML = `
+        <div class="incident-toast-icon">
+            ${iconMap[type] || "i"}
+        </div>
+
+        <div class="incident-toast-content">
+
+            <strong class="incident-toast-title">
+                ${incidentEscapeHtml(title)}
+            </strong>
+
+            <span class="incident-toast-message">
+                ${incidentEscapeHtml(message)}
+            </span>
+
+        </div>
+
+        <button
+            type="button"
+            class="incident-toast-close"
+            aria-label="إغلاق"
+        >
+            ×
+        </button>
+    `;
+
+    const closeButton =
+        toast.querySelector(
+            ".incident-toast-close"
+        );
+
+    const removeToast = function(){
+        toast.remove();
+    };
+
+    closeButton?.addEventListener(
+        "click",
+        removeToast
+    );
+
+    container.appendChild(toast);
+
+    setTimeout(
+        removeToast,
+        duration
+    );
+}
+
+
+/* ==================================================
+   رسالة داخل نموذج الإنشاء
+================================================== */
+
+function hideIncidentCreateMessage(){
+    const box =
+        incidentGetElement(
+            "incidentCreateMessage"
+        );
+
+    if(!box){
+        return;
+    }
+
+    box.style.display = "none";
+    box.innerText = "";
+    box.className =
+        "incident-form-message";
+}
+
+
+function showIncidentCreateMessage(
+    type,
+    message
+){
+    const box =
+        incidentGetElement(
+            "incidentCreateMessage"
+        );
+
+    if(!box){
+        showIncidentToast(
+            type,
+            "البلاغات التشغيلية",
+            message
+        );
+        return;
+    }
+
+    if(incidentCreateMessageTimer){
+        clearTimeout(
+            incidentCreateMessageTimer
+        );
+    }
+
+    box.className =
+        "incident-form-message " + type;
+
+    box.innerText = message;
+    box.style.display = "block";
+
+    incidentCreateMessageTimer =
+        setTimeout(
+            hideIncidentCreateMessage,
+            6000
+        );
+}
+
+
+/* ==================================================
+   أخطاء الحقول
+================================================== */
+
+function clearIncidentFieldError(
+    inputId,
+    errorId
+){
+    const input =
+        incidentGetElement(inputId);
+
+    const error =
+        incidentGetElement(errorId);
+
+    input
+        ?.closest(".incident-form-field")
+        ?.classList.remove("has-error");
+
+    if(error){
+        error.innerText = "";
+    }
+}
+
+
+function setIncidentFieldError(
+    inputId,
+    errorId,
+    message
+){
+    const input =
+        incidentGetElement(inputId);
+
+    const error =
+        incidentGetElement(errorId);
+
+    input
+        ?.closest(".incident-form-field")
+        ?.classList.add("has-error");
+
+    if(error){
+        error.innerText = message;
+    }
+}
+
+
+function clearAllIncidentFieldErrors(){
+    clearIncidentFieldError(
+        "incidentType",
+        "incidentTypeError"
+    );
+
+    clearIncidentFieldError(
+        "incidentPriority",
+        "incidentPriorityError"
+    );
+
+    clearIncidentFieldError(
+        "reportedByName",
+        "reportedByNameError"
+    );
+
+    clearIncidentFieldError(
+        "assignedToName",
+        "assignedToNameError"
+    );
+
+    clearIncidentFieldError(
+        "incidentDescription",
+        "incidentDescriptionError"
+    );
+}
+
+
+/* ==================================================
+   عداد وصف البلاغ
+================================================== */
+
+function updateIncidentDescriptionCounter(){
+    const description =
+        incidentGetElement(
+            "incidentDescription"
+        );
+
+    const counter =
+        incidentGetElement(
+            "incidentDescriptionCount"
+        );
+
+    if(counter){
+        counter.innerText =
+            description?.value.length || 0;
+    }
+}
+
+
+/* ==================================================
+   ملخص الباب المختار
+================================================== */
+
+function updateIncidentDoorSummary(){
+    const doorSelect =
+        incidentGetElement("incidentDoor");
+
+    const summaryText =
+        incidentGetElement(
+            "incidentSelectedDoorText"
+        );
+
+    if(!doorSelect || !summaryText){
+        return;
+    }
+
+    const selectedOption =
+        doorSelect.options[
+            doorSelect.selectedIndex
+        ];
+
+    if(
+        !doorSelect.value ||
+        !selectedOption
+    ){
+        summaryText.innerText =
+            "بلاغ عام بدون باب";
+        return;
+    }
+
+    summaryText.innerText =
+        selectedOption.textContent.trim();
+}
+
+
+/* ==================================================
+   حالة زر الحفظ
+================================================== */
+
+function setIncidentCreateLoading(
+    isLoading
+){
+    const button =
+        incidentGetElement(
+            "incidentSaveButton"
+        );
+
+    const buttonText =
+        incidentGetElement(
+            "incidentSaveButtonText"
+        );
+
+    const buttonIcon =
+        incidentGetElement(
+            "incidentSaveButtonIcon"
+        );
+
+    if(!button){
+        return;
+    }
+
+    button.disabled = isLoading;
+
+    if(buttonText){
+        buttonText.innerText =
+            isLoading
+                ? "جاري حفظ البلاغ..."
+                : "حفظ البلاغ";
+    }
+
+    if(buttonIcon){
+        buttonIcon.innerText =
+            isLoading
+                ? "◌"
+                : "✓";
+
+        buttonIcon.classList.toggle(
+            "loading",
+            isLoading
+        );
+    }
+}
+
+
+/* ==================================================
+   التحقق من نموذج إنشاء البلاغ
+================================================== */
+
+function validateIncidentCreateForm(){
+    clearAllIncidentFieldErrors();
+
+    const type =
+        incidentGetElement(
+            "incidentType"
+        )?.value || "";
+
+    const priority =
+        incidentGetElement(
+            "incidentPriority"
+        )?.value || "";
+
+    const reportedByName =
+        incidentGetElement(
+            "reportedByName"
+        )?.value.trim() || "";
+
+    const assignedToName =
+        incidentGetElement(
+            "assignedToName"
+        )?.value.trim() || "";
+
+    const description =
+        incidentGetElement(
+            "incidentDescription"
+        )?.value.trim() || "";
+
+    let isValid = true;
+
+    if(!type){
+        setIncidentFieldError(
+            "incidentType",
+            "incidentTypeError",
+            "يرجى اختيار نوع البلاغ."
+        );
+
+        isValid = false;
+    }
+
+    if(!priority){
+        setIncidentFieldError(
+            "incidentPriority",
+            "incidentPriorityError",
+            "يرجى اختيار أولوية البلاغ."
+        );
+
+        isValid = false;
+    }
+
+    if(
+        reportedByName.length > 150
+    ){
+        setIncidentFieldError(
+            "reportedByName",
+            "reportedByNameError",
+            "اسم المبلّغ طويل جدًا."
+        );
+
+        isValid = false;
+    }
+
+    if(
+        assignedToName.length > 150
+    ){
+        setIncidentFieldError(
+            "assignedToName",
+            "assignedToNameError",
+            "اسم الجهة أو الموظف طويل جدًا."
+        );
+
+        isValid = false;
+    }
+
+    if(!description){
+        setIncidentFieldError(
+            "incidentDescription",
+            "incidentDescriptionError",
+            "وصف البلاغ مطلوب."
+        );
+
+        isValid = false;
+    }else if(
+        description.length < 5
+    ){
+        setIncidentFieldError(
+            "incidentDescription",
+            "incidentDescriptionError",
+            "يرجى كتابة وصف لا يقل عن 5 أحرف."
+        );
+
+        isValid = false;
+    }else if(
+        description.length > 1000
+    ){
+        setIncidentFieldError(
+            "incidentDescription",
+            "incidentDescriptionError",
+            "وصف البلاغ تجاوز الحد المسموح."
+        );
+
+        isValid = false;
+    }
+
+    return isValid;
+}
+
+
+/* ==================================================
+   إعادة تعيين نموذج إنشاء البلاغ
+================================================== */
+
+function resetIncidentCreateForm(){
+    const form =
+        incidentGetElement(
+            "incidentCreateForm"
+        );
+
+    if(!form){
+        return;
+    }
+
+    form.reset();
+
+    const priority =
+        incidentGetElement(
+            "incidentPriority"
+        );
+
+    if(priority){
+        priority.value = "medium";
+    }
+
+    clearAllIncidentFieldErrors();
+    hideIncidentCreateMessage();
+    updateIncidentDescriptionCounter();
+    updateIncidentDoorSummary();
+}/* ==================================================
+   إنشاء البلاغ (AJAX)
+================================================== */
+
+async function submitIncidentForm(event){
+
+    event.preventDefault();
+
+    if(!validateIncidentCreateForm()){
+        showIncidentCreateMessage(
+            "danger",
+            "يرجى تصحيح الأخطاء قبل الحفظ."
+        );
+        return;
+    }
+
+    const form =
+        incidentGetElement("incidentCreateForm");
+
+    if(!form){
+        return;
+    }
+
+    setIncidentCreateLoading(true);
+    hideIncidentCreateMessage();
+
+    try{
+
+        const formData = new FormData(form);
+
+        const response = await fetch(
+            form.action,
+            {
+                method: "POST",
+                headers:{
+                    "X-CSRFToken":
+                        incidentGetCookie("csrftoken"),
+                    "X-Requested-With":
+                        "XMLHttpRequest",
+                },
+                body: formData,
+            }
+        );
+
+        const data =
+            await incidentReadJson(response);
+
+        if(
+            !response.ok ||
+            data.success === false
+        ){
+            throw new Error(
+                data.error ||
+                "تعذر إنشاء البلاغ."
+            );
+        }
+
+        const incident =
+            data.incident;
+
+        showIncidentCreateMessage(
+            "success",
+            "تم إنشاء البلاغ بنجاح."
+        );
+
+        showIncidentToast(
+            "success",
+            "تم الحفظ",
+            "رقم البلاغ: " +
+            incident.incident_number
+        );
+
+        appendIncidentRow(
+            incident
+        );
+
+        updateIncidentStatistics();
+
+        resetIncidentCreateForm();
+
+    }catch(error){
+
+        console.error(error);
+
+        showIncidentCreateMessage(
+            "danger",
+            error.message ||
+            "حدث خطأ أثناء إنشاء البلاغ."
+        );
+
+        showIncidentToast(
+            "danger",
+            "خطأ",
+            error.message ||
+            "تعذر إنشاء البلاغ."
+        );
+
+    }finally{
+
+        setIncidentCreateLoading(false);
+
+    }
+
+}
+
+
+/* ==================================================
+   إضافة البلاغ إلى الجدول
+================================================== */
+
+function appendIncidentRow(incident){
+
+    const tbody =
+        incidentGetElement(
+            "incidentTableBody"
+        );
+
+    if(!tbody){
+        return;
+    }
+
+    const emptyRow =
+        incidentGetElement(
+            "incidentEmptyRow"
+        );
+
+    if(emptyRow){
+        emptyRow.remove();
+    }
+
+    const tr =
+        document.createElement("tr");
+
+    tr.dataset.id =
+        incident.id;
+
+    const doorText =
+        incident.door_number
+        ? `<span class="incident-door-badge">
+                باب ${incident.door_number}
+           </span>`
+        : `<span class="incident-empty-value">
+                عام
+           </span>`;
+
+    tr.innerHTML = `
+        <td>
+
+            <strong>
+
+                ${incident.incident_number}
+
+            </strong>
+
+        </td>
+
+        <td>
+
+            ${doorText}
+
+        </td>
+
+        <td>
+
+            ${incident.incident_type_label}
+
+        </td>
+
+        <td>
+
+            <span class="incident-badge priority-${incident.priority}">
+
+                ${incident.priority_label}
+
+            </span>
+
+        </td>
+
+        <td>
+
+            <span class="incident-badge status-${incident.status}">
+
+                ${incident.status_label}
+
+            </span>
+
+        </td>
+
+        <td>
+
+            ${incident.reported_by_name || "—"}
+
+        </td>
+
+        <td>
+
+            ${incident.assigned_to_name || "—"}
+
+        </td>
+
+        <td>
+
+            ${incident.created_at}
+
+        </td>
+
+        <td>
+
+            <button
+                class="incident-update-button"
+                type="button"
+                data-incident-id="${incident.id}"
+            >
+
+                تحديث
+
+            </button>
+
+        </td>
+    `;
+
+    tbody.prepend(tr);
+
+}
+
+
+/* ==================================================
+   تحديث الإحصائيات
+================================================== */
+
+function updateIncidentStatistics(){
+
+    const total =
+        incidentGetElement(
+            "totalIncidentsCount"
+        );
+
+    const today =
+        incidentGetElement(
+            "todayIncidentsCount"
+        );
+
+    const open =
+        incidentGetElement(
+            "openIncidentsCount"
+        );
+
+    const badge =
+        incidentGetElement(
+            "incidentCountBadge"
+        );
+
+    if(total){
+
+        total.innerText =
+            incidentParseNumber(
+                total.innerText
+            ) + 1;
+
+    }
+
+    if(today){
+
+        today.innerText =
+            incidentParseNumber(
+                today.innerText
+            ) + 1;
+
+    }
+
+    if(open){
+
+        open.innerText =
+            incidentParseNumber(
+                open.innerText
+            ) + 1;
+
+    }
+
+    if(badge){
+
+        badge.innerText =
+            incidentParseNumber(
+                badge.innerText
+            ) + 1 +
+            " بلاغ";
+
+    }
+
+}/* ==================================================
+   تشغيل أحداث صفحة البلاغات
+================================================== */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function(){
+
+        const createForm =
+            incidentGetElement(
+                "incidentCreateForm"
+            );
+
+        const resetButton =
+            incidentGetElement(
+                "incidentResetButton"
+            );
+
+        const description =
+            incidentGetElement(
+                "incidentDescription"
+            );
+
+        const doorSelect =
+            incidentGetElement(
+                "incidentDoor"
+            );
+
+        if(createForm){
+
+            createForm.addEventListener(
+                "submit",
+                submitIncidentForm
+            );
+
+        }
+
+        if(resetButton){
+
+            resetButton.addEventListener(
+                "click",
+                function(){
+
+                    setTimeout(
+                        function(){
+
+                            resetIncidentCreateForm();
+
+                        },
+                        0
+                    );
+
+                }
+            );
+
+        }
+
+        if(description){
+
+            description.addEventListener(
+                "input",
+                function(){
+
+                    clearIncidentFieldError(
+                        "incidentDescription",
+                        "incidentDescriptionError"
+                    );
+
+                    updateIncidentDescriptionCounter();
+
+                }
+            );
+
+        }
+
+        if(doorSelect){
+
+            doorSelect.addEventListener(
+                "change",
+                updateIncidentDoorSummary
+            );
+
+        }
+
+        incidentGetElement("incidentType")
+            ?.addEventListener(
+                "change",
+                function(){
+
+                    clearIncidentFieldError(
+                        "incidentType",
+                        "incidentTypeError"
+                    );
+
+                }
+            );
+
+        incidentGetElement("incidentPriority")
+            ?.addEventListener(
+                "change",
+                function(){
+
+                    clearIncidentFieldError(
+                        "incidentPriority",
+                        "incidentPriorityError"
+                    );
+
+                }
+            );
+
+        incidentGetElement("reportedByName")
+            ?.addEventListener(
+                "input",
+                function(){
+
+                    clearIncidentFieldError(
+                        "reportedByName",
+                        "reportedByNameError"
+                    );
+
+                }
+            );
+
+        incidentGetElement("assignedToName")
+            ?.addEventListener(
+                "input",
+                function(){
+
+                    clearIncidentFieldError(
+                        "assignedToName",
+                        "assignedToNameError"
+                    );
+
+                }
+            );
+
+        updateIncidentDescriptionCounter();
+        updateIncidentDoorSummary();
+
+    }
+);
+
+
+/* ==================================================
+   حماية إضافية لمنع الإرسال التقليدي
+================================================== */
+
+window.addEventListener(
+    "pageshow",
+    function(){
+
+        setIncidentCreateLoading(false);
+
+    }
+);
+</script>
+
+</div>
+
+{% endblock %}

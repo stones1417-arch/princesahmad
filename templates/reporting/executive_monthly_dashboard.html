@@ -1,0 +1,1308 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+    اللوحة التنفيذية الشهرية | منصة أبواب
+{% endblock %}
+
+{% block content %}
+
+<div class="monthly-dashboard" dir="rtl">
+
+    <!-- =========================================
+         رأس اللوحة
+    ========================================== -->
+    <section class="monthly-hero">
+
+        <div class="monthly-hero-copy">
+
+            <div class="monthly-category">
+                <svg viewBox="0 0 24 24">
+                    <path d="M4 20V10"/>
+                    <path d="M10 20V4"/>
+                    <path d="M16 20v-7"/>
+                    <path d="M22 20H2"/>
+                </svg>
+
+                <span>التقارير التنفيذية</span>
+            </div>
+
+            <h1>
+                اللوحة التنفيذية الشهرية
+            </h1>
+
+            <p>
+                تقرير شامل لأداء الأبواب خلال شهر
+
+                <strong>
+                    {{ selected_month_name }}
+                    {{ selected_year }}
+                </strong>
+            </p>
+
+            <div class="executive-hero-actions">
+                <button type="button" class="executive-print-button" onclick="window.print()"><span>↓</span> طباعة / حفظ PDF</button>
+                <a href="{% url 'reporting:list' %}">مركز التقارير</a>
+            </div>
+
+        </div>
+
+
+        <div class="monthly-hero-visual">
+
+            <div class="chart-visual">
+
+                <span class="chart-bar bar-one"></span>
+                <span class="chart-bar bar-two"></span>
+                <span class="chart-bar bar-three"></span>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- =========================================
+         عداد الشهر الميلادي
+    ========================================== -->
+    <section class="month-counter-card">
+
+        <a
+            href="?year={{ previous_year }}&month={{ previous_month }}"
+            class="month-nav-button"
+            aria-label="الشهر السابق"
+        >
+            <svg viewBox="0 0 24 24">
+                <path d="m15 18-6-6 6-6"/>
+            </svg>
+        </a>
+
+        <div class="month-counter-content">
+
+            <span class="month-counter-label">
+                الشهر المعروض
+            </span>
+
+            <strong id="monthCounterValue">
+                {{ selected_month_name }}
+                {{ selected_year }}
+            </strong>
+
+            {% if is_current_month %}
+                <small>
+                    الشهر الحالي
+                </small>
+            {% else %}
+                <a
+                    href="{% url 'reporting:executive-monthly' %}"
+                    class="current-month-link"
+                >
+                    العودة إلى الشهر الحالي
+                </a>
+            {% endif %}
+
+        </div>
+
+        <a
+            href="?year={{ next_year }}&month={{ next_month }}"
+            class="month-nav-button"
+            aria-label="الشهر التالي"
+        >
+            <svg viewBox="0 0 24 24">
+                <path d="m9 18 6-6-6-6"/>
+            </svg>
+        </a>
+
+    </section>
+
+
+    <!-- =========================================
+         الأشهر الدائرية
+    ========================================== -->
+    <section class="months-carousel">
+
+        {% for month in months %}
+
+            <a
+                href="?year={{ selected_year }}&month={{ month.number }}"
+                class="month-item {% if month.active %}active{% endif %}"
+            >
+                <span>
+                    {{ month.number|stringformat:"02d" }}
+                </span>
+
+                <strong>
+                    {{ month.name }}
+                </strong>
+            </a>
+
+        {% endfor %}
+
+    </section>
+
+
+    <!-- =========================================
+         بطاقات المؤشرات
+    ========================================== -->
+    <section class="monthly-kpi-grid">
+
+        <article class="monthly-kpi-card approved-card">
+
+            <div class="monthly-icon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 3 20 7v5c0 5-3 8-8 9-5-1-8-4-8-9V7Z"/>
+                    <path d="m8 12 3 3 5-6"/>
+                </svg>
+            </div>
+
+            <span>
+                التقارير المعتمدة
+            </span>
+
+            <strong>
+                {{ approved_reports }}
+            </strong>
+
+            <div class="kpi-divider">
+                <i></i>
+            </div>
+
+            <p>
+                خلال الشهر المحدد
+            </p>
+
+            <div class="kpi-progress">
+                <span
+                    style="width:{{ approval_rate }}%"
+                ></span>
+            </div>
+
+        </article>
+
+
+        <article class="monthly-kpi-card shifts-card">
+
+            <div class="monthly-icon">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9"/>
+                    <path d="M12 7v5l3 2"/>
+                </svg>
+            </div>
+
+            <span>
+                إجمالي الورديات
+            </span>
+
+            <strong>
+                {{ total_shifts }}
+            </strong>
+
+            <div class="kpi-divider">
+                <i></i>
+            </div>
+
+            <p>
+                وردية منفذة أو مسجلة
+            </p>
+
+        </article>
+
+
+        <article class="monthly-kpi-card doors-card">
+
+            <div class="monthly-icon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M5 3h14v18H5z"/>
+                    <path d="M12 3v18"/>
+                    <path d="M9 12h.01"/>
+                    <path d="M15 12h.01"/>
+                </svg>
+            </div>
+
+            <span>
+                متوسط الأبواب المفتوحة
+            </span>
+
+            <strong>
+                {{ avg_open_rate }}%
+            </strong>
+
+            <div class="kpi-progress green">
+                <span
+                    style="width:{{ avg_open_rate }}%"
+                ></span>
+            </div>
+
+            <div class="kpi-divider">
+                <i></i>
+            </div>
+
+            <p>
+                {% if avg_open_rate >= 80 %}
+                    أداء تشغيلي ممتاز
+                {% elif avg_open_rate >= 60 %}
+                    أداء جيد
+                {% elif avg_open_rate > 0 %}
+                    يحتاج إلى تحسين
+                {% else %}
+                    لا توجد بيانات كافية
+                {% endif %}
+            </p>
+
+        </article>
+
+
+        <article class="monthly-kpi-card maintenance-card">
+
+            <div class="monthly-icon">
+                <svg viewBox="0 0 24 24">
+                    <path d="m14 6 4-4 4 4-4 4"/>
+                    <path d="m10 18-4 4-4-4 4-4"/>
+                    <path d="m13 7-6 6"/>
+                    <path d="m17 11-6 6"/>
+                </svg>
+            </div>
+
+            <span>
+                متوسط إنجاز الصيانة
+            </span>
+
+            <strong>
+                {{ avg_maintenance_rate }}%
+            </strong>
+
+            <div class="kpi-progress gold">
+                <span
+                    style="width:{{ avg_maintenance_rate }}%"
+                ></span>
+            </div>
+
+            <div class="kpi-divider">
+                <i></i>
+            </div>
+
+            <p>
+                {% if avg_maintenance_rate >= 80 %}
+                    إنجاز مرتفع
+                {% elif avg_maintenance_rate >= 50 %}
+                    يحتاج إلى متابعة
+                {% elif avg_maintenance_rate > 0 %}
+                    يحتاج إلى تدخل
+                {% else %}
+                    لا توجد طلبات منجزة
+                {% endif %}
+            </p>
+
+        </article>
+
+    </section>
+
+
+    <!-- =========================================
+         تفاصيل حالة التقارير
+    ========================================== -->
+    <section class="monthly-details-grid">
+
+        <article class="monthly-detail-card">
+
+            <div>
+                <span>
+                    التقارير النهائية
+                </span>
+
+                <strong>
+                    {{ final_reports }}
+                </strong>
+            </div>
+
+            <svg viewBox="0 0 24 24">
+                <path d="M6 3h9l3 3v15H6z"/>
+                <path d="M15 3v4h4"/>
+                <path d="m9 15 2 2 4-5"/>
+            </svg>
+
+        </article>
+
+
+        <article class="monthly-detail-card">
+
+            <div>
+                <span>
+                    التقارير المسودة
+                </span>
+
+                <strong>
+                    {{ draft_reports }}
+                </strong>
+            </div>
+
+            <svg viewBox="0 0 24 24">
+                <path d="M5 4h14v16H5z"/>
+                <path d="M8 8h8M8 12h8M8 16h5"/>
+            </svg>
+
+        </article>
+
+
+        <article class="monthly-detail-card">
+
+            <div>
+                <span>
+                    نسبة الاعتماد
+                </span>
+
+                <strong>
+                    {{ approval_rate }}%
+                </strong>
+            </div>
+
+            <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="9"/>
+                <path d="m8 12 3 3 5-6"/>
+            </svg>
+
+        </article>
+
+    </section>
+
+    <section class="executive-insights-grid">
+        <article class="executive-performance-card">
+            <header><div><span>قراءة الإدارة العليا</span><h2>ملخص الأداء الشهري</h2><p>نظرة موحدة على الجاهزية والاعتماد والاستجابة الفنية.</p></div><strong>{{ selected_month_name }} {{ selected_year }}</strong></header>
+            <div class="performance-rings">
+                <div><i style="--value:{{ approval_rate }}"><b>{{ approval_rate }}%</b></i><span>اعتماد التقارير</span></div>
+                <div><i style="--value:{{ avg_open_rate }}"><b>{{ avg_open_rate }}%</b></i><span>جاهزية الأبواب</span></div>
+                <div><i style="--value:{{ avg_maintenance_rate }}"><b>{{ avg_maintenance_rate }}%</b></i><span>إنجاز الصيانة</span></div>
+            </div>
+        </article>
+
+        <article class="executive-risk-card">
+            <header><span>مؤشرات المتابعة</span><h2>الأولويات التنفيذية</h2></header>
+            <ul>
+                <li class="{% if draft_reports > 0 %}warning{% else %}good{% endif %}"><i>{% if draft_reports > 0 %}!{% else %}✓{% endif %}</i><div><strong>التقارير غير المكتملة</strong><span>{{ draft_reports }} مسودة تحتاج إلى استكمال</span></div></li>
+                <li class="{% if closed_doors_sum > 0 or maintenance_doors_sum > 0 %}warning{% else %}good{% endif %}"><i>{% if closed_doors_sum > 0 or maintenance_doors_sum > 0 %}!{% else %}✓{% endif %}</i><div><strong>استمرارية تشغيل الأبواب</strong><span>{{ closed_doors_sum }} إغلاق · {{ maintenance_doors_sum }} حالة صيانة</span></div></li>
+                <li class="{% if total_maintenance_requests > completed_maintenance_requests %}warning{% else %}good{% endif %}"><i>{% if total_maintenance_requests > completed_maintenance_requests %}!{% else %}✓{% endif %}</i><div><strong>طلبات الصيانة</strong><span>{{ completed_maintenance_requests }} من {{ total_maintenance_requests }} طلبًا منجزًا</span></div></li>
+            </ul>
+        </article>
+    </section>
+
+    <section class="shift-lifecycle-panel">
+        <header><div><span>دورة التشغيل</span><h2>حالة الورديات خلال الشهر</h2></div><strong>{{ total_shifts }} وردية</strong></header>
+        <div class="shift-lifecycle-grid">
+            <article><span>نشطة</span><strong>{{ active_shifts }}</strong><i class="active" style="width:{% widthratio active_shifts total_shifts 100 %}%"></i></article>
+            <article><span>منتهية</span><strong>{{ finished_shifts }}</strong><i class="finished" style="width:{% widthratio finished_shifts total_shifts 100 %}%"></i></article>
+            <article><span>قيد الإعداد</span><strong>{{ pending_shifts }}</strong><i class="pending" style="width:{% widthratio pending_shifts total_shifts 100 %}%"></i></article>
+        </div>
+    </section>
+
+</div>
+
+
+<style>
+:root {
+    --monthly-green: #075c45;
+    --monthly-green-dark: #034432;
+    --monthly-green-light: #eaf7f1;
+
+    --monthly-gold: #d4af37;
+    --monthly-gold-dark: #aa7d00;
+
+    --monthly-blue: #1559bf;
+    --monthly-text: #111827;
+    --monthly-muted: #68717d;
+    --monthly-border: #e3e6e4;
+    --monthly-background: #f8f7f2;
+
+    --monthly-shadow:
+        0 18px 45px rgba(27, 38, 32, 0.09);
+}
+
+.monthly-dashboard {
+    min-height: 100vh;
+
+    padding: 28px 34px 70px;
+
+    background:
+        radial-gradient(
+            circle at 90% 8%,
+            rgba(15, 123, 92, 0.12),
+            transparent 28%
+        ),
+        radial-gradient(
+            circle at 7% 18%,
+            rgba(212, 175, 55, 0.09),
+            transparent 27%
+        ),
+        var(--monthly-background);
+
+    color: var(--monthly-text);
+}
+
+
+/* ==========================================
+   رأس اللوحة
+========================================== */
+
+.monthly-hero {
+    min-height: 345px;
+
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 390px;
+    align-items: stretch;
+
+    overflow: hidden;
+
+    border: 1px solid rgba(212, 175, 55, 0.44);
+    border-radius: 34px;
+
+    background:
+        linear-gradient(
+            110deg,
+            #075c45 0%,
+            #064e3b 70%
+        );
+
+    box-shadow:
+        0 23px 55px rgba(3, 68, 50, 0.18);
+}
+.executive-print-button{margin-top:18px;border:1px solid rgba(255,255,255,.45);background:#fff;color:#0f6b50;border-radius:12px;padding:11px 18px;font-weight:900;cursor:pointer}
+@media print{.executive-print-button,.month-nav-button,.current-month-link{display:none!important}.monthly-dashboard{background:#fff!important}.monthly-hero{break-inside:avoid}}
+
+.monthly-hero-copy {
+    padding: 50px 55px;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    color: #ffffff;
+}
+
+.monthly-category {
+    width: max-content;
+
+    padding: 10px 18px;
+
+    display: flex;
+    align-items: center;
+    gap: 9px;
+
+    border: 1px solid rgba(212, 175, 55, 0.55);
+    border-radius: 999px;
+
+    background: rgba(255, 255, 255, 0.93);
+
+    color: var(--monthly-green);
+
+    font-size: 13px;
+    font-weight: 950;
+}
+
+.monthly-category svg {
+    width: 22px;
+    height: 22px;
+
+    fill: none;
+    stroke: var(--monthly-gold-dark);
+    stroke-width: 2;
+}
+
+.monthly-hero h1 {
+    margin: 30px 0 0;
+
+    color: #ffffff;
+
+    font-size: clamp(43px, 5vw, 74px);
+    font-weight: 950;
+    line-height: 1.17;
+
+    text-shadow:
+        0 5px 13px rgba(0, 0, 0, 0.18);
+}
+
+.monthly-hero p {
+    margin: 20px 0 0;
+
+    color: #edf7f3;
+
+    font-size: 19px;
+    line-height: 1.9;
+}
+
+.monthly-hero p strong {
+    color: #f2d36f;
+
+    font-weight: 950;
+}
+
+.monthly-hero-visual {
+    position: relative;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    overflow: hidden;
+
+    border-right: 1px solid rgba(212, 175, 55, 0.48);
+
+    background:
+        radial-gradient(
+            circle at 50% 50%,
+            rgba(255, 255, 255, 0.85),
+            rgba(250, 247, 235, 0.94)
+        );
+}
+
+.monthly-hero-visual::before,
+.monthly-hero-visual::after {
+    content: "";
+
+    position: absolute;
+
+    border: 1px solid rgba(212, 175, 55, 0.25);
+
+    transform: rotate(45deg);
+}
+
+.monthly-hero-visual::before {
+    width: 300px;
+    height: 300px;
+
+    top: -155px;
+    right: -155px;
+}
+
+.monthly-hero-visual::after {
+    width: 230px;
+    height: 230px;
+
+    bottom: -125px;
+    left: -125px;
+}
+
+.chart-visual {
+    position: relative;
+    z-index: 2;
+
+    width: 190px;
+    height: 190px;
+
+    padding: 27px;
+
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 14px;
+
+    border: 1px solid rgba(212, 175, 55, 0.55);
+    border-radius: 42px;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255, 255, 255, 0.98),
+            rgba(238, 246, 241, 0.9)
+        );
+
+    box-shadow:
+        0 23px 55px rgba(16, 69, 50, 0.17),
+        inset 0 0 0 10px rgba(255, 255, 255, 0.62);
+}
+
+.chart-bar {
+    width: 33px;
+
+    border-radius: 8px 8px 2px 2px;
+
+    box-shadow:
+        0 10px 18px rgba(17, 31, 25, 0.12);
+}
+
+.bar-one {
+    height: 65px;
+
+    background:
+        linear-gradient(
+            180deg,
+            #ddb73c,
+            #b68b0d
+        );
+}
+
+.bar-two {
+    height: 100px;
+
+    background:
+        linear-gradient(
+            180deg,
+            #ffffff,
+            #e3e7e5
+        );
+}
+
+.bar-three {
+    height: 135px;
+
+    background:
+        linear-gradient(
+            180deg,
+            #35aa7e,
+            #08714e
+        );
+}
+
+
+/* ==========================================
+   عداد الشهر
+========================================== */
+
+.month-counter-card {
+    width: min(680px, 100%);
+
+    margin: -37px auto 26px;
+    padding: 15px;
+
+    position: relative;
+    z-index: 4;
+
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr) 56px;
+    align-items: center;
+    gap: 14px;
+
+    border: 1px solid #ddd8c7;
+    border-radius: 24px;
+
+    background: rgba(255, 255, 255, 0.96);
+
+    box-shadow:
+        0 18px 42px rgba(20, 35, 29, 0.12);
+
+    backdrop-filter: blur(12px);
+}
+
+.month-nav-button {
+    width: 52px;
+    height: 52px;
+
+    display: grid;
+    place-items: center;
+
+    border: 1px solid #dce5e1;
+    border-radius: 15px;
+
+    background: #ffffff;
+    color: var(--monthly-green);
+
+    text-decoration: none;
+
+    transition:
+        background 0.18s ease,
+        color 0.18s ease,
+        transform 0.18s ease;
+}
+
+.month-nav-button:hover {
+    background: var(--monthly-green);
+    color: #ffffff;
+
+    transform: translateY(-2px);
+}
+
+.month-nav-button svg {
+    width: 23px;
+    height: 23px;
+
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+}
+
+.month-counter-content {
+    text-align: center;
+}
+
+.month-counter-content span,
+.month-counter-content strong,
+.month-counter-content small {
+    display: block;
+}
+
+.month-counter-label {
+    color: var(--monthly-muted);
+
+    font-size: 10px;
+    font-weight: 850;
+}
+
+.month-counter-content strong {
+    margin-top: 3px;
+
+    color: var(--monthly-green);
+
+    font-size: 25px;
+    font-weight: 950;
+}
+
+.month-counter-content small {
+    margin-top: 3px;
+
+    color: var(--monthly-gold-dark);
+
+    font-size: 10px;
+    font-weight: 850;
+}
+
+.current-month-link {
+    display: inline-flex;
+
+    margin-top: 5px;
+
+    color: var(--monthly-blue);
+
+    text-decoration: none;
+
+    font-size: 10px;
+    font-weight: 900;
+}
+
+
+/* ==========================================
+   شريط الأشهر
+========================================== */
+
+.months-carousel {
+    margin-bottom: 27px;
+    padding: 12px;
+
+    display: grid;
+    grid-template-columns: repeat(12, minmax(75px, 1fr));
+    gap: 8px;
+
+    overflow-x: auto;
+
+    border: 1px solid var(--monthly-border);
+    border-radius: 22px;
+
+    background: rgba(255, 255, 255, 0.86);
+
+    box-shadow:
+        0 12px 28px rgba(22, 38, 31, 0.05);
+}
+
+.month-item {
+    min-width: 75px;
+    min-height: 74px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    border: 1px solid transparent;
+    border-radius: 14px;
+
+    color: var(--monthly-muted);
+
+    text-decoration: none;
+
+    transition:
+        background 0.18s ease,
+        color 0.18s ease,
+        border-color 0.18s ease,
+        transform 0.18s ease;
+}
+
+.month-item span {
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.month-item strong {
+    margin-top: 5px;
+
+    font-size: 11px;
+    font-weight: 950;
+}
+
+.month-item:hover {
+    border-color: #d6e5df;
+
+    background: #f1faf6;
+    color: var(--monthly-green);
+
+    transform: translateY(-2px);
+}
+
+.month-item.active {
+    border-color: var(--monthly-gold);
+
+    background:
+        linear-gradient(
+            145deg,
+            #075c45,
+            #064e3b
+        );
+
+    color: #ffffff;
+
+    box-shadow:
+        0 10px 23px rgba(4, 80, 58, 0.2);
+}
+
+.month-item.active span {
+    color: #f1d36f;
+}
+
+
+/* ==========================================
+   بطاقات المؤشرات
+========================================== */
+
+.monthly-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.monthly-kpi-card {
+    position: relative;
+
+    min-height: 405px;
+
+    padding: 35px 30px;
+
+    overflow: hidden;
+
+    border: 1px solid var(--monthly-border);
+    border-radius: 29px;
+
+    background:
+        linear-gradient(
+            155deg,
+            rgba(255, 255, 255, 0.99),
+            rgba(249, 250, 249, 0.95)
+        );
+
+    text-align: center;
+
+    box-shadow: var(--monthly-shadow);
+}
+
+.monthly-kpi-card::before {
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+    right: 0;
+    bottom: 0;
+
+    width: 6px;
+}
+
+.approved-card::before {
+    background: var(--monthly-green);
+}
+
+.shifts-card::before {
+    background: var(--monthly-blue);
+}
+
+.doors-card::before {
+    background: #2ea65c;
+}
+
+.maintenance-card::before {
+    background: var(--monthly-gold);
+}
+
+.monthly-icon {
+    width: 88px;
+    height: 88px;
+
+    margin: 0 auto 28px;
+    padding: 21px;
+
+    display: grid;
+    place-items: center;
+
+    border: 1px solid rgba(212, 175, 55, 0.38);
+    border-radius: 50%;
+
+    background:
+        linear-gradient(
+            145deg,
+            #ffffff,
+            #f6f3e9
+        );
+
+    color: var(--monthly-green);
+
+    box-shadow:
+        0 13px 27px rgba(17, 32, 26, 0.11),
+        inset 0 0 0 7px rgba(255, 255, 255, 0.62);
+}
+
+.shifts-card .monthly-icon {
+    color: var(--monthly-blue);
+}
+
+.maintenance-card .monthly-icon {
+    color: var(--monthly-gold-dark);
+}
+
+.monthly-icon svg {
+    width: 100%;
+    height: 100%;
+
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.monthly-kpi-card > span {
+    display: block;
+
+    color: var(--monthly-green);
+
+    font-size: 20px;
+    font-weight: 950;
+}
+
+.shifts-card > span {
+    color: #123d7c;
+}
+
+.maintenance-card > span {
+    color: #946900;
+}
+
+.monthly-kpi-card > strong {
+    display: block;
+
+    margin-top: 20px;
+
+    color: var(--monthly-green-dark);
+
+    font-size: 57px;
+    font-weight: 950;
+    line-height: 1;
+}
+
+.shifts-card > strong {
+    color: #0e3976;
+}
+
+.maintenance-card > strong {
+    color: #ad7800;
+}
+
+.kpi-divider {
+    margin: 30px 0 24px;
+
+    display: grid;
+    grid-template-columns: 1fr 13px 1fr;
+    align-items: center;
+    gap: 8px;
+}
+
+.kpi-divider::before,
+.kpi-divider::after {
+    content: "";
+
+    height: 1px;
+
+    background: #dadeda;
+}
+
+.kpi-divider i {
+    width: 7px;
+    height: 7px;
+
+    margin: auto;
+
+    transform: rotate(45deg);
+
+    background: var(--monthly-gold);
+}
+
+.monthly-kpi-card p {
+    margin: 0;
+
+    color: var(--monthly-muted);
+
+    font-size: 13px;
+    line-height: 1.75;
+}
+
+.kpi-progress {
+    height: 9px;
+
+    margin-top: 26px;
+
+    overflow: hidden;
+
+    border-radius: 999px;
+
+    background: #e7ebe9;
+}
+
+.kpi-progress span {
+    display: block;
+
+    height: 100%;
+
+    border-radius: inherit;
+
+    background:
+        linear-gradient(
+            90deg,
+            var(--monthly-green),
+            #2fa878
+        );
+}
+
+.kpi-progress.green span {
+    background:
+        linear-gradient(
+            90deg,
+            #1d9e4a,
+            #37b961
+        );
+}
+
+.kpi-progress.gold span {
+    background:
+        linear-gradient(
+            90deg,
+            #aa7800,
+            var(--monthly-gold)
+        );
+}
+
+
+/* ==========================================
+   التفاصيل السفلية
+========================================== */
+
+.monthly-details-grid {
+    margin-top: 22px;
+
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 17px;
+}
+
+.monthly-detail-card {
+    min-height: 120px;
+
+    padding: 20px 22px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+
+    border: 1px solid var(--monthly-border);
+    border-radius: 21px;
+
+    background: #ffffff;
+
+    box-shadow:
+        0 12px 28px rgba(22, 39, 31, 0.06);
+}
+
+.monthly-detail-card span,
+.monthly-detail-card strong {
+    display: block;
+}
+
+.monthly-detail-card span {
+    color: var(--monthly-muted);
+
+    font-size: 12px;
+    font-weight: 850;
+}
+
+.monthly-detail-card strong {
+    margin-top: 7px;
+
+    color: var(--monthly-green);
+
+    font-size: 29px;
+    font-weight: 950;
+}
+
+.monthly-detail-card svg {
+    width: 46px;
+    height: 46px;
+
+    padding: 10px;
+
+    border-radius: 13px;
+
+    background: var(--monthly-green-light);
+    color: var(--monthly-green);
+
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+}
+
+
+/* ==========================================
+   الوضع الداكن
+========================================== */
+
+body.dark .monthly-dashboard {
+    --monthly-text: #edf3ef;
+    --monthly-muted: #a6b0ac;
+    --monthly-border: #32413b;
+    --monthly-background: #0e1412;
+}
+
+body.dark .month-counter-card,
+body.dark .months-carousel,
+body.dark .monthly-kpi-card,
+body.dark .monthly-detail-card {
+    background: #151e1a;
+
+    border-color: #31413a;
+}
+
+body.dark .month-nav-button {
+    border-color: #35453f;
+
+    background: #1c2823;
+}
+
+body.dark .reporting-month-item {
+    color: #b7c3be;
+}
+
+
+/* ==========================================
+   الاستجابة
+========================================== */
+
+@media (max-width: 1250px) {
+    .monthly-kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .months-carousel {
+        grid-template-columns: repeat(12, 90px);
+    }
+}
+
+@media (max-width: 900px) {
+    .monthly-dashboard {
+        padding: 18px 16px 55px;
+    }
+
+    .monthly-hero {
+        grid-template-columns: 1fr;
+
+        min-height: auto;
+    }
+
+    .monthly-hero-copy {
+        padding: 40px 30px;
+
+        text-align: center;
+    }
+
+    .monthly-category {
+        margin: 0 auto;
+    }
+
+    .monthly-hero-visual {
+        min-height: 260px;
+
+        border-top: 1px solid rgba(212, 175, 55, 0.4);
+        border-right: none;
+    }
+
+    .month-counter-card {
+        margin-top: 18px;
+    }
+
+    .monthly-details-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 650px) {
+    .monthly-hero h1 {
+        font-size: 39px;
+    }
+
+    .monthly-hero p {
+        font-size: 14px;
+    }
+
+    .month-counter-card {
+        grid-template-columns: 46px minmax(0, 1fr) 46px;
+    }
+
+    .month-nav-button {
+        width: 44px;
+        height: 44px;
+    }
+
+    .month-counter-content strong {
+        font-size: 20px;
+    }
+
+    .monthly-kpi-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .monthly-kpi-card {
+        min-height: 340px;
+    }
+}
+</style>
+
+<link rel="stylesheet" href="{% static 'css/reporting/executive_monthly_enterprise.css' %}?v=20260803-1">
+
+
+<script>
+(function () {
+    "use strict";
+
+    const monthValue = document.getElementById(
+        "monthCounterValue"
+    );
+
+    if (!monthValue) {
+        return;
+    }
+
+    /*
+     * تأثير ظهور بسيط للعداد عند تحميل الشهر.
+     */
+    monthValue.animate(
+        [
+            {
+                opacity: 0,
+                transform: "translateY(7px)",
+            },
+            {
+                opacity: 1,
+                transform: "translateY(0)",
+            },
+        ],
+        {
+            duration: 450,
+            easing: "ease-out",
+        }
+    );
+})();
+</script>
+
+{% endblock %}

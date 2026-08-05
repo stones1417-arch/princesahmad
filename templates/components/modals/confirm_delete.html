@@ -1,0 +1,33 @@
+<div class="confirm-box">
+
+    <div class="confirm-icon">
+        ⚠️
+    </div>
+
+    <h2>
+        {{ title|default:"تأكيد الحذف" }}
+    </h2>
+
+    <p>
+        {{ message|default:"هل أنت متأكد من تنفيذ هذه العملية؟" }}
+    </p>
+
+    <form method="post">
+
+        {% csrf_token %}
+
+        <div class="confirm-actions">
+
+            <button type="submit" class="btn-danger">
+                نعم، تأكيد
+            </button>
+
+            <a href="{{ cancel_url }}" class="btn-cancel">
+                إلغاء
+            </a>
+
+        </div>
+
+    </form>
+
+</div>

@@ -1,0 +1,1110 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+    سجل عمليات الأبواب | منصة أبواب
+{% endblock %}
+
+{% block page_name %}
+    door-audit-logs
+{% endblock %}
+
+{% block body_class %}
+    app-body audit-logs-body
+{% endblock %}
+
+
+{% block extra_css %}
+<style>
+/* =========================================================
+   الصفحة
+========================================================= */
+
+.logs-page {
+    width: min(calc(100% - 2rem), 1700px);
+    margin: 0 auto;
+    padding: 28px 0 80px;
+
+    direction: rtl;
+}
+
+.logs-page * {
+    box-sizing: border-box;
+}
+
+
+/* =========================================================
+   رأس الصفحة
+========================================================= */
+
+.logs-page-head {
+    margin-bottom: 22px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.logs-page-heading h1 {
+    margin: 0;
+
+    color: var(--color-text-strong, #111827);
+
+    font-size: 30px;
+    font-weight: 950;
+}
+
+.logs-page-heading p {
+    margin: 8px 0 0;
+
+    color: var(--color-muted, #6b7280);
+
+    font-size: 13px;
+    line-height: 1.8;
+}
+
+.logs-page-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.logs-page-button {
+    min-height: 44px;
+    padding: 0 16px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    border: 0;
+    border-radius: 13px;
+
+    color: #ffffff;
+    background:
+        linear-gradient(
+            135deg,
+            #0f7b5c,
+            #0b5e46
+        );
+
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 900;
+
+    text-decoration: none;
+
+    box-shadow:
+        0 8px 20px rgba(15, 123, 92, 0.18);
+}
+
+.logs-page-button.is-secondary {
+    color: #0b5e46;
+
+    border: 1px solid #cfe2da;
+
+    background: #ffffff;
+
+    box-shadow: none;
+}
+
+
+/* =========================================================
+   بطاقات الإحصائيات
+========================================================= */
+
+.logs-stats-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(4, minmax(0, 1fr));
+    gap: 16px;
+
+    margin-bottom: 22px;
+}
+
+.logs-stat-card {
+    position: relative;
+
+    min-height: 125px;
+    padding: 20px;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+
+    overflow: hidden;
+
+    border: 1px solid var(--color-border, #e5e7eb);
+    border-radius: 21px;
+
+    background: var(--color-white, #ffffff);
+
+    box-shadow:
+        0 12px 30px rgba(15, 23, 42, 0.06);
+}
+
+.logs-stat-card::before {
+    content: "";
+
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+
+    width: 5px;
+
+    background: #0f7b5c;
+}
+
+.logs-stat-card:nth-child(2)::before {
+    background: #2563eb;
+}
+
+.logs-stat-card:nth-child(3)::before {
+    background: #d97706;
+}
+
+.logs-stat-card:nth-child(4)::before {
+    background: #7c3aed;
+}
+
+.logs-stat-label {
+    color: var(--color-muted, #6b7280);
+
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.logs-stat-value {
+    margin-top: 12px;
+
+    color: var(--color-text-strong, #111827);
+
+    font-size: 28px;
+    font-weight: 950;
+
+    overflow-wrap: anywhere;
+}
+
+.logs-stat-note {
+    display: block;
+    margin-top: 5px;
+
+    color: var(--color-muted, #6b7280);
+
+    font-size: 10px;
+    font-weight: 700;
+}
+
+
+/* =========================================================
+   التصفية
+========================================================= */
+
+.logs-filter-card {
+    margin-bottom: 22px;
+    padding: 18px;
+
+    display: grid;
+    grid-template-columns:
+        minmax(240px, 1.5fr)
+        minmax(150px, 0.8fr)
+        minmax(170px, 0.9fr)
+        minmax(170px, 0.9fr)
+        minmax(150px, 0.75fr)
+        minmax(150px, 0.75fr)
+        145px;
+    gap: 12px;
+
+    border: 1px solid var(--color-border, #e5e7eb);
+    border-radius: 21px;
+
+    background: var(--color-white, #ffffff);
+
+    box-shadow:
+        0 12px 30px rgba(15, 23, 42, 0.06);
+}
+
+.logs-filter-control {
+    width: 100%;
+    min-height: 48px;
+    margin: 0;
+    padding: 0 14px;
+
+    border: 1px solid var(--color-border, #d1d5db);
+    border-radius: 13px;
+
+    color: var(--color-text, #111827);
+    background: var(--color-white, #ffffff);
+
+    font-family: inherit;
+    font-size: 13px;
+}
+
+.logs-filter-control:focus {
+    outline: none;
+
+    border-color: #0f7b5c;
+
+    box-shadow:
+        0 0 0 4px rgba(15, 123, 92, 0.1);
+}
+
+.logs-reset-button {
+    min-height: 48px;
+    padding: 0 16px;
+
+    border: 0;
+    border-radius: 13px;
+
+    color: #ffffff;
+    background: #0f7b5c;
+
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 900;
+
+    cursor: pointer;
+}
+
+
+/* =========================================================
+   بطاقة الجدول
+========================================================= */
+
+.logs-table-card {
+    overflow: hidden;
+
+    border: 1px solid var(--color-border, #e5e7eb);
+    border-radius: 23px;
+
+    background: var(--color-white, #ffffff);
+
+    box-shadow:
+        0 12px 30px rgba(15, 23, 42, 0.06);
+}
+
+.logs-table-head {
+    min-height: 78px;
+    padding: 18px 22px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+
+    border-bottom: 1px solid var(--color-border, #e5e7eb);
+
+    background:
+        linear-gradient(
+            180deg,
+            var(--color-white, #ffffff),
+            var(--color-surface-soft, #f9fafb)
+        );
+}
+
+.logs-table-head h2 {
+    margin: 0;
+
+    color: var(--color-text-strong, #111827);
+
+    font-size: 21px;
+    font-weight: 950;
+}
+
+.logs-table-head p {
+    margin: 5px 0 0;
+
+    color: var(--color-muted, #6b7280);
+
+    font-size: 11px;
+}
+
+.logs-visible-count {
+    min-height: 38px;
+    padding: 0 13px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+
+    border-radius: 999px;
+
+    color: #0b5e46;
+    background: #dff4ea;
+
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.logs-table-wrap {
+    width: 100%;
+
+    overflow-x: auto;
+}
+
+.logs-table {
+    width: 100%;
+    min-width: 1350px;
+
+    border-collapse: collapse;
+}
+
+.logs-table th,
+.logs-table td {
+    padding: 14px;
+
+    border-bottom: 1px solid var(--color-border, #e5e7eb);
+
+    text-align: center;
+    vertical-align: middle;
+
+    font-size: 11px;
+}
+
+.logs-table th {
+    color: #ffffff;
+    background: #0b5e46;
+
+    font-weight: 950;
+    white-space: nowrap;
+}
+
+.logs-table tbody tr {
+    transition:
+        background 0.15s ease;
+}
+
+.logs-table tbody tr:hover {
+    background: var(--color-surface-soft, #f9fafb);
+}
+
+.logs-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.logs-door-number {
+    color: var(--color-text-strong, #111827);
+
+    font-size: 13px;
+    font-weight: 950;
+
+    white-space: nowrap;
+}
+
+.logs-shift-info {
+    display: block;
+    margin-top: 4px;
+
+    color: var(--color-muted, #6b7280);
+
+    font-size: 9px;
+    line-height: 1.6;
+}
+
+
+/* =========================================================
+   شارات الحالة
+========================================================= */
+
+.logs-state-badge {
+    min-width: 92px;
+    min-height: 31px;
+    padding: 5px 11px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 999px;
+
+    font-size: 10px;
+    font-weight: 950;
+}
+
+.logs-state-badge.open {
+    color: #166534;
+    background: #dcfce7;
+}
+
+.logs-state-badge.closed {
+    color: #991b1b;
+    background: #fee2e2;
+}
+
+.logs-state-badge.maintenance {
+    color: #92400e;
+    background: #fef3c7;
+}
+
+.logs-state-badge.secured {
+    color: #1d4ed8;
+    background: #dbeafe;
+}
+
+.logs-state-badge.unknown {
+    color: #475569;
+    background: #e2e8f0;
+}
+
+
+/* =========================================================
+   خلايا البيانات
+========================================================= */
+
+.logs-reason-cell {
+    max-width: 310px;
+
+    color: var(--color-text, #374151);
+
+    line-height: 1.8;
+    text-align: right !important;
+
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.logs-user-name {
+    display: block;
+
+    color: var(--color-text-strong, #111827);
+
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.logs-user-username {
+    display: block;
+    margin-top: 3px;
+
+    color: var(--color-muted, #6b7280);
+
+    font-size: 9px;
+}
+
+.logs-ip-address {
+    direction: ltr;
+
+    color: var(--color-muted, #6b7280);
+
+    font-family:
+        Consolas,
+        "Courier New",
+        monospace;
+
+    font-size: 10px;
+}
+
+.logs-date {
+    display: block;
+
+    color: var(--color-text-strong, #111827);
+
+    font-weight: 850;
+
+    white-space: nowrap;
+}
+
+.logs-time {
+    display: block;
+    margin-top: 4px;
+
+    color: var(--color-muted, #6b7280);
+
+    font-size: 9px;
+}
+
+.logs-empty-row {
+    padding: 36px !important;
+
+    color: var(--color-muted, #6b7280) !important;
+
+    text-align: center !important;
+    font-size: 13px !important;
+    font-weight: 900 !important;
+}
+
+
+/* =========================================================
+   ترقيم الصفحات
+========================================================= */
+
+.logs-pagination {
+    padding: 18px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    border-top: 1px solid var(--color-border, #e5e7eb);
+}
+
+.logs-pagination-info {
+    color: var(--color-muted, #6b7280);
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.logs-pagination-links {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.logs-page-link {
+    min-width: 38px;
+    min-height: 38px;
+    padding: 0 11px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-border, #d1d5db);
+    border-radius: 11px;
+    color: var(--color-text-strong, #111827);
+    background: var(--color-white, #ffffff);
+    font-size: 11px;
+    font-weight: 900;
+    text-decoration: none;
+}
+
+.logs-page-link.is-current {
+    color: #ffffff;
+    border-color: #0f7b5c;
+    background: #0f7b5c;
+}
+
+.logs-page-link.is-disabled {
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+/* =========================================================
+   الوضع الداكن
+========================================================= */
+
+html[data-theme="dark"] .logs-stat-card,
+html[data-theme="dark"] .logs-filter-card,
+html[data-theme="dark"] .logs-table-card,
+html[data-theme="dark"] .logs-filter-control {
+    color: #e5e7eb;
+    border-color: #303a36;
+    background: #141918;
+}
+
+html[data-theme="dark"] .logs-table-head {
+    border-color: #303a36;
+
+    background:
+        linear-gradient(
+            180deg,
+            #141918,
+            #191f1d
+        );
+}
+
+html[data-theme="dark"] .logs-table td {
+    border-color: #303a36;
+}
+
+html[data-theme="dark"] .logs-table tbody tr:hover {
+    background: #191f1d;
+}
+
+html[data-theme="dark"] .logs-page-heading h1,
+html[data-theme="dark"] .logs-table-head h2,
+html[data-theme="dark"] .logs-stat-value,
+html[data-theme="dark"] .logs-door-number,
+html[data-theme="dark"] .logs-user-name,
+html[data-theme="dark"] .logs-date {
+    color: #f3f4f6;
+}
+
+
+/* =========================================================
+   الاستجابة
+========================================================= */
+
+@media (max-width: 1250px) {
+    .logs-stats-grid {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+
+    .logs-filter-card {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 700px) {
+    .logs-page {
+        width: calc(100% - 1rem);
+        padding-top: 16px;
+    }
+
+    .logs-page-head {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .logs-page-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .logs-page-button {
+        width: 100%;
+    }
+
+    .logs-stats-grid,
+    .logs-filter-card {
+        grid-template-columns: 1fr;
+    }
+
+    .logs-table-head {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+</style>
+{% endblock %}
+
+
+{% block content %}
+<section class="logs-page">
+
+    <header class="logs-page-head">
+        <div class="logs-page-heading">
+            <h1>سجل عمليات الأبواب</h1>
+
+            <p>
+                متابعة جميع تغييرات حالات الأبواب المسجلة في سجل التدقيق
+                التشغيلي الموحد.
+            </p>
+        </div>
+
+        <div class="logs-page-actions">
+            <a
+                href="{% url 'dashboard:index' %}"
+                class="logs-page-button is-secondary"
+            >
+                العودة إلى لوحة التحكم
+            </a>
+
+            <button
+                type="button"
+                class="logs-page-button"
+                onclick="window.print()"
+            >
+                طباعة السجل
+            </button>
+        </div>
+    </header>
+
+
+    <section class="logs-stats-grid">
+
+        <article class="logs-stat-card">
+            <span class="logs-stat-label">
+                عدد التغييرات اليوم
+            </span>
+
+            <strong class="logs-stat-value">
+                {{ today_changes|default:0 }}
+            </strong>
+
+            <small class="logs-stat-note">
+                التغييرات المسجلة خلال اليوم الحالي
+            </small>
+        </article>
+
+
+        <article class="logs-stat-card">
+            <span class="logs-stat-label">
+                أكثر باب تغيّر
+            </span>
+
+            <strong class="logs-stat-value">
+                {% if most_changed_door %}
+                    باب
+                    {{ most_changed_door.door_shift__door_number }}
+                {% else %}
+                    —
+                {% endif %}
+            </strong>
+
+            <small class="logs-stat-note">
+                {% if most_changed_door %}
+                    عدد التغييرات:
+                    {{ most_changed_door.total }}
+                {% else %}
+                    لا توجد بيانات كافية
+                {% endif %}
+            </small>
+        </article>
+
+
+        <article class="logs-stat-card">
+            <span class="logs-stat-label">
+                أكثر مستخدم نفذ تغييرات
+            </span>
+
+            <strong class="logs-stat-value">
+                {% if top_changed_by %}
+                    {% if top_changed_by.changed_by__first_name or top_changed_by.changed_by__last_name %}
+                        {{ top_changed_by.changed_by__first_name }}
+                        {{ top_changed_by.changed_by__last_name }}
+                    {% else %}
+                        {{ top_changed_by.changed_by__username }}
+                    {% endif %}
+                {% else %}
+                    —
+                {% endif %}
+            </strong>
+
+            <small class="logs-stat-note">
+                {% if top_changed_by %}
+                    عدد العمليات:
+                    {{ top_changed_by.total }}
+                {% else %}
+                    لا توجد بيانات مستخدمين
+                {% endif %}
+            </small>
+        </article>
+
+
+        <article class="logs-stat-card">
+            <span class="logs-stat-label">
+                إجمالي العمليات
+            </span>
+
+            <strong class="logs-stat-value">
+                {{ logs_count|default:0 }}
+            </strong>
+
+            <small class="logs-stat-note">
+                جميع سجلات تغييرات حالات الأبواب
+            </small>
+        </article>
+
+    </section>
+
+
+    <form method="get" class="logs-filter-card">
+
+        <input
+            class="logs-filter-control"
+            type="search"
+            name="q"
+            value="{{ search_query }}"
+            placeholder="بحث بالباب أو السبب أو المستخدم أو عنوان IP..."
+            autocomplete="off"
+        >
+
+        <select name="state" class="logs-filter-control">
+            <option value="all" {% if state_filter == "all" %}selected{% endif %}>كل الحالات</option>
+            <option value="open" {% if state_filter == "open" %}selected{% endif %}>مفتوح</option>
+            <option value="closed" {% if state_filter == "closed" %}selected{% endif %}>مغلق</option>
+            <option value="maintenance" {% if state_filter == "maintenance" %}selected{% endif %}>تحت الصيانة</option>
+            <option value="secured" {% if state_filter == "secured" %}selected{% endif %}>مؤمّن</option>
+        </select>
+
+        <select name="user" class="logs-filter-control">
+            <option value="all">كل المستخدمين</option>
+            {% for user_item in log_users %}
+                <option
+                    value="{{ user_item.changed_by_id }}"
+                    {% if user_filter == user_item.changed_by_id|stringformat:"s" %}selected{% endif %}
+                >
+                    {% if user_item.changed_by__first_name or user_item.changed_by__last_name %}
+                        {{ user_item.changed_by__first_name }} {{ user_item.changed_by__last_name }}
+                    {% else %}
+                        {{ user_item.changed_by__username }}
+                    {% endif %}
+                </option>
+            {% endfor %}
+        </select>
+
+        <select name="shift" class="logs-filter-control">
+            <option value="all">كل الورديات</option>
+            {% for shift in log_shifts %}
+                <option
+                    value="{{ shift.id }}"
+                    {% if shift_filter == shift.id|stringformat:"s" %}selected{% endif %}
+                >
+                    {% if shift.shift_type %}
+                        {{ shift.shift_type.name }}
+                    {% else %}
+                        وردية رقم {{ shift.id }}
+                    {% endif %}
+                </option>
+            {% endfor %}
+        </select>
+
+        <input
+            class="logs-filter-control"
+            type="date"
+            name="date_from"
+            value="{{ date_from_value }}"
+            title="من تاريخ"
+        >
+
+        <input
+            class="logs-filter-control"
+            type="date"
+            name="date_to"
+            value="{{ date_to_value }}"
+            title="إلى تاريخ"
+        >
+
+        <button type="submit" class="logs-reset-button">
+            تطبيق الفلاتر
+        </button>
+
+        <a
+            href="{% url 'dashboard:audit-logs' %}"
+            class="logs-page-button is-secondary"
+        >
+            إعادة تعيين
+        </a>
+
+    </form>
+
+
+    <section class="logs-table-card">
+
+        <header class="logs-table-head">
+            <div>
+                <h2>العمليات المسجلة</h2>
+
+                <p>
+                    مرتبة من أحدث عملية إلى أقدم عملية.
+                </p>
+            </div>
+
+            <span class="logs-visible-count">
+                السجلات المعروضة:
+                <strong id="visibleLogsCount">
+                    {{ filtered_count|default:0 }}
+                </strong>
+            </span>
+        </header>
+
+
+        <div class="logs-table-wrap">
+
+            <table
+                id="logsTable"
+                class="logs-table"
+            >
+
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>الباب والوردية</th>
+                        <th>الحالة السابقة</th>
+                        <th>الحالة الجديدة</th>
+                        <th>سبب التغيير</th>
+                        <th>المستخدم</th>
+                        <th>عنوان IP</th>
+                        <th>التاريخ والوقت</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    {% for log in logs %}
+
+                        <tr
+                            data-log-row
+                            data-state="{{ log.new_value.state|default:'unknown' }}"
+                            data-user="{% if log.changed_by %}{{ log.changed_by.username|lower }}{% else %}unknown{% endif %}"
+                            data-search="
+                                باب {{ log.door_shift.door_number }}
+                                {{ log.old_value.state }}
+                                {{ log.old_value.state_label }}
+                                {{ log.new_value.state }}
+                                {{ log.new_value.state_label }}
+                                {{ log.change_reason }}
+                                {{ log.ip_address }}
+                                {% if log.changed_by %}
+                                    {{ log.changed_by.username }}
+                                    {{ log.changed_by.get_full_name }}
+                                {% endif %}
+                                {% if log.door_shift.shift_plan %}
+                                    {{ log.door_shift.shift_plan }}
+                                {% endif %}
+                            "
+                        >
+
+                            <td>
+                                {{ log.id }}
+                            </td>
+
+
+                            <td>
+                                <strong class="logs-door-number">
+                                    باب {{ log.door_shift.door_number }}
+                                </strong>
+
+                                <small class="logs-shift-info">
+                                    {% if log.door_shift.shift_plan %}
+                                        الوردية:
+                                        {% if log.door_shift.shift_plan.shift_type %}
+                                            {{ log.door_shift.shift_plan.shift_type.name }}
+                                        {% else %}
+                                            {{ log.door_shift.shift_plan }}
+                                        {% endif %}
+                                    {% else %}
+                                        الوردية غير محددة
+                                    {% endif %}
+                                </small>
+                            </td>
+
+
+                            <td>
+                                {% with old_state=log.old_value.state %}
+                                    <span class="logs-state-badge {{ old_state|default:'unknown' }}">
+                                        {% if log.old_value.state_label %}
+                                            {{ log.old_value.state_label }}
+                                        {% elif old_state == "open" %}
+                                            مفتوح
+                                        {% elif old_state == "closed" %}
+                                            مغلق
+                                        {% elif old_state == "maintenance" %}
+                                            تحت الصيانة
+                                        {% elif old_state == "secured" %}
+                                            مؤمّن
+                                        {% else %}
+                                            {{ old_state|default:"—" }}
+                                        {% endif %}
+                                    </span>
+                                {% endwith %}
+                            </td>
+
+
+                            <td>
+                                {% with new_state=log.new_value.state %}
+                                    <span class="logs-state-badge {{ new_state|default:'unknown' }}">
+                                        {% if log.new_value.state_label %}
+                                            {{ log.new_value.state_label }}
+                                        {% elif new_state == "open" %}
+                                            مفتوح
+                                        {% elif new_state == "closed" %}
+                                            مغلق
+                                        {% elif new_state == "maintenance" %}
+                                            تحت الصيانة
+                                        {% elif new_state == "secured" %}
+                                            مؤمّن
+                                        {% else %}
+                                            {{ new_state|default:"—" }}
+                                        {% endif %}
+                                    </span>
+                                {% endwith %}
+                            </td>
+
+
+                            <td class="logs-reason-cell">
+                                {{ log.change_reason|default:"—" }}
+                            </td>
+
+
+                            <td>
+                                {% if log.changed_by %}
+                                    <strong class="logs-user-name">
+                                        {% if log.changed_by.get_full_name %}
+                                            {{ log.changed_by.get_full_name }}
+                                        {% else %}
+                                            {{ log.changed_by.username }}
+                                        {% endif %}
+                                    </strong>
+
+                                    <small class="logs-user-username">
+                                        {{ log.changed_by.username }}
+                                    </small>
+                                {% else %}
+                                    <span class="logs-user-name">
+                                        غير معروف
+                                    </span>
+                                {% endif %}
+                            </td>
+
+
+                            <td>
+                                <span class="logs-ip-address">
+                                    {{ log.ip_address|default:"—" }}
+                                </span>
+                            </td>
+
+
+                            <td>
+                                <strong class="logs-date">
+                                    {{ log.changed_at|date:"Y/m/d" }}
+                                </strong>
+
+                                <small class="logs-time">
+                                    {{ log.changed_at|date:"h:i:s A" }}
+                                </small>
+                            </td>
+
+                        </tr>
+
+                    {% empty %}
+
+                        <tr>
+                            <td
+                                colspan="8"
+                                class="logs-empty-row"
+                            >
+                                لا توجد عمليات مسجلة في سجل تغييرات الأبواب.
+                            </td>
+                        </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+        {% if page_obj.paginator.num_pages > 1 %}
+            <nav class="logs-pagination" aria-label="ترقيم صفحات سجل العمليات">
+                <span class="logs-pagination-info">
+                    الصفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }}
+                    — {{ filtered_count }} سجل مطابق
+                </span>
+
+                <div class="logs-pagination-links">
+                    {% if page_obj.has_previous %}
+                        <a class="logs-page-link" href="?{% if query_string %}{{ query_string }}&{% endif %}page=1">الأولى</a>
+                        <a class="logs-page-link" href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.previous_page_number }}">السابق</a>
+                    {% else %}
+                        <span class="logs-page-link is-disabled">الأولى</span>
+                        <span class="logs-page-link is-disabled">السابق</span>
+                    {% endif %}
+
+                    <span class="logs-page-link is-current">{{ page_obj.number }}</span>
+
+                    {% if page_obj.has_next %}
+                        <a class="logs-page-link" href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.next_page_number }}">التالي</a>
+                        <a class="logs-page-link" href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.paginator.num_pages }}">الأخيرة</a>
+                    {% else %}
+                        <span class="logs-page-link is-disabled">التالي</span>
+                        <span class="logs-page-link is-disabled">الأخيرة</span>
+                    {% endif %}
+                </div>
+            </nav>
+        {% endif %}
+
+    </section>
+
+</section>
+{% endblock %}

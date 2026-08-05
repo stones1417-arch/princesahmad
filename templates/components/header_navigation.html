@@ -1,0 +1,25 @@
+<nav class="main-navigation">
+
+    {% include "components/menu_home.html" %}
+    {% include "components/menu_operations.html" %}
+    {% include "components/menu_hr.html" %}
+    {% include "components/menu_reports.html" %}
+    {% include "components/menu_admin.html" %}
+
+    <div class="navigation-actions">
+
+        {% include "components/notification_dropdown.html" %}
+
+        <button
+            class="theme-toggle"
+            id="themeBtn"
+            type="button"
+            title="المظهر"
+            aria-label="المظهر"
+        >
+            🌙
+        </button>
+
+    </div>
+
+</nav>

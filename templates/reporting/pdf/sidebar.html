@@ -1,0 +1,324 @@
+<aside class="sidebar">
+
+<div class="sidebar-decoration-top"></div>
+<div class="sidebar-decoration-bottom"></div>
+
+<div class="logo-panel">
+{% if logo_path %}
+<img src="file://{{ logo_path }}" alt="شعار الحرمين">
+{% endif %}
+</div>
+
+<div class="sidebar-card">
+
+<div class="card-title">
+بيانات التقرير
+</div>
+
+<div class="card-body">
+
+<div class="info-row">
+<div class="label">رقم التقرير</div>
+<div class="value">{{ report.report_number }}</div>
+</div>
+
+<div class="divider"></div>
+
+<div class="info-row">
+<div class="label">الحالة</div>
+<div class="value">{{ report.get_status_display }}</div>
+</div>
+
+<div class="divider"></div>
+
+<div class="info-row">
+<div class="label">الإنشاء</div>
+<div class="value">
+{{ report.created_at|date:"Y-m-d H:i" }}
+</div>
+</div>
+
+<div class="divider"></div>
+
+<div class="info-row">
+<div class="label">المنشئ</div>
+<div class="value">
+{{ report.created_by.username }}
+</div>
+</div>
+
+</div>
+
+</div>
+
+<div class="sidebar-card">
+
+<div class="card-title">
+بيانات الوردية
+</div>
+
+<div class="card-body">
+
+<div class="info-row">
+<div class="label">الوردية</div>
+<div class="value">
+{{ report.shift_plan.shift_type.name }}
+</div>
+</div>
+
+<div class="divider"></div>
+
+<div class="info-row">
+<div class="label">التاريخ</div>
+<div class="value">
+{{ report.shift_plan.date }}
+</div>
+</div>
+
+<div class="divider"></div>
+
+<div class="info-row">
+<div class="label">الحالة</div>
+
+<div class="status-badge">
+{{ report.shift_plan.get_status_display }}
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="sidebar-card">
+
+<div class="card-title">
+الاعتماد
+</div>
+
+<div class="card-body">
+{% if electronic_approval.is_signed %}
+<div class="electronic-signature verified">
+    <div class="signature-seal">
+        <span>{{ electronic_approval.initials }}</span>
+        <i>✓</i>
+    </div>
+    <strong class="signature-state">معتمد إلكترونيًا</strong>
+    <span class="signature-caption">تم التحقق من هوية المعتمد وصلاحيته</span>
+</div>
+<div class="signature-data">
+    <div><span>المعتمد</span><strong>{{ electronic_approval.approver_name }}</strong></div>
+    <div><span>الصفة</span><strong>{{ electronic_approval.job_title }}</strong></div>
+    <div><span>وقت الاعتماد</span><strong dir="ltr">{{ electronic_approval.approved_at|date:"Y-m-d H:i" }}</strong></div>
+</div>
+<div class="verification-block">
+    <span>بصمة التحقق الإلكترونية</span>
+    <strong dir="ltr">{{ electronic_approval.verification_code }}</strong>
+</div>
+{% else %}
+<div class="electronic-signature pending">
+    <div class="signature-seal"><span>!</span></div>
+    <strong class="signature-state">غير معتمد إلكترونيًا</strong>
+    <span class="signature-caption">يصدر الختم الإلكتروني بعد اعتماد التقرير رسميًا</span>
+</div>
+<div class="verification-block muted">
+    <span>حالة التحقق</span>
+    <strong>بانتظار الاعتماد</strong>
+</div>
+{% endif %}
+
+</div>
+
+</div>
+
+</aside>
+
+<style>
+
+.sidebar{
+
+    position:relative;
+
+    background:#fffdf7;
+
+    border-left:4px solid #d4af37;
+
+    padding:12px 10px;
+
+    overflow:hidden;
+
+}
+
+.sidebar-decoration-top{
+
+    position:absolute;
+
+    top:-60px;
+
+    left:-60px;
+
+    width:120px;
+
+    height:120px;
+
+    border:4px solid #d4af37;
+
+    border-radius:50%;
+
+}
+
+.sidebar-decoration-bottom{
+
+    position:absolute;
+
+    bottom:-70px;
+
+    right:-70px;
+
+    width:140px;
+
+    height:140px;
+
+    border:4px solid #d4af37;
+
+    border-radius:50%;
+
+}
+
+.logo-panel{
+
+    text-align:center;
+
+    margin-bottom:10px;
+
+}
+
+.logo-panel img{
+
+    max-width:105px;
+
+}
+
+.sidebar-card{
+
+    background:white;
+
+    border-radius:14px;
+
+    overflow:hidden;
+
+    margin-bottom:10px;
+
+    box-shadow:0 4px 10px rgba(0,0,0,.06);
+
+    border:1px solid #ececec;
+
+}
+
+.card-title{
+
+    background:#0f7b5c;
+
+    color:white;
+
+    text-align:center;
+
+    padding:8px;
+
+    font-size:14px;
+
+    font-weight:900;
+
+}
+
+.card-body{
+
+    padding:10px;
+
+}
+
+.info-row{
+
+    text-align:center;
+
+}
+
+.label{
+
+    color:#6b7280;
+
+    font-size:11px;
+
+}
+
+.value{
+
+    margin-top:5px;
+
+    font-size:13px;
+
+    font-weight:900;
+
+    color:#111827;
+
+}
+
+.divider{
+
+    margin:8px 0;
+
+    border-bottom:1px solid #ececec;
+
+}
+
+.status-badge{
+
+    display:inline-block;
+
+    margin-top:6px;
+
+    background:#dcfce7;
+
+    color:#166534;
+
+    padding:5px 12px;
+
+    border-radius:999px;
+
+    font-size:11px;
+
+    font-weight:900;
+
+}
+
+.signature-label{
+
+    color:#6b7280;
+
+    font-size:11px;
+
+    margin-top:6px;
+
+}
+
+.signature-line{
+
+    border-bottom:1px dotted #777;
+
+    height:14px;
+
+}
+
+.signature-box{
+
+    margin-top:8px;
+
+    border:1px dashed #999;
+
+    border-radius:8px;
+
+    height:45px;
+
+}
+
+</style>

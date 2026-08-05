@@ -1,0 +1,244 @@
+<script>
+(function () {
+    "use strict";
+
+    let clockInterval = null;
+
+    /* =========================================================
+       الساعة والتاريخ
+    ========================================================= */
+
+    function updateTopbarClock() {
+        const target =
+            document.getElementById(
+                "live-datetime"
+            );
+
+        if (!target) {
+            return;
+        }
+
+        const now =
+            new Date();
+
+        target.textContent =
+            now.toLocaleString(
+                "ar-SA",
+                {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                }
+            );
+    }
+
+
+    function initializeTopbarClock() {
+        updateTopbarClock();
+
+        if (clockInterval) {
+            window.clearInterval(
+                clockInterval
+            );
+        }
+
+        clockInterval =
+            window.setInterval(
+                updateTopbarClock,
+                60000
+            );
+    }
+
+
+    /* =========================================================
+       تجهيز زر المظهر
+    ========================================================= */
+
+    function initializeThemeButton() {
+        const themeButton =
+            document.getElementById(
+                "themeBtn"
+            );
+
+        if (!themeButton) {
+            return;
+        }
+
+        /*
+         * app.js هو المسؤول الوحيد عن تشغيل الوضع الليلي.
+         * هنا نقوم فقط بتوحيد خصائص الزر.
+         */
+        themeButton.setAttribute(
+            "data-theme-toggle",
+            ""
+        );
+
+        themeButton.classList.add(
+            "theme-toggle"
+        );
+
+        themeButton.setAttribute(
+            "type",
+            "button"
+        );
+
+        /*
+         * نقل قيمة النظام القديم إلى النظام الجديد مرة واحدة.
+         */
+        const legacyTheme =
+            window.localStorage.getItem(
+                "theme"
+            );
+
+        const currentTheme =
+            window.localStorage.getItem(
+                "abwaab-theme"
+            );
+
+        if (
+            !currentTheme &&
+            (
+                legacyTheme === "dark" ||
+                legacyTheme === "light"
+            )
+        ) {
+            window.localStorage.setItem(
+                "abwaab-theme",
+                legacyTheme
+            );
+        }
+
+        /*
+         * حذف المفتاح القديم نهائيًا لمنع التعارض.
+         */
+        window.localStorage.removeItem(
+            "theme"
+        );
+    }
+
+
+    /* =========================================================
+       القوائم القديمة
+    ========================================================= */
+
+    function initializeLegacyDropdowns() {
+        document
+            .querySelectorAll(
+                ".dropdown"
+            )
+            .forEach(function (dropdown) {
+                if (
+                    dropdown.dataset
+                        .hoverInitialized ===
+                    "true"
+                ) {
+                    return;
+                }
+
+                dropdown.dataset
+                    .hoverInitialized =
+                    "true";
+
+                const menu =
+                    dropdown.querySelector(
+                        ".dropdown-menu"
+                    );
+
+                if (!menu) {
+                    return;
+                }
+
+                dropdown.addEventListener(
+                    "mouseenter",
+                    function () {
+                        menu.style.display =
+                            "block";
+                    }
+                );
+
+                dropdown.addEventListener(
+                    "mouseleave",
+                    function () {
+                        menu.style.display =
+                            "none";
+                    }
+                );
+            });
+    }
+
+
+    /* =========================================================
+       رسائل Django القديمة
+    ========================================================= */
+
+    function initializeLegacyAlerts() {
+        document
+            .querySelectorAll(
+                ".alert:not([data-alert-initialized])"
+            )
+            .forEach(function (alert) {
+                alert.dataset
+                    .alertInitialized =
+                    "true";
+
+                window.setTimeout(
+                    function () {
+                        if (
+                            !alert.isConnected
+                        ) {
+                            return;
+                        }
+
+                        alert.style.transition =
+                            "opacity 300ms ease, transform 300ms ease";
+
+                        alert.style.opacity =
+                            "0";
+
+                        alert.style.transform =
+                            "translateY(-10px)";
+
+                        window.setTimeout(
+                            function () {
+                                alert.remove();
+                            },
+                            300
+                        );
+                    },
+                    4000
+                );
+            });
+    }
+
+
+    /* =========================================================
+       التشغيل
+    ========================================================= */
+
+    function initializeSharedScripts() {
+        initializeThemeButton();
+        initializeTopbarClock();
+        initializeLegacyDropdowns();
+        initializeLegacyAlerts();
+    }
+
+
+    if (
+        document.readyState ===
+        "loading"
+    ) {
+        document.addEventListener(
+            "DOMContentLoaded",
+            initializeSharedScripts,
+            {
+                once: true,
+            }
+        );
+    } else {
+        initializeSharedScripts();
+    }
+})();
+</script>

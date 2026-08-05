@@ -1,0 +1,592 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+
+<div class="reports-page" dir="rtl">
+
+  <div class="page-head">
+    <div class="reports-page-heading">
+      <span>الحوكمة والتوثيق المؤسسي</span>
+      <h2>مركز التقارير</h2>
+
+      {% if active_shift %}
+        <p>
+          الوردية النشطة:
+          <strong>{{ active_shift.shift_type.name }}</strong>
+          -
+          {{ active_shift.date }}
+        </p>
+      {% else %}
+        <p class="danger">لا توجد وردية نشطة حاليًا</p>
+      {% endif %}
+    </div>
+    <div class="reports-head-actions"><a href="{% url 'reporting:operational' %}">التقرير المباشر</a><a href="{% url 'reporting:executive-monthly' %}" class="primary">لوحة المؤشرات</a></div>
+  </div>
+
+  <div class="report-center">
+
+    <div class="center-head">
+      <div>
+        <span class="center-kicker">اختر مسار العمل</span>
+        <h3>إنشاء تقرير جديد</h3>
+        <span>اختر المسار المناسب حسب نوع التقرير المطلوب.</span>
+      </div>
+    </div>
+
+    <div class="report-models-grid">
+
+      {% if active_shift %}
+        <a href="{% url 'reporting:generate-active' %}" class="report-model-card active-report">
+          <div class="model-icon">📊<small>01</small></div>
+          <div class="model-content">
+            <h4>تقرير تشغيلي</h4>
+            <p>
+              ينشأ من بيانات الوردية، ويشمل الأبواب والموظفين والصيانة والمؤشرات التشغيلية.
+            </p>
+          </div>
+          <div class="model-action gold">إنشاء</div>
+        </a>
+      {% else %}
+        <div class="report-model-card disabled">
+          <div class="model-icon">📊</div>
+          <div class="model-content">
+            <h4>تقرير تشغيلي</h4>
+            <p>
+              يتطلب وجود وردية نشطة أو وردية منتهية مرتبطة بالبيانات التشغيلية.
+            </p>
+          </div>
+          <div class="model-action gray">غير متاح</div>
+        </div>
+      {% endif %}
+
+      <a href="{% url 'reporting:executive-monthly' %}" class="report-model-card executive">
+        <div class="model-icon">📈<small>02</small></div>
+        <div class="model-content">
+          <h4>تقرير تنفيذي</h4>
+          <p>لوحة شهرية للإدارة العليا تعرض الاتجاهات ومؤشرات الجاهزية والموارد والصيانة.</p>
+        </div>
+        <div class="model-action">عرض</div>
+      </a>
+
+      <a href="{% url 'reporting:create-manual' %}" class="report-model-card manual">
+        <div class="model-icon">📝<small>03</small></div>
+        <div class="model-content">
+            <h4>تقرير إداري</h4>
+          <p>
+            يستخدم للملاحظات الإدارية، القرارات، التوصيات، أو الملحقات غير المرتبطة بالمؤشرات.
+          </p>
+        </div>
+        <div class="model-action">إنشاء</div>
+      </a>
+
+    </div>
+
+  </div>
+
+  <div class="kpi-grid">
+
+    <div class="kpi-card total"><i>▤</i>
+      <div class="label">إجمالي التقارير</div>
+      <div class="value blue">{{ total_reports_count }}</div>
+    </div>
+
+    <div class="kpi-card approved"><i>✓</i>
+      <div class="label">التقارير المعتمدة</div>
+      <div class="value green">{{ approved_count }}</div>
+    </div>
+
+    <div class="kpi-card final"><i>◆</i>
+      <div class="label">التقارير النهائية</div>
+      <div class="value blue">{{ final_count }}</div>
+    </div>
+
+    <div class="kpi-card draft"><i>✎</i>
+      <div class="label">المسودات</div>
+      <div class="value yellow">{{ draft_count }}</div>
+    </div>
+
+  </div>
+
+  <section class="reports-governance-strip">
+    <div><span>نسبة الاعتماد</span><strong>{{ approval_rate }}%</strong><small>{{ approved_count }} تقريرًا معتمدًا من أصل {{ total_reports_count }}</small></div>
+    <div class="governance-progress"><i style="width:{{ approval_rate }}%"></i></div>
+    <div class="governance-pending"><span>بانتظار الإجراء</span><strong>{{ draft_count|add:final_count }}</strong></div>
+  </section>
+
+  <div class="table-card">
+
+    <div class="table-head">
+      <div>
+        <span class="table-kicker">مستودع التقارير</span>
+        <h3>سجل التقارير</h3>
+        <span>جميع التقارير التشغيلية والإدارية المنشأة في النظام</span>
+      </div>
+      <strong id="reportsVisibleCount">{{ filtered_reports_count }} تقرير</strong>
+    </div>
+
+    <form method="get" class="report-filters" aria-label="تصفية التقارير">
+      <div class="report-search-control"><span>⌕</span><input id="reportsLiveSearch" type="search" name="q" value="{{ search_query }}" placeholder="رقم التقرير، الوردية أو النوع..."></div>
+      <select name="type">
+        <option value="">كل أنواع التقارير</option>
+        <option value="operational" {% if selected_type == 'operational' %}selected{% endif %}>تشغيلي</option>
+        <option value="manual" {% if selected_type == 'manual' %}selected{% endif %}>إداري</option>
+      </select>
+      <select name="status">
+        <option value="">كل الحالات</option>
+        <option value="draft" {% if selected_status == 'draft' %}selected{% endif %}>مسودة</option>
+        <option value="final" {% if selected_status == 'final' %}selected{% endif %}>نهائي</option>
+        <option value="approved" {% if selected_status == 'approved' %}selected{% endif %}>معتمد</option>
+      </select>
+      <button type="submit">تطبيق التصفية</button>
+      <a href="{% url 'reporting:list' %}">إعادة ضبط</a>
+    </form>
+
+    <div class="reports-active-filters">
+      <strong>الفلاتر النشطة</strong>
+      {% if search_query %}<span>بحث: {{ search_query|truncatechars:24 }}</span>{% endif %}
+      {% if selected_type %}<span>نوع محدد</span>{% endif %}
+      {% if selected_status %}<span>حالة محددة</span>{% endif %}
+      {% if not search_query and not selected_type and not selected_status %}<em>يتم عرض جميع التقارير</em>{% endif %}
+    </div>
+
+    <div class="table-wrap">
+      <table id="reportsTable">
+        <thead>
+          <tr>
+            <th>رقم التقرير</th>
+            <th>نوع التقرير</th>
+            <th>الوردية</th>
+            <th>إجمالي الأبواب</th>
+            <th>مفتوحة</th>
+            <th>مغلقة</th>
+            <th>صيانة</th>
+            <th>الموظفون</th>
+            <th>طلبات الصيانة</th>
+            <th>الحالة</th>
+            <th>تاريخ الإنشاء</th>
+            <th>إجراءات</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% for report in reports %}
+            <tr data-report-list-row data-type="{{ report.report_type }}" data-status="{{ report.status }}">
+              <td>
+                <strong class="report-number">{{ report.report_number|default:"—" }}</strong>
+              </td>
+
+              <td>
+                {% if report.report_type == "operational" %}
+                  <span class="badge badge-green">تشغيلي</span>
+                {% else %}
+                  <span class="badge badge-blue">إداري</span>
+                {% endif %}
+              </td>
+
+              <td>
+                {% if report.shift_plan %}
+                  {{ report.shift_plan.shift_type.name }} - {{ report.shift_plan.date }}
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+
+              <td>{{ report.total_doors|default:0 }}</td>
+              <td>{{ report.open_doors|default:0 }}</td>
+              <td>{{ report.closed_doors|default:0 }}</td>
+              <td>{{ report.maintenance_doors|default:0 }}</td>
+              <td>{{ report.total_employees|default:0 }}</td>
+              <td>{{ report.total_maintenance_requests|default:0 }}</td>
+
+              <td>
+                {% if report.status == "approved" %}
+                  <span class="badge badge-green">معتمد</span>
+                {% elif report.status == "final" %}
+                  <span class="badge badge-blue">نهائي</span>
+                {% else %}
+                  <span class="badge badge-yellow">مسودة</span>
+                {% endif %}
+              </td>
+
+              <td>{{ report.created_at|date:"Y-m-d H:i" }}</td>
+
+              <td>
+                <div class="row-actions">
+                  <a href="{% url 'reporting:detail' report.pk %}" class="btn-small btn-blue">
+                    <span>👁</span> عرض
+                  </a>
+
+                  <a href="{% url 'reporting:export-pdf' report.pk %}" class="btn-small btn-gray">
+                    <span>↓</span> PDF
+                  </a>
+                  <a href="{% url 'reporting:export-excel' report.pk %}" class="btn-small btn-green">
+                    <span>↓</span> Excel
+                  </a>
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="12" class="empty-row">
+                لا توجد تقارير حاليًا
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+</div>
+
+<style>
+.reports-page{
+  padding:28px 36px 80px;
+  background:#f7f7f7;
+}
+
+.page-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:18px;
+  margin-bottom:24px;
+  flex-wrap:wrap;
+}
+
+.page-head h2{
+  margin:0;
+  color:#0f7b5c;
+  font-size:30px;
+  font-weight:900;
+}
+
+.page-head p{
+  margin:8px 0 0;
+  color:#6b7280;
+}
+
+.page-head .danger{
+  color:#b91c1c;
+  font-weight:800;
+}
+
+.report-center{
+  background:#fff;
+  border-radius:26px;
+  padding:26px;
+  box-shadow:0 16px 35px rgba(0,0,0,.07);
+  margin-bottom:26px;
+  border-top:5px solid #d4af37;
+}
+
+.center-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:20px;
+}
+
+.center-head h3{
+  margin:0;
+  color:#111827;
+  font-size:24px;
+  font-weight:900;
+}
+
+.center-head span{
+  display:block;
+  margin-top:6px;
+  color:#6b7280;
+  font-size:13px;
+}
+
+.report-models-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:18px;
+}
+
+.report-models-grid.two-cards{
+  grid-template-columns:repeat(2,minmax(280px,1fr));
+}
+
+.report-model-card{
+  text-decoration:none;
+  color:#111827;
+  background:#f9fafb;
+  border:1px solid #eee;
+  border-radius:22px;
+  padding:24px;
+  display:flex;
+  align-items:flex-start;
+  gap:16px;
+  position:relative;
+  min-height:160px;
+  transition:.25s;
+}
+
+.report-model-card:hover{
+  transform:translateY(-4px);
+  box-shadow:0 14px 30px rgba(0,0,0,.08);
+  background:#fff;
+}
+
+.report-model-card.active-report{
+  border-right:6px solid #d4af37;
+}
+
+.report-model-card.manual{
+  border-right:6px solid #2563eb;
+}
+.report-model-card.executive{border-right:6px solid #7c3aed;}
+
+.report-model-card.disabled{
+  opacity:.65;
+  cursor:not-allowed;
+}
+
+.model-icon{
+  width:56px;
+  height:56px;
+  border-radius:18px;
+  background:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:28px;
+  box-shadow:0 8px 20px rgba(0,0,0,.06);
+  flex-shrink:0;
+}
+
+.model-content{
+  flex:1;
+}
+
+.model-content h4{
+  margin:0;
+  color:#0f7b5c;
+  font-size:21px;
+  font-weight:900;
+}
+
+.model-content p{
+  margin:10px 0 0;
+  color:#6b7280;
+  font-size:14px;
+  line-height:1.8;
+}
+
+.model-action{
+  position:absolute;
+  left:18px;
+  bottom:18px;
+  background:#0f7b5c;
+  color:#fff;
+  padding:7px 14px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:900;
+}
+
+.model-action.gold{
+  background:#d4af37;
+  color:#111;
+}
+
+.model-action.gray{
+  background:#9ca3af;
+  color:#fff;
+}
+
+.kpi-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:18px;
+  margin-bottom:26px;
+}
+
+.kpi-card{
+  background:#fff;
+  padding:22px;
+  border-radius:22px;
+  box-shadow:0 16px 35px rgba(0,0,0,.07);
+}
+
+.kpi-card .label{
+  color:#6b7280;
+  font-size:13px;
+}
+
+.kpi-card .value{
+  margin-top:10px;
+  font-size:36px;
+  font-weight:900;
+}
+
+.value.blue{
+  color:#2563eb;
+}
+
+.value.green{
+  color:#16a34a;
+}
+
+.value.yellow{
+  color:#b45309;
+}
+
+.table-card{
+  background:#fff;
+  padding:24px 26px;
+  border-radius:24px;
+  box-shadow:0 16px 35px rgba(0,0,0,.07);
+}
+
+.table-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:14px;
+  margin-bottom:20px;
+  flex-wrap:wrap;
+}
+
+.table-head h3{
+  margin:0;
+  font-size:22px;
+  font-weight:900;
+  color:#111827;
+}
+
+.table-head span{
+  display:block;
+  margin-top:6px;
+  color:#6b7280;
+  font-size:13px;
+}
+
+.table-wrap{
+  overflow-x:auto;
+}
+.report-filters{display:grid;grid-template-columns:2fr 1fr 1fr auto auto;gap:10px;margin:0 0 20px;align-items:center}
+.report-filters input,.report-filters select{height:44px;border:1px solid #d1d5db;border-radius:12px;padding:0 12px;background:#fff}
+.report-filters button{height:44px;border:0;border-radius:12px;background:#0f7b5c;color:#fff;font-weight:900;padding:0 18px;cursor:pointer}
+.report-filters a{color:#4b5563;text-decoration:none;font-weight:800;text-align:center}
+
+table{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+  min-width:1200px;
+}
+
+th{
+  background:#0f7b5c;
+  color:#fff;
+  padding:14px;
+  text-align:center;
+  font-size:13px;
+}
+
+th:first-child{
+  border-top-right-radius:14px;
+}
+
+th:last-child{
+  border-top-left-radius:14px;
+}
+
+td{
+  padding:14px;
+  border-bottom:1px solid #eee;
+  text-align:center;
+  color:#111827;
+  font-size:13px;
+}
+
+tr:hover td{
+  background:#f9fafb;
+}
+
+.badge{
+  display:inline-block;
+  padding:6px 12px;
+  border-radius:999px;
+  font-weight:900;
+  font-size:12px;
+}
+
+.badge-green{
+  background:#dcfce7;
+  color:#166534;
+}
+
+.badge-blue{
+  background:#dbeafe;
+  color:#1d4ed8;
+}
+
+.badge-yellow{
+  background:#fef3c7;
+  color:#92400e;
+}
+
+.row-actions{
+  display:flex;
+  justify-content:center;
+  gap:8px;
+}
+
+.btn-small{
+  color:#fff;
+  text-decoration:none;
+  padding:7px 12px;
+  border-radius:10px;
+  font-size:12px;
+  font-weight:900;
+}
+
+.btn-blue{
+  background:#2563eb;
+}
+
+.btn-gray{
+  background:#4b5563;
+}
+.btn-green{background:#15803d;}
+
+.empty-row{
+  padding:25px;
+  color:#6b7280;
+  font-weight:800;
+}
+
+@media(max-width:1000px){
+  .kpi-grid{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .report-models-grid.two-cards{
+    grid-template-columns:1fr;
+  }
+  .report-filters{grid-template-columns:1fr 1fr;}
+}
+
+@media(max-width:650px){
+  .reports-page{
+    padding:20px 16px 70px;
+  }
+
+  .kpi-grid{
+    grid-template-columns:1fr;
+  }
+  .report-filters{grid-template-columns:1fr;}
+}
+</style>
+
+<link rel="stylesheet" href="{% static 'css/reporting/report_center_enterprise.css' %}?v=20260803-1">
+<script src="{% static 'js/reporting/report_center.js' %}?v=20260803-1" defer></script>
+
+{% endblock %}

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>{{ title }}</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;font-family:"Tahoma","Arial",sans-serif;color:#17211e}
+body{font-size:9px;background:#fff}
+.report-header{display:grid;grid-template-columns:95px 1fr 95px;align-items:center;gap:18px;border-bottom:3px solid #d4af37;padding-bottom:12px;margin-bottom:14px}
+.logo{max-width:90px;max-height:62px;object-fit:contain;margin:auto}
+.brand{text-align:center}
+.brand .authority{font-size:12px;color:#064e3b;font-weight:900;line-height:1.7}
+.brand h1{font-size:22px;color:#0f7b5c;margin:5px 0 1px}
+.brand p{margin:0;color:#66736e;font-size:9px}
+.report-title{text-align:center;margin:0 0 12px}
+.report-title h2{margin:0;color:#064e3b;font-size:17px}
+.meta{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.meta div{border:1px solid #dde6e2;background:#f7faf8;border-radius:7px;padding:8px;text-align:center}
+.meta span{display:block;color:#66736e;font-size:8px}
+.meta strong{display:block;margin-top:3px;color:#17211e;font-size:9px}
+.filters{margin-bottom:10px;padding:8px;border:1px solid #eadb9d;background:#fff8e1;border-radius:7px}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+thead{display:table-header-group}
+tr{page-break-inside:avoid}
+th{background:#0f7b5c;color:#fff;border:1px solid #0a694e;padding:7px 4px;font-size:8px}
+td{border:1px solid #dde6e2;padding:6px 4px;text-align:center;vertical-align:middle;overflow-wrap:anywhere;line-height:1.55}
+tbody tr:nth-child(even){background:#f7faf8}
+.empty{padding:24px;color:#66736e;font-weight:900}
+.summary{margin-top:10px;border-top:2px solid #d4af37;padding-top:7px;color:#064e3b;font-weight:900}
+</style>
+</head>
+<body>
+<header class="report-header">
+  <div>{% if haramain_logo_uri %}<img class="logo" src="{{ haramain_logo_uri }}" alt="شعار الهيئة">{% endif %}</div>
+  <div class="brand">
+    <div class="authority">{{ authority_name }}</div>
+    <h1>{{ platform_name }}</h1>
+    <p>{{ platform_subtitle }}</p>
+  </div>
+  <div>{% if abwaab_logo_uri %}<img class="logo" src="{{ abwaab_logo_uri }}" alt="شعار منصة أبواب">{% endif %}</div>
+</header>
+
+<section class="report-title"><h2>{{ title }}</h2></section>
+
+<section class="meta">
+  <div><span>المستخدم</span><strong>{{ exported_by|default:"—" }}</strong></div>
+  <div><span>تاريخ التصدير</span><strong>{{ exported_at|date:"Y-m-d H:i" }}</strong></div>
+  <div><span>عدد السجلات</span><strong>{{ records_count }}</strong></div>
+</section>
+
+{% if filters %}
+<section class="filters">
+  <strong>خيارات التصدير:</strong>
+  {% for key, value in filters.items %}
+    <span>{{ key }}: {{ value }}{% if not forloop.last %} | {% endif %}</span>
+  {% endfor %}
+</section>
+{% endif %}
+
+<table>
+  <thead>
+    <tr>
+      {% for column in columns %}<th>{{ column.header }}</th>{% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+      <tr>{% for value in row %}<td>{{ value|linebreaksbr }}</td>{% endfor %}</tr>
+    {% empty %}
+      <tr><td class="empty" colspan="{{ columns|length }}">لا توجد بيانات مطابقة للخيارات المحددة.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="summary">إجمالي السجلات المصدرة: {{ records_count }}</div>
+</body>
+</html>

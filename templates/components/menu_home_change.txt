@@ -1,0 +1,14 @@
+أضف بعد رابط مركز العمليات المباشرة داخل templates/components/menu_home.html:
+
+<a href="{% url 'ops:command-center' %}">
+    <span class="dropdown-item-icon" aria-hidden="true">🖥️</span>
+    <span class="dropdown-item-text"><strong>غرفة القيادة التشغيلية</strong></span>
+</a>
+استبدل رابط سجل العمليات المباشرة داخل menu_home.html بهذا:
+
+<a href="{% url 'ops:activity-log' %}">
+    <span class="dropdown-item-icon" aria-hidden="true">📋</span>
+    <span class="dropdown-item-text">
+        <strong>سجل العمليات المباشرة</strong>
+    </span>
+</a>

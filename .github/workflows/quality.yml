@@ -1,0 +1,42 @@
+name: Platform quality
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  django-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DJANGO_DEBUG: "false"
+      DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+      SMS_ENABLED: "false"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check Django configuration
+        run: python manage.py check
+
+      - name: Check for missing migrations
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Run test suite
+        env:
+          DJANGO_DEBUG: "true"
+          SMS_ENABLED: "false"
+        run: python manage.py test --verbosity 1

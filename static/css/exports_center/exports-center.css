@@ -1,0 +1,2303 @@
+/* =========================================================
+   إصلاح نهائي لمركز التصدير
+========================================================= */
+
+.xc-page,
+.xc-page * {
+    box-sizing: border-box;
+}
+
+.xc-page {
+    width: 100%;
+    min-height: calc(100vh - 80px);
+    padding: 14px;
+    overflow-x: hidden;
+    color: #14261f;
+    background: #f7f9f8;
+}
+
+/* منع أي عناصر قديمة من إنشاء أشكال ضخمة */
+.xc-hero::before,
+.xc-hero::after,
+.xc-art-folder::before,
+.xc-art-folder::after,
+.xc-art-document::before,
+.xc-art-document::after,
+.xc-folder-front::before,
+.xc-folder-front::after {
+    content: none !important;
+    display: none !important;
+}
+
+/* =========================================================
+   رأس الصفحة
+========================================================= */
+
+.xc-hero {
+    position: relative !important;
+    isolation: isolate;
+
+    width: 100% !important;
+    height: 225px !important;
+    min-height: 225px !important;
+    max-height: 225px !important;
+
+    margin: 0 0 14px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+
+    border: 1px solid #dce7e2 !important;
+    border-radius: 17px !important;
+
+    background:
+        radial-gradient(
+            circle at 20% 30%,
+            rgba(255, 255, 255, 0.1) 0 1px,
+            transparent 2px
+        ) 0 0 / 22px 22px,
+        linear-gradient(
+            112deg,
+            #064b3d 0%,
+            #075b47 47.8%,
+            #d4aa45 48%,
+            #d4aa45 48.6%,
+            #f7faf9 48.8%,
+            #ffffff 100%
+        ) !important;
+
+    box-shadow:
+        0 10px 28px rgba(18, 52, 41, 0.08) !important;
+}
+
+/* =========================================================
+   نص الرأس
+========================================================= */
+
+.xc-hero-copy {
+    position: absolute !important;
+    z-index: 20 !important;
+
+    top: 50% !important;
+    right: 48px !important;
+    left: auto !important;
+    bottom: auto !important;
+
+    width: 42% !important;
+    max-width: 650px !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    transform: translateY(-50%) !important;
+    text-align: right !important;
+}
+
+.xc-brand {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+
+    color: #087457 !important;
+    font-size: 12px !important;
+    font-weight: 900 !important;
+}
+
+.xc-brand-icon {
+    flex: 0 0 31px !important;
+    width: 31px !important;
+    height: 34px !important;
+}
+
+.xc-brand-icon svg {
+    display: block !important;
+    width: 31px !important;
+    height: 34px !important;
+
+    fill: none !important;
+    stroke: currentColor !important;
+    stroke-width: 2 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+}
+
+.xc-hero-copy h1 {
+    margin: 9px 0 8px !important;
+    padding: 0 !important;
+
+    color: #13231e !important;
+    font-size: clamp(35px, 3.5vw, 51px) !important;
+    font-weight: 900 !important;
+    line-height: 1.08 !important;
+}
+
+.xc-hero-copy p {
+    max-width: 610px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+
+    color: #6f7b76 !important;
+    font-size: 13px !important;
+    line-height: 1.9 !important;
+}
+
+.xc-excel-word {
+    color: #087457 !important;
+}
+
+.xc-pdf-word {
+    color: #df3e3e !important;
+}
+
+.xc-csv-word {
+    color: #7043ce !important;
+}
+
+/* =========================================================
+   الرسم
+========================================================= */
+
+.xc-hero-art {
+    position: absolute !important;
+    z-index: 10 !important;
+
+    top: 0 !important;
+    bottom: auto !important;
+    left: 29% !important;
+    right: auto !important;
+
+    width: 35% !important;
+    height: 225px !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    overflow: visible !important;
+    pointer-events: none !important;
+}
+
+.xc-art-folder {
+    position: absolute !important;
+
+    top: 50% !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: 220px !important;
+    height: 180px !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    transform: translate(-50%, -48%) !important;
+
+    filter:
+        drop-shadow(
+            0 17px 15px rgba(0, 0, 0, 0.2)
+        ) !important;
+}
+
+.xc-folder-back {
+    position: absolute !important;
+    z-index: 1 !important;
+
+    left: 28px !important;
+    bottom: 20px !important;
+    top: auto !important;
+    right: auto !important;
+
+    width: 162px !important;
+    height: 112px !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    border: 0 !important;
+    border-radius: 18px 18px 28px 28px !important;
+
+    background:
+        linear-gradient(
+            145deg,
+            #30a578,
+            #087157
+        ) !important;
+
+    transform: none !important;
+}
+
+/* =========================================================
+   المستند
+========================================================= */
+
+.xc-art-document {
+    position: absolute !important;
+    z-index: 3 !important;
+
+    top: -5px !important;
+    left: 62px !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: 105px !important;
+    height: 133px !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+
+    border: 0 !important;
+    border-radius: 10px 17px 10px 10px !important;
+
+    background:
+        linear-gradient(
+            145deg,
+            #ffffff,
+            #e9efec
+        ) !important;
+
+    box-shadow:
+        0 9px 20px rgba(0, 0, 0, 0.16) !important;
+
+    transform: rotate(2deg) !important;
+}
+
+/* المثلث الأسود كان ناتجًا من تمدد هذا العنصر */
+.xc-doc-fold {
+    position: absolute !important;
+    z-index: 2 !important;
+
+    top: 0 !important;
+    right: 0 !important;
+    left: auto !important;
+    bottom: auto !important;
+
+    display: block !important;
+
+    width: 28px !important;
+    min-width: 28px !important;
+    max-width: 28px !important;
+
+    height: 28px !important;
+    min-height: 28px !important;
+    max-height: 28px !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    border: 0 !important;
+    border-radius: 0 !important;
+
+    background: #d8e1dd !important;
+
+    clip-path: polygon(
+        0 0,
+        100% 100%,
+        0 100%
+    ) !important;
+
+    transform: none !important;
+}
+
+.xc-doc-line {
+    position: absolute !important;
+    left: 17px !important;
+
+    display: block !important;
+    height: 5px !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    border: 0 !important;
+    border-radius: 999px !important;
+
+    background: #8bb4e5 !important;
+    transform: none !important;
+}
+
+.xc-doc-line.one {
+    top: 28px !important;
+    width: 46px !important;
+}
+
+.xc-doc-line.two {
+    top: 42px !important;
+    width: 62px !important;
+}
+
+.xc-doc-line.three {
+    top: 56px !important;
+    width: 38px !important;
+}
+
+.xc-doc-chart {
+    position: absolute !important;
+    bottom: 17px !important;
+
+    display: block !important;
+    width: 13px !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    border: 0 !important;
+    border-radius: 3px 3px 0 0 !important;
+
+    transform: none !important;
+}
+
+.xc-doc-chart.c1 {
+    right: 52px !important;
+    height: 20px !important;
+    background: #e27958 !important;
+}
+
+.xc-doc-chart.c2 {
+    right: 34px !important;
+    height: 36px !important;
+    background: #4c89d7 !important;
+}
+
+.xc-doc-chart.c3 {
+    right: 16px !important;
+    height: 27px !important;
+    background: #75ad5e !important;
+}
+
+/* الدائرة السوداء كانت ناتجة من تمدد هذا العنصر */
+.xc-doc-pie {
+    position: absolute !important;
+    z-index: 4 !important;
+
+    top: 18px !important;
+    right: 12px !important;
+    left: auto !important;
+    bottom: auto !important;
+
+    display: block !important;
+
+    width: 24px !important;
+    min-width: 24px !important;
+    max-width: 24px !important;
+
+    height: 24px !important;
+    min-height: 24px !important;
+    max-height: 24px !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    border: 0 !important;
+    border-radius: 50% !important;
+
+    background:
+        conic-gradient(
+            #efb94c 0 25%,
+            #62a8dc 25% 52%,
+            #6bbf7e 52% 100%
+        ) !important;
+
+    transform: none !important;
+}
+
+/* =========================================================
+   مقدمة المجلد
+========================================================= */
+
+.xc-folder-front {
+    position: absolute !important;
+    z-index: 5 !important;
+
+    left: 17px !important;
+    bottom: 2px !important;
+    top: auto !important;
+    right: auto !important;
+
+    width: 186px !important;
+    height: 92px !important;
+
+    display: grid !important;
+    place-items: center !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    border: 0 !important;
+    border-radius: 18px 18px 31px 31px !important;
+
+    background:
+        linear-gradient(
+            145deg,
+            #158663,
+            #064d3d
+        ) !important;
+
+    transform: none !important;
+}
+
+.xc-folder-front svg {
+    display: block !important;
+
+    width: 45px !important;
+    height: 45px !important;
+
+    fill: none !important;
+    stroke: #ffffff !important;
+    stroke-width: 4 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+}
+
+/* =========================================================
+   ملفات التصدير
+========================================================= */
+
+.xc-floating-format {
+    position: absolute !important;
+    z-index: 8 !important;
+
+    display: grid !important;
+    place-items: center !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    color: #ffffff !important;
+    font-family: Arial, sans-serif !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+
+    border: 0 !important;
+
+    box-shadow:
+        0 10px 18px rgba(0, 0, 0, 0.18) !important;
+}
+
+.xc-floating-format.excel {
+    top: 23px !important;
+    left: -3px !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: 54px !important;
+    height: 60px !important;
+
+    border-radius: 9px !important;
+    background: #209a5e !important;
+
+    font-size: 24px !important;
+    transform: rotate(-8deg) !important;
+}
+
+.xc-floating-format.pdf {
+    top: 28px !important;
+    right: -4px !important;
+    left: auto !important;
+    bottom: auto !important;
+
+    width: 56px !important;
+    height: 60px !important;
+
+    border-radius: 9px !important;
+    background: #e74b4b !important;
+
+    font-size: 12px !important;
+    transform: rotate(8deg) !important;
+}
+
+.xc-floating-format.csv {
+    top: auto !important;
+    right: -22px !important;
+    left: auto !important;
+    bottom: 8px !important;
+
+    width: 53px !important;
+    height: 54px !important;
+
+    border-radius: 9px !important;
+    background: #7443c8 !important;
+
+    font-size: 11px !important;
+    transform: rotate(8deg) !important;
+}
+
+/* =========================================================
+   سجل التصدير
+========================================================= */
+
+.xc-log-card {
+    position: absolute !important;
+    z-index: 20 !important;
+
+    top: 50% !important;
+    left: 30px !important;
+    right: auto !important;
+
+    width: 245px !important;
+    min-height: 70px !important;
+
+    padding: 11px 13px !important;
+
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+
+    transform: translateY(-50%) !important;
+
+    border:
+        1px solid rgba(255, 255, 255, 0.8) !important;
+
+    border-radius: 12px !important;
+
+    color: #14261f !important;
+    background: rgba(255, 255, 255, 0.98) !important;
+
+    box-shadow:
+        0 15px 30px rgba(0, 0, 0, 0.13) !important;
+
+    text-decoration: none !important;
+}
+
+.xc-log-icon {
+    flex: 0 0 41px !important;
+
+    width: 41px !important;
+    height: 41px !important;
+
+    display: grid !important;
+    place-items: center !important;
+
+    border-radius: 9px !important;
+
+    color: #7043ce !important;
+    background: #f4f0ff !important;
+}
+
+.xc-log-icon svg,
+.xc-log-arrow {
+    display: block !important;
+
+    width: 20px !important;
+    height: 20px !important;
+
+    fill: none !important;
+    stroke: currentColor !important;
+    stroke-width: 1.8 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+}
+
+.xc-log-copy {
+    flex: 1 !important;
+    min-width: 0 !important;
+}
+
+.xc-log-copy strong,
+.xc-log-copy small {
+    display: block !important;
+}
+
+.xc-log-copy strong {
+    color: #05503f !important;
+    font-size: 11px !important;
+}
+
+.xc-log-copy small {
+    margin-top: 4px !important;
+    color: #7b8782 !important;
+    font-size: 7px !important;
+}
+
+.xc-log-arrow {
+    flex: 0 0 20px !important;
+    color: #087457 !important;
+}
+
+/* =========================================================
+   إصلاح SVG العام داخل الصفحة
+========================================================= */
+
+.xc-page svg {
+    overflow: visible;
+}
+
+.xc-page svg path,
+.xc-page svg circle,
+.xc-page svg rect {
+    vector-effect: non-scaling-stroke;
+}
+
+/* =========================================================
+   التجاوب
+========================================================= */
+
+@media (max-width: 1150px) {
+    .xc-hero-copy {
+        right: 30px !important;
+        width: 48% !important;
+    }
+
+    .xc-hero-art {
+        left: 13% !important;
+        width: 39% !important;
+    }
+
+    .xc-log-card {
+        display: none !important;
+    }
+}
+
+@media (max-width: 760px) {
+    .xc-hero {
+        height: 410px !important;
+        min-height: 410px !important;
+        max-height: none !important;
+
+        background:
+            linear-gradient(
+                180deg,
+                #ffffff 0%,
+                #ffffff 54%,
+                #075b47 54.2%,
+                #064b3d 100%
+            ) !important;
+    }
+
+    .xc-hero-copy {
+        top: 25px !important;
+        right: 18px !important;
+        left: 18px !important;
+
+        width: auto !important;
+        max-width: none !important;
+
+        transform: none !important;
+        text-align: center !important;
+    }
+
+    .xc-brand {
+        justify-content: center !important;
+    }
+
+    .xc-hero-copy h1 {
+        font-size: 36px !important;
+    }
+
+    .xc-hero-art {
+        top: auto !important;
+        bottom: 0 !important;
+        left: 50% !important;
+
+        width: 100% !important;
+        height: 195px !important;
+
+        transform: translateX(-50%) !important;
+    }
+
+    .xc-art-folder {
+        transform:
+            translate(-50%, -48%)
+            scale(0.86) !important;
+    }
+}
+/* =========================================================
+   إصلاح بقية صفحة مركز التصدير
+========================================================= */
+
+/* منع أي SVG من التمدد خارج حجمه */
+.xc-page svg {
+    display: block;
+    max-width: 100%;
+}
+
+.xc-toolbar svg,
+.xc-section-heading svg,
+.xc-report-card svg,
+.xc-features svg,
+.xc-indicators svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+
+/* =========================================================
+   شريط البحث والتصفية
+========================================================= */
+
+.xc-toolbar {
+    position: relative;
+    width: 100%;
+    min-height: 68px;
+    margin: 0 0 14px;
+    padding: 11px 16px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+
+    border: 1px solid #dce7e2;
+    border-radius: 13px;
+
+    background: #ffffff;
+
+    box-shadow:
+        0 8px 22px
+        rgba(18, 52, 41, 0.06);
+}
+
+.xc-search {
+    position: relative;
+    flex: 1;
+    max-width: 540px;
+    min-width: 260px;
+}
+
+.xc-search svg {
+    position: absolute;
+    z-index: 2;
+
+    top: 50%;
+    right: 16px;
+
+    width: 20px !important;
+    min-width: 20px !important;
+    max-width: 20px !important;
+
+    height: 20px !important;
+    min-height: 20px !important;
+    max-height: 20px !important;
+
+    transform: translateY(-50%);
+
+    fill: none !important;
+    stroke: #7b8782 !important;
+    stroke-width: 1.8 !important;
+
+    pointer-events: none;
+}
+
+/* إلغاء الدائرة السوداء */
+.xc-search svg circle {
+    fill: none !important;
+    stroke: currentColor !important;
+}
+
+.xc-search svg path {
+    fill: none !important;
+    stroke: currentColor !important;
+}
+
+.xc-search input {
+    display: block;
+
+    width: 100%;
+    height: 45px;
+
+    margin: 0;
+    padding: 0 48px 0 14px;
+
+    outline: none;
+
+    border: 1px solid #dce7e2;
+    border-radius: 10px;
+
+    color: #14261f;
+    background: #ffffff;
+
+    font-family: inherit;
+    font-size: 11px;
+}
+
+.xc-search input:focus {
+    border-color: #087457;
+
+    box-shadow:
+        0 0 0 4px
+        rgba(8, 116, 87, 0.09);
+}
+
+
+/* =========================================================
+   أزرار صيغ التصدير
+========================================================= */
+
+.xc-format-filters {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.xc-filter {
+    min-width: 95px;
+    height: 42px;
+    padding: 0 14px;
+
+    cursor: pointer;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+
+    border: 1px solid #dce7e2;
+    border-radius: 9px;
+
+    color: #44544e;
+    background: #ffffff;
+
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 900;
+
+    transition:
+        transform 0.18s ease,
+        box-shadow 0.18s ease,
+        background 0.18s ease;
+}
+
+.xc-filter:hover {
+    transform: translateY(-2px);
+}
+
+.xc-filter.active {
+    color: #ffffff;
+    border-color: #087457;
+
+    background:
+        linear-gradient(
+            135deg,
+            #087457,
+            #05503f
+        );
+
+    box-shadow:
+        0 8px 18px
+        rgba(8, 116, 87, 0.2);
+}
+
+.xc-filter svg {
+    width: 17px !important;
+    height: 17px !important;
+
+    fill: none !important;
+    stroke: currentColor !important;
+}
+
+.xc-filter svg rect {
+    fill: none !important;
+    stroke: currentColor !important;
+}
+
+.xc-small-file {
+    width: 21px;
+    height: 23px;
+
+    display: grid;
+    place-items: center;
+
+    border-radius: 4px;
+
+    color: #ffffff;
+
+    font-family: Arial, sans-serif;
+    font-size: 9px;
+    font-weight: 900;
+}
+
+.xc-filter.excel .xc-small-file {
+    background: #087457;
+}
+
+.xc-filter.pdf .xc-small-file {
+    background: #df3e3e;
+}
+
+.xc-filter.csv .xc-small-file {
+    background: #7043ce;
+}
+
+
+/* =========================================================
+   المؤشرات
+========================================================= */
+
+.xc-indicators {
+    width: 100%;
+    margin: 0 0 15px;
+
+    display: grid;
+    grid-template-columns:
+        repeat(5, minmax(0, 1fr));
+
+    overflow: hidden;
+
+    border: 1px solid #dce7e2;
+    border-radius: 12px;
+
+    background: #ffffff;
+
+    box-shadow:
+        0 7px 20px
+        rgba(18, 52, 41, 0.05);
+}
+
+.xc-indicator {
+    min-width: 0;
+    min-height: 70px;
+    padding: 11px 18px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+
+    border-left: 1px solid #e8efec;
+
+    background:
+        linear-gradient(
+            135deg,
+            #fbfffd,
+            #f1faf6
+        );
+}
+
+.xc-indicator:last-child {
+    border-left: 0;
+}
+
+.xc-indicator.featured {
+    color: #ffffff;
+
+    background:
+        linear-gradient(
+            135deg,
+            #087457,
+            #05503f
+        );
+}
+
+.xc-indicator-icon {
+    flex: 0 0 39px;
+
+    width: 39px;
+    height: 39px;
+
+    display: grid;
+    place-items: center;
+
+    border-radius: 50%;
+
+    color: #087457;
+    background: #e8f7f1;
+}
+
+.xc-indicator-icon svg {
+    width: 20px !important;
+    height: 20px !important;
+
+    fill: none !important;
+    stroke: currentColor !important;
+}
+
+.xc-indicator-icon svg circle {
+    fill: none !important;
+}
+
+.xc-indicator small,
+.xc-indicator strong,
+.xc-indicator > div > span {
+    display: block;
+}
+
+.xc-indicator small {
+    color: inherit;
+    font-size: 8px;
+    font-weight: 900;
+}
+
+.xc-indicator strong {
+    margin-top: 3px;
+
+    color: inherit;
+    font-size: 21px;
+    line-height: 1;
+}
+
+.xc-indicator > div > span {
+    margin-top: 3px;
+    font-size: 7px;
+}
+
+
+/* =========================================================
+   عنوان التقارير
+========================================================= */
+
+.xc-section-heading {
+    margin: 4px 4px 12px;
+
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.xc-section-heading > div:first-child > span {
+    color: #b68c30;
+    font-size: 9px;
+    font-weight: 900;
+}
+
+.xc-section-heading h2 {
+    margin: 4px 0 0;
+
+    color: #14261f;
+    font-size: 24px;
+    line-height: 1.2;
+}
+
+.xc-view-switch {
+    display: flex;
+    direction: ltr;
+}
+
+.xc-view-switch button {
+    width: 39px;
+    height: 32px;
+    padding: 0;
+
+    cursor: pointer;
+
+    display: grid;
+    place-items: center;
+
+    border: 1px solid #dce7e2;
+
+    color: #64736d;
+    background: #ffffff;
+}
+
+.xc-view-switch button:first-child {
+    border-radius: 8px 0 0 8px;
+}
+
+.xc-view-switch button:last-child {
+    border-radius: 0 8px 8px 0;
+}
+
+.xc-view-switch button.active {
+    color: #ffffff;
+    border-color: #087457;
+    background: #087457;
+}
+
+.xc-view-switch svg {
+    width: 16px !important;
+    height: 16px !important;
+
+    fill: none !important;
+    stroke: currentColor !important;
+}
+
+.xc-view-switch svg circle,
+.xc-view-switch svg rect {
+    fill: none !important;
+}
+
+
+/* =========================================================
+   شبكة التقارير
+========================================================= */
+
+.xc-reports-grid {
+    width: 100%;
+
+    display: grid;
+    grid-template-columns:
+        repeat(4, minmax(0, 1fr));
+
+    gap: 12px;
+}
+
+.xc-report-card {
+    position: relative;
+
+    min-width: 0;
+    min-height: 210px;
+    padding: 14px;
+
+    display: flex;
+    flex-direction: column;
+
+    border: 1px solid #dce7e2;
+    border-radius: 13px;
+
+    background: #ffffff;
+
+    box-shadow:
+        0 7px 20px
+        rgba(18, 52, 41, 0.055);
+
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.xc-report-card:hover {
+    transform: translateY(-3px);
+
+    border-color:
+        rgba(8, 116, 87, 0.3);
+
+    box-shadow:
+        0 15px 30px
+        rgba(18, 52, 41, 0.1);
+}
+
+.xc-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 11px;
+}
+
+.xc-card-copy {
+    flex: 1;
+    min-width: 0;
+}
+
+.xc-report-key {
+    display: block;
+
+    overflow: hidden;
+
+    color: #087457;
+
+    font-family: Arial, sans-serif;
+    font-size: 7px;
+    font-weight: 900;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.xc-card-copy h3 {
+    margin: 4px 0;
+
+    overflow: hidden;
+
+    color: #14261f;
+    font-size: 14px;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.xc-card-copy p {
+    min-height: 31px;
+    margin: 0;
+
+    color: #7b8782;
+    font-size: 8px;
+    line-height: 1.7;
+}
+
+.xc-card-icon {
+    flex: 0 0 55px;
+
+    width: 55px;
+    height: 55px;
+
+    display: grid;
+    place-items: center;
+
+    border-radius: 13px;
+
+    color: #087457;
+    background: #eaf7f2;
+}
+
+.xc-card-icon svg {
+    width: 36px !important;
+    height: 36px !important;
+
+    fill: none !important;
+    stroke: currentColor !important;
+    stroke-width: 2.2 !important;
+}
+
+.xc-card-icon svg circle,
+.xc-card-icon svg rect,
+.xc-card-icon svg path {
+    fill: none !important;
+    stroke: currentColor !important;
+}
+
+.xc-icon-shift_assignments,
+.xc-icon-maintenance {
+    color: #397bd5;
+    background: #edf4ff;
+}
+
+.xc-icon-door_distribution,
+.xc-icon-incidents {
+    color: #d77f28;
+    background: #fff1e5;
+}
+
+.xc-icon-reports {
+    color: #7043ce;
+    background: #f4f0ff;
+}
+
+.xc-icon-breaks {
+    color: #8f622c;
+    background: #f8f0e6;
+}
+
+.xc-icon-announcements {
+    color: #d44f6d;
+    background: #fff0f3;
+}
+
+
+/* =========================================================
+   زر المفضلة
+========================================================= */
+
+.xc-favorite {
+    position: absolute;
+
+    top: 9px;
+    left: 9px;
+
+    width: 27px;
+    height: 27px;
+    padding: 0;
+
+    cursor: pointer;
+
+    display: grid;
+    place-items: center;
+
+    border: 0;
+
+    color: #c5ceca;
+    background: transparent;
+}
+
+.xc-favorite svg {
+    width: 17px !important;
+    height: 17px !important;
+
+    fill: none !important;
+    stroke: currentColor !important;
+}
+
+.xc-favorite.active {
+    color: #d4aa45;
+}
+
+.xc-favorite.active svg {
+    fill: currentColor !important;
+}
+
+
+/* =========================================================
+   شارات الصيغ
+========================================================= */
+
+.xc-badges {
+    min-height: 25px;
+    margin-top: 8px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.xc-badge {
+    padding: 4px 9px;
+
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+
+    border-radius: 999px;
+
+    font-family: Arial, sans-serif;
+    font-size: 8px;
+    font-weight: 900;
+}
+
+.xc-badge.excel {
+    color: #087457;
+    background: #eaf7f2;
+}
+
+.xc-badge.pdf {
+    color: #df3e3e;
+    background: #fff1f1;
+}
+
+.xc-badge.csv {
+    color: #7043ce;
+    background: #f4f0ff;
+}
+
+
+/* =========================================================
+   إجراءات البطاقات
+========================================================= */
+
+.xc-card-actions {
+    margin-top: auto;
+    padding-top: 10px;
+
+    display: grid;
+    grid-template-columns:
+        repeat(3, minmax(0, 1fr));
+
+    gap: 6px;
+
+    border-top: 1px solid #dce7e2;
+}
+
+.xc-action {
+    min-width: 0;
+    min-height: 33px;
+    padding: 0 7px;
+
+    cursor: pointer;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+
+    border: 1px solid #b8dccc;
+    border-radius: 8px;
+
+    color: #087457;
+    background: #ffffff;
+
+    font-family: inherit;
+    font-size: 8px;
+    font-weight: 900;
+
+    text-decoration: none;
+}
+
+.xc-action svg {
+    flex: 0 0 14px;
+
+    width: 14px !important;
+    height: 14px !important;
+
+    fill: none !important;
+    stroke: currentColor !important;
+}
+
+.xc-action svg circle,
+.xc-action svg path {
+    fill: none !important;
+    stroke: currentColor !important;
+}
+
+.xc-action.primary {
+    color: #ffffff;
+    border-color: #087457;
+
+    background:
+        linear-gradient(
+            135deg,
+            #087457,
+            #05503f
+        );
+}
+
+
+/* =========================================================
+   حالة عدم وجود بيانات
+========================================================= */
+
+.xc-empty {
+    display: none;
+    grid-column: 1 / -1;
+
+    padding: 40px 20px;
+
+    text-align: center;
+
+    border: 1px dashed #dce7e2;
+    border-radius: 13px;
+
+    background: #ffffff;
+}
+
+.xc-empty.visible {
+    display: block;
+}
+
+
+/* =========================================================
+   البطاقة العريضة
+========================================================= */
+
+.xc-wide-report {
+    width: 100%;
+    min-height: 64px;
+    margin-top: 11px;
+    padding: 9px 15px;
+
+    display: flex;
+    align-items: center;
+    gap: 15px;
+
+    border: 1px solid #dce7e2;
+    border-radius: 11px;
+
+    background: #ffffff;
+}
+
+.xc-wide-icon {
+    flex: 0 0 47px;
+
+    width: 47px;
+    height: 47px;
+
+    display: grid;
+    place-items: center;
+
+    border-radius: 11px;
+}
+
+.xc-wide-icon svg {
+    width: 30px !important;
+    height: 30px !important;
+
+    fill: none !important;
+    stroke: currentColor !important;
+}
+
+.xc-wide-copy {
+    min-width: 210px;
+}
+
+.xc-wide-copy > span {
+    color: #087457;
+    font-family: Arial, sans-serif;
+    font-size: 7px;
+}
+
+.xc-wide-copy h3 {
+    margin: 2px 0;
+    font-size: 13px;
+}
+
+.xc-wide-copy p {
+    margin: 0;
+    color: #7b8782;
+    font-size: 7px;
+}
+
+.xc-wide-badges {
+    margin-right: auto;
+
+    display: flex;
+    align-items: center;
+    gap: 22px;
+}
+
+.xc-wide-actions {
+    display: flex;
+    gap: 7px;
+}
+
+.xc-wide-actions .xc-action {
+    min-width: 105px;
+}
+
+
+/* =========================================================
+   المزايا
+========================================================= */
+
+.xc-features {
+    width: 100%;
+    margin-top: 11px;
+    padding: 11px 25px;
+
+    display: grid;
+    grid-template-columns:
+        repeat(3, minmax(0, 1fr));
+
+    border: 1px solid #dce7e2;
+    border-radius: 11px;
+
+    background: #ffffff;
+}
+
+.xc-feature {
+    min-width: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.xc-feature + .xc-feature {
+    border-right: 1px solid #dce7e2;
+}
+
+.xc-feature-icon {
+    flex: 0 0 39px;
+
+    width: 39px;
+    height: 39px;
+
+    display: grid;
+    place-items: center;
+
+    border-radius: 50%;
+
+    color: #087457;
+    background: #eaf7f2;
+}
+
+.xc-feature-icon svg {
+    width: 20px !important;
+    height: 20px !important;
+
+    fill: none !important;
+    stroke: currentColor !important;
+}
+
+.xc-feature-icon svg circle {
+    fill: none !important;
+}
+
+.xc-feature strong,
+.xc-feature small {
+    display: block;
+}
+
+.xc-feature strong {
+    color: #05503f;
+    font-size: 10px;
+}
+
+.xc-feature small {
+    margin-top: 3px;
+    color: #7b8782;
+    font-size: 7px;
+}
+
+
+/* =========================================================
+   عرض القائمة
+========================================================= */
+
+.xc-reports-grid.list-view {
+    grid-template-columns: 1fr;
+}
+
+.xc-reports-grid.list-view .xc-report-card {
+    min-height: 130px;
+}
+
+.xc-reports-grid.list-view .xc-card-actions {
+    grid-template-columns:
+        repeat(3, 120px);
+
+    justify-content: end;
+}
+
+
+/* =========================================================
+   التجاوب
+========================================================= */
+
+@media (max-width: 1250px) {
+    .xc-reports-grid {
+        grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+    }
+
+    .xc-indicators {
+        grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 850px) {
+    .xc-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .xc-search {
+        width: 100%;
+        max-width: none;
+    }
+
+    .xc-format-filters {
+        display: grid;
+        grid-template-columns:
+            repeat(4, minmax(0, 1fr));
+    }
+
+    .xc-reports-grid {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+
+    .xc-indicators {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+
+    .xc-wide-report {
+        display: none;
+    }
+
+    .xc-features {
+        grid-template-columns: 1fr;
+    }
+
+    .xc-feature {
+        justify-content: flex-start;
+    }
+
+    .xc-feature + .xc-feature {
+        padding-top: 10px;
+
+        border-top: 1px solid #dce7e2;
+        border-right: 0;
+    }
+}
+
+@media (max-width: 560px) {
+    .xc-page {
+        padding: 8px;
+    }
+
+    .xc-format-filters {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+
+    .xc-indicators,
+    .xc-reports-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .xc-card-actions {
+        grid-template-columns: 1fr;
+    }
+}
+/* =========================================================
+   نافذة التصدير
+========================================================= */
+
+.xc-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+
+    display: none;
+    align-items: center;
+    justify-content: center;
+
+    width: 100%;
+    height: 100%;
+
+    padding: 20px;
+}
+
+/* إظهار النافذة عند الضغط على تصدير */
+.xc-modal.open {
+    display: flex;
+}
+
+/* الخلفية المعتمة */
+.xc-modal-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+
+    width: 100%;
+    height: 100%;
+
+    cursor: pointer;
+
+    background:
+        rgba(
+            4,
+            30,
+            23,
+            0.62
+        );
+
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+}
+
+/* صندوق النافذة */
+.xc-modal-dialog {
+    position: relative;
+    z-index: 2;
+
+    width: min(610px, 100%);
+    max-height: calc(100vh - 40px);
+
+    overflow-x: hidden;
+    overflow-y: auto;
+
+    border: 1px solid #dce7e2;
+    border-radius: 20px;
+
+    color: #14261f;
+    background: #ffffff;
+
+    box-shadow:
+        0 35px 100px
+        rgba(0, 0, 0, 0.3);
+
+    animation:
+        xcModalEnter
+        0.22s ease-out;
+}
+
+@keyframes xcModalEnter {
+    from {
+        opacity: 0;
+        transform:
+            translateY(18px)
+            scale(0.97);
+    }
+
+    to {
+        opacity: 1;
+        transform:
+            translateY(0)
+            scale(1);
+    }
+}
+
+
+/* =========================================================
+   رأس النافذة
+========================================================= */
+
+.xc-modal-header {
+    min-height: 76px;
+    padding: 17px 20px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+
+    border-bottom: 1px solid #dce7e2;
+
+    background:
+        linear-gradient(
+            180deg,
+            #ffffff,
+            #fbfdfc
+        );
+}
+
+.xc-modal-title {
+    min-width: 0;
+
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.xc-modal-title > span {
+    flex: 0 0 45px;
+
+    width: 45px;
+    height: 45px;
+
+    display: grid;
+    place-items: center;
+
+    border-radius: 13px;
+
+    color: #ffffff;
+
+    background:
+        linear-gradient(
+            135deg,
+            #087457,
+            #05503f
+        );
+
+    box-shadow:
+        0 8px 18px
+        rgba(8, 116, 87, 0.2);
+}
+
+.xc-modal-title > span svg {
+    display: block;
+
+    width: 22px !important;
+    height: 22px !important;
+
+    fill: none !important;
+    stroke: currentColor !important;
+    stroke-width: 2 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+}
+
+.xc-modal-title small {
+    display: block;
+
+    color: #087457;
+
+    font-size: 9px;
+    font-weight: 900;
+}
+
+.xc-modal-title h2 {
+    margin: 3px 0 0;
+
+    color: #14261f;
+
+    font-size: 20px;
+    line-height: 1.3;
+}
+
+.xc-modal-close {
+    flex: 0 0 39px;
+
+    width: 39px;
+    height: 39px;
+    padding: 0;
+
+    cursor: pointer;
+
+    display: grid;
+    place-items: center;
+
+    border: 1px solid #dce7e2;
+    border-radius: 10px;
+
+    color: #56645e;
+    background: #ffffff;
+
+    font-family: Arial, sans-serif;
+    font-size: 23px;
+    line-height: 1;
+
+    transition:
+        color 0.18s ease,
+        border-color 0.18s ease,
+        background 0.18s ease;
+}
+
+.xc-modal-close:hover {
+    color: #d83b3b;
+    border-color: #f0c3c3;
+    background: #fff3f3;
+}
+
+
+/* =========================================================
+   محتوى النافذة
+========================================================= */
+
+.xc-modal-body {
+    padding: 21px;
+}
+
+.xc-selected-report {
+    padding: 13px 15px;
+    margin-bottom: 13px;
+
+    border: 1px solid #ead795;
+    border-radius: 12px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #fffaf0,
+            #fff6dc
+        );
+}
+
+.xc-selected-report small,
+.xc-selected-report strong {
+    display: block;
+}
+
+.xc-selected-report small {
+    margin-bottom: 4px;
+
+    color: #7b8782;
+
+    font-size: 9px;
+    font-weight: 900;
+}
+
+.xc-selected-report strong {
+    color: #05503f;
+
+    font-size: 15px;
+}
+
+.xc-modal-body > p {
+    margin: 0 0 17px;
+
+    color: #7b8782;
+
+    font-size: 11px;
+    line-height: 1.8;
+}
+
+
+/* =========================================================
+   خيارات صيغ التصدير
+========================================================= */
+
+.xc-modal-formats {
+    display: grid;
+    grid-template-columns:
+        repeat(3, minmax(0, 1fr));
+
+    gap: 10px;
+}
+
+.xc-modal-format {
+    min-width: 0;
+    min-height: 132px;
+    padding: 14px 10px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+
+    border: 1px solid transparent;
+    border-radius: 14px;
+
+    text-align: center;
+    text-decoration: none;
+
+    transition:
+        transform 0.18s ease,
+        box-shadow 0.18s ease,
+        border-color 0.18s ease;
+}
+
+.xc-modal-format:hover {
+    transform: translateY(-3px);
+
+    box-shadow:
+        0 12px 24px
+        rgba(18, 52, 41, 0.08);
+}
+
+.xc-modal-format > span {
+    min-width: 43px;
+    height: 46px;
+    padding: 0 7px;
+
+    display: grid;
+    place-items: center;
+
+    border-radius: 9px;
+
+    color: #ffffff;
+
+    font-family: Arial, sans-serif;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.xc-modal-format strong {
+    font-size: 14px;
+}
+
+.xc-modal-format small {
+    color: #7b8782;
+
+    font-size: 8px;
+    line-height: 1.5;
+}
+
+/* Excel */
+.xc-modal-format.excel {
+    color: #087457;
+
+    border-color: #b8dfcf;
+    background: #eaf7f2;
+}
+
+.xc-modal-format.excel > span {
+    background:
+        linear-gradient(
+            135deg,
+            #169765,
+            #087457
+        );
+}
+
+/* PDF */
+.xc-modal-format.pdf {
+    color: #df3e3e;
+
+    border-color: #f3c4c4;
+    background: #fff1f1;
+}
+
+.xc-modal-format.pdf > span {
+    background:
+        linear-gradient(
+            135deg,
+            #ef5656,
+            #d93636
+        );
+}
+
+/* CSV */
+.xc-modal-format.csv {
+    color: #7043ce;
+
+    border-color: #d7cbf3;
+    background: #f4f0ff;
+}
+
+.xc-modal-format.csv > span {
+    background:
+        linear-gradient(
+            135deg,
+            #8254df,
+            #6335bb
+        );
+}
+
+
+/* =========================================================
+   تذييل النافذة
+========================================================= */
+
+.xc-modal-footer {
+    padding: 14px 21px;
+
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 9px;
+
+    border-top: 1px solid #dce7e2;
+
+    background: #fbfdfc;
+}
+
+.xc-modal-cancel,
+.xc-modal-filters {
+    min-height: 42px;
+    padding: 0 18px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 10px;
+
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 900;
+
+    text-decoration: none;
+}
+
+.xc-modal-cancel {
+    cursor: pointer;
+
+    color: #66736e;
+
+    border: 1px solid #dce7e2;
+    background: #ffffff;
+}
+
+.xc-modal-cancel:hover {
+    color: #14261f;
+    background: #f6f9f8;
+}
+
+.xc-modal-filters {
+    color: #ffffff;
+
+    border: 1px solid #087457;
+
+    background:
+        linear-gradient(
+            135deg,
+            #087457,
+            #05503f
+        );
+
+    box-shadow:
+        0 7px 16px
+        rgba(8, 116, 87, 0.18);
+}
+
+
+/* =========================================================
+   منع النافذة من الظهور أسفل الصفحة
+========================================================= */
+
+.xc-modal:not(.open) {
+    display: none !important;
+}
+
+body:has(.xc-modal.open) {
+    overflow: hidden;
+}
+
+
+/* =========================================================
+   الجوال
+========================================================= */
+
+@media (max-width: 620px) {
+    .xc-modal {
+        padding: 10px;
+    }
+
+    .xc-modal-dialog {
+        max-height: calc(100vh - 20px);
+
+        border-radius: 16px;
+    }
+
+    .xc-modal-header {
+        padding: 14px;
+    }
+
+    .xc-modal-body {
+        padding: 15px;
+    }
+
+    .xc-modal-formats {
+        grid-template-columns: 1fr;
+    }
+
+    .xc-modal-format {
+        min-height: 90px;
+    }
+
+    .xc-modal-footer {
+        padding: 13px 15px;
+
+        flex-direction: column-reverse;
+    }
+
+    .xc-modal-cancel,
+    .xc-modal-filters {
+        width: 100%;
+    }
+}
+
+.xc-search {
+    position: relative;
+}
+
+.xc-search-clear {
+    position: absolute;
+    inset-inline-end: 46px;
+    top: 50%;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    transform: translateY(-50%);
+    border: 0;
+    border-radius: 50%;
+    color: #52635d;
+    background: #eef5f2;
+    font: 700 20px/1 inherit;
+    cursor: pointer;
+}
+
+.xc-search-clear:hover {
+    color: #ffffff;
+    background: #087457;
+}
+
+.xc-favorites-filter {
+    color: #9a7318;
+}
+
+.xc-results-summary {
+    margin: 4px 0 0;
+    color: #708079;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.xc-results-summary strong {
+    color: #087457;
+    font-size: 12px;
+}
+
+.xc-report-card.is-favorite {
+    border-color: rgba(212, 170, 69, 0.58);
+    box-shadow: 0 10px 28px rgba(124, 91, 18, 0.09);
+}
+
+.xc-report-card[hidden],
+.xc-empty[hidden],
+.xc-search-clear[hidden] {
+    display: none !important;
+}
+
+.xc-page :is(button, a, input):focus-visible {
+    outline: 3px solid rgba(35, 103, 216, 0.32);
+    outline-offset: 3px;
+}
+.xc-modal-guidance {
+  margin: 14px 0;
+  padding: 12px 14px;
+  border-inline-start: 3px solid #1f6f5f;
+  border-radius: 8px;
+  background: #f3f8f6;
+  color: #42534f;
+  line-height: 1.8;
+}
+
+.xc-modal-formats a small {
+  display: block;
+  margin-top: 5px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.xel-download {
+  display: inline-flex;
+  margin-top: 6px;
+  color: #166534;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.xel-download:hover { text-decoration: underline; }

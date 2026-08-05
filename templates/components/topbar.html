@@ -1,0 +1,1167 @@
+<div class="abwaab-topbar" dir="rtl">
+
+    <a
+        href="{% url 'dashboard:index' %}"
+        class="abwaab-topbar-brand"
+        title="العودة إلى منصة أبواب"
+        aria-label="العودة إلى منصة أبواب"
+    >
+        <img
+            src="/media/abwaab-logo.jpeg"
+            alt="شعار منصة أبواب"
+            class="abwaab-topbar-logo"
+        >
+    </a>
+
+
+    {% if request.user.is_authenticated %}
+
+        <details class="topbar-account-card">
+            <summary class="topbar-account-trigger" aria-label="فتح قائمة الحساب">
+                <div class="topbar-account-avatar">
+                    {% if request.user.account_profile.photo %}
+                        <img
+                            src="{{ request.user.account_profile.photo.url }}"
+                            alt="الصورة الشخصية للمستخدم"
+                            class="topbar-account-avatar-image"
+                        >
+                    {% else %}
+                        <span class="topbar-account-avatar-fallback">
+                            {{ request.user.username|first|upper }}
+                        </span>
+                    {% endif %}
+                    <i class="topbar-online-dot" title="متصل الآن" aria-label="متصل الآن"></i>
+                </div>
+
+                <div class="topbar-account-identity">
+                    <strong>
+                        {% if request.user.get_full_name %}
+                            {{ request.user.get_full_name }}
+                        {% else %}
+                            {{ request.user.username }}
+                        {% endif %}
+                    </strong>
+                    <div class="topbar-account-role-row">
+                        <small>
+                            {% if request.user.is_superuser %}
+                                مدير النظام
+                            {% elif request.user.is_staff %}
+                                موظف إداري
+                            {% elif request.user.employee.job_title %}
+                                {{ request.user.employee.get_job_title_display }}
+                            {% else %}
+                                مستخدم النظام
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+                <span class="topbar-account-chevron" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"></path></svg>
+                </span>
+            </summary>
+
+            <div class="topbar-account-panel">
+                <div class="topbar-panel-heading">
+                    <div>
+                        <span>حساب المستخدم</span>
+                        <strong>{{ request.user.username }}</strong>
+                    </div>
+                    <span class="topbar-account-status"><i></i> متصل الآن</span>
+                </div>
+
+                <div class="topbar-account-summary" aria-label="ملخص الحساب">
+                    <div>
+                        <span>مستوى الصلاحية</span>
+                        <strong>{% if request.user.is_superuser %}إدارة كاملة{% elif request.user.is_staff %}صلاحية إدارية{% else %}صلاحية مستخدم{% endif %}</strong>
+                    </div>
+                    <div>
+                        <span>البريد الإلكتروني</span>
+                        <strong>{{ request.user.email|default:"غير مسجل" }}</strong>
+                    </div>
+                </div>
+
+                <div class="topbar-account-actions">
+                    <a href="{% url 'accounts:profile' %}" class="topbar-profile-button">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                        <span>عرض الملف الشخصي</span>
+                    </a>
+                    <form method="post" action="{% url 'accounts:logout' %}" class="topbar-logout-form">
+                        {% csrf_token %}
+                        <button type="submit" class="topbar-logout-button">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5"></path><path d="M15 12H3"></path><path d="M14 3h4a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3h-4"></path></svg>
+                            <span>تسجيل الخروج</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </details>
+
+    {% else %}
+
+        <a
+            href="{% url 'accounts:login' %}"
+            class="topbar-login-button"
+        >
+            تسجيل الدخول
+        </a>
+
+    {% endif %}
+
+</div>
+
+
+<style>
+/* ==================================================
+   TOPBAR — تصميم مضغوط
+================================================== */
+
+.abwaab-topbar {
+    position: relative;
+    z-index: 1000;
+
+    width: 100%;
+    height: 165px;
+    min-height: 165px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 8px 20px;
+
+    overflow: visible;
+
+    background:
+        radial-gradient(
+            circle at center,
+            rgba(212, 175, 55, 0.06),
+            transparent 25%
+        ),
+        #ffffff;
+
+    border-bottom: 4px solid #d4af37;
+
+    box-shadow:
+        0 7px 20px rgba(15, 23, 42, 0.05);
+
+    box-sizing: border-box;
+}
+
+
+/* ==================================================
+   شعار أبواب في المنتصف
+================================================== */
+
+.abwaab-topbar-brand {
+    position: absolute;
+
+    top: 50%;
+    left: 50%;
+
+    z-index: 2;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    transform: translate(-50%, -50%);
+
+    text-decoration: none;
+}
+
+.abwaab-topbar-logo {
+    width: 135px;
+    height: 148px;
+
+    max-width: none;
+
+    display: block;
+
+    object-fit: contain;
+    object-position: center;
+}
+
+
+/* ==================================================
+   بطاقة المستخدم ملتصقة باليسار
+================================================== */
+
+.topbar-account-card {
+    position: absolute;
+
+    top: 9px;
+    bottom: 9px;
+    left: 0;
+
+    z-index: 4;
+
+    width: 365px;
+
+    padding: 14px 17px 13px;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    direction: rtl;
+
+    overflow: hidden;
+
+    border-top: 1px solid #d5e5de;
+    border-right: 1px solid #d5e5de;
+    border-bottom: 1px solid #d5e5de;
+    border-left: 0;
+
+    border-radius:
+        0
+        24px
+        24px
+        0;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255, 255, 255, 0.99),
+            rgba(248, 252, 250, 0.98)
+        );
+
+    box-shadow:
+        12px 12px 32px rgba(23, 45, 36, 0.11);
+
+    box-sizing: border-box;
+}
+
+.topbar-account-card::before {
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+    right: 0;
+    bottom: 0;
+
+    width: 5px;
+
+    background:
+        linear-gradient(
+            180deg,
+            #d4af37,
+            #0f7b5c
+        );
+}
+
+
+/* ==================================================
+   رأس بطاقة المستخدم
+================================================== */
+
+.topbar-account-head {
+    position: relative;
+    z-index: 2;
+
+    display: flex;
+    align-items: center;
+    gap: 13px;
+}
+
+.topbar-account-avatar {
+    position: relative;
+
+    width: 64px;
+    height: 64px;
+
+    flex: 0 0 64px;
+
+    padding: 4px;
+
+    border: 2px solid #d4af37;
+    border-radius: 50%;
+
+    background: #ffffff;
+
+    box-shadow:
+        0 7px 18px rgba(15, 23, 42, 0.13);
+
+    box-sizing: border-box;
+}
+
+.topbar-account-avatar-image,
+.topbar-account-avatar-fallback {
+    width: 100%;
+    height: 100%;
+
+    border-radius: 50%;
+}
+
+.topbar-account-avatar-image {
+    display: block;
+
+    object-fit: cover;
+    object-position: center;
+}
+
+.topbar-account-avatar-fallback {
+    display: grid;
+    place-items: center;
+
+    background:
+        linear-gradient(
+            145deg,
+            #b8bf42,
+            #24a75d
+        );
+
+    color: #ffffff;
+
+    font-size: 27px;
+    font-weight: 950;
+}
+
+.topbar-online-dot {
+    position: absolute;
+
+    right: 0;
+    bottom: 3px;
+
+    width: 17px;
+    height: 17px;
+
+    border: 3px solid #ffffff;
+    border-radius: 50%;
+
+    background: #40b952;
+}
+
+.topbar-account-identity {
+    min-width: 0;
+
+    flex: 1;
+}
+
+.topbar-account-identity strong,
+.topbar-account-identity small {
+    display: block;
+}
+
+.topbar-account-identity strong {
+    overflow: hidden;
+
+    color: #172033;
+
+    font-size: 18px;
+    font-weight: 950;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.topbar-account-identity small {
+    margin-top: 4px;
+
+    color: #6b7280;
+
+    font-size: 12px;
+    font-weight: 800;
+}
+
+
+/* ==================================================
+   الفاصل
+================================================== */
+
+.topbar-account-divider {
+    height: 1px;
+
+    margin: 11px 0 10px;
+
+    background: #e2e8e5;
+}
+
+
+/* ==================================================
+   أزرار الحساب
+================================================== */
+
+.topbar-account-actions {
+    position: relative;
+    z-index: 2;
+
+    display: grid;
+    grid-template-columns: 1fr 1.05fr;
+    gap: 8px;
+}
+
+.topbar-logout-form {
+    width: 100%;
+
+    margin: 0;
+    padding: 0;
+}
+
+.topbar-profile-button,
+.topbar-logout-button {
+    width: 100%;
+    height: 41px;
+    min-height: 41px;
+
+    padding: 8px 10px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+
+    border-radius: 12px;
+
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1;
+
+    text-decoration: none;
+    white-space: nowrap;
+
+    box-sizing: border-box;
+
+    transition:
+        background 0.17s ease,
+        color 0.17s ease,
+        transform 0.17s ease;
+}
+
+.topbar-profile-button {
+    border: 1px solid #c4e1d4;
+
+    background: #eff9f4;
+    color: #08714f;
+}
+
+.topbar-profile-button:hover {
+    transform: translateY(-1px);
+
+    background: #08714f;
+    color: #ffffff;
+}
+
+.topbar-logout-button {
+    border: 1px solid #ef918c;
+
+    background: #fff3f2;
+    color: #b8322b;
+
+    cursor: pointer;
+}
+
+.topbar-logout-button:hover {
+    transform: translateY(-1px);
+
+    background: #c53830;
+    color: #ffffff;
+}
+
+
+/* ==================================================
+   زر تسجيل الدخول
+================================================== */
+
+.topbar-login-button {
+    position: absolute;
+
+    top: 50%;
+    left: 0;
+
+    min-width: 165px;
+    min-height: 48px;
+
+    padding: 10px 18px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    transform: translateY(-50%);
+
+    border-radius:
+        0
+        14px
+        14px
+        0;
+
+    background: #0f7b5c;
+    color: #ffffff;
+
+    text-decoration: none;
+
+    font-size: 13px;
+    font-weight: 900;
+
+    box-shadow:
+        8px 9px 20px rgba(15, 123, 92, 0.2);
+}
+
+
+/* ==================================================
+   الوضع الداكن
+================================================== */
+
+body.dark .abwaab-topbar {
+    background:
+        radial-gradient(
+            circle at center,
+            rgba(212, 175, 55, 0.08),
+            transparent 25%
+        ),
+        #101714;
+}
+
+body.dark .topbar-account-card {
+    border-color: #34463e;
+
+    background:
+        linear-gradient(
+            145deg,
+            #19231f,
+            #121a17
+        );
+}
+
+body.dark .topbar-account-identity strong {
+    color: #edf4f0;
+}
+
+body.dark .topbar-account-identity small {
+    color: #a8b4af;
+}
+
+body.dark .topbar-account-divider {
+    background: #35443e;
+}
+
+
+/* ==================================================
+   الشاشات المتوسطة
+================================================== */
+
+@media (max-width: 1050px) {
+    .abwaab-topbar {
+        height: 150px;
+        min-height: 150px;
+    }
+
+    .topbar-account-card {
+        width: 330px;
+
+        top: 8px;
+        bottom: 8px;
+
+        padding: 12px 14px;
+    }
+
+    .topbar-account-avatar {
+        width: 58px;
+        height: 58px;
+
+        flex-basis: 58px;
+    }
+
+    .abwaab-topbar-logo {
+        width: 120px;
+        height: 132px;
+    }
+
+    .topbar-account-identity strong {
+        font-size: 16px;
+    }
+
+    .topbar-profile-button,
+    .topbar-logout-button {
+        height: 38px;
+        min-height: 38px;
+
+        font-size: 11px;
+    }
+}
+
+
+/* ==================================================
+   الأجهزة اللوحية والجوال
+================================================== */
+
+@media (max-width: 760px) {
+    .abwaab-topbar {
+        height: auto;
+        min-height: 320px;
+
+        padding: 15px 12px;
+
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        gap: 12px;
+    }
+
+    .abwaab-topbar-brand {
+        position: static;
+
+        transform: none;
+
+        order: 1;
+    }
+
+    .abwaab-topbar-logo {
+        width: 115px;
+        height: 125px;
+    }
+
+    .topbar-account-card {
+        position: static;
+
+        width: min(100%, 430px);
+
+        order: 2;
+
+        border: 1px solid #d5e5de;
+
+        border-radius: 22px;
+
+        box-shadow:
+            0 13px 30px rgba(23, 45, 36, 0.1);
+    }
+
+    .topbar-login-button {
+        position: static;
+
+        width: min(100%, 430px);
+
+        transform: none;
+
+        border-radius: 13px;
+    }
+}
+
+
+/* ==================================================
+   الجوال الصغير
+================================================== */
+
+@media (max-width: 480px) {
+    .abwaab-topbar {
+        min-height: 350px;
+    }
+
+    .topbar-account-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .topbar-account-card {
+        padding: 13px;
+    }
+}
+
+/* ==================================================
+   ACCOUNT CARD — هوية مؤسسية محسّنة
+================================================== */
+.abwaab-topbar {
+    height: 190px;
+    min-height: 190px;
+    padding-inline: clamp(18px, 3vw, 48px);
+}
+
+.topbar-account-card {
+    position: absolute;
+    top: 14px;
+    right: 0;
+    bottom: 14px;
+    width: min(520px, 43vw);
+    padding: 16px 26px 16px 30px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 12px;
+    overflow: hidden;
+    border: 1px solid #d7e6df;
+    border-right: 0;
+    border-radius: 28px 0 0 28px;
+    background:
+        radial-gradient(circle at 15% 5%, rgba(212, 175, 55, .12), transparent 30%),
+        linear-gradient(145deg, #ffffff 0%, #fbfdfc 72%, #f1f8f5 100%);
+    box-shadow: 0 14px 34px rgba(15, 82, 62, .11);
+    box-sizing: border-box;
+}
+
+.topbar-account-accent {
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    width: 8px;
+    background: linear-gradient(180deg, #d4af37, #8dbb52 42%, #08714f 100%);
+}
+
+.topbar-account-head {
+    display: flex;
+    align-items: center;
+    gap: 17px;
+    min-width: 0;
+}
+
+.topbar-account-avatar {
+    position: relative;
+    width: 78px;
+    height: 78px;
+    flex: 0 0 78px;
+    padding: 5px;
+    border: 3px solid #d4af37;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 8px 20px rgba(15, 82, 62, .14);
+    box-sizing: border-box;
+}
+
+.topbar-account-avatar-image,
+.topbar-account-avatar-fallback {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 50%;
+    object-fit: cover;
+    background: linear-gradient(145deg, #a6c85a, #49aa66);
+    color: #fff;
+    font-size: 34px;
+    font-weight: 950;
+}
+
+.topbar-online-dot {
+    position: absolute;
+    left: 0;
+    bottom: 5px;
+    width: 15px;
+    height: 15px;
+    border: 4px solid #fff;
+    border-radius: 50%;
+    background: #43ba67;
+    box-shadow: 0 0 0 2px rgba(67, 186, 103, .18);
+}
+
+.topbar-account-identity {
+    flex: 1;
+    min-width: 0;
+    text-align: right;
+}
+
+.topbar-account-eyebrow {
+    display: block;
+    margin-bottom: 2px;
+    color: #99802a;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: .02em;
+}
+
+.topbar-account-identity strong {
+    display: block;
+    overflow: hidden;
+    color: #10253e;
+    font-size: 20px;
+    font-weight: 950;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.topbar-account-role-row {
+    margin-top: 3px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.topbar-account-identity small {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.topbar-account-status {
+    padding: 3px 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: 1px solid #d6eddf;
+    border-radius: 999px;
+    background: #edf9f2;
+    color: #17824c;
+    font-size: 9px;
+    font-weight: 900;
+}
+
+.topbar-account-status i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #43ba67;
+}
+
+.topbar-account-summary {
+    display: grid;
+    grid-template-columns: 1fr 1.15fr;
+    gap: 8px;
+}
+
+.topbar-account-summary > div {
+    min-width: 0;
+    padding: 8px 11px;
+    border: 1px solid #e0ebe6;
+    border-radius: 11px;
+    background: rgba(247, 250, 249, .88);
+}
+
+.topbar-account-summary span,
+.topbar-account-summary strong {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.topbar-account-summary span {
+    margin-bottom: 2px;
+    color: #84918c;
+    font-size: 8px;
+    font-weight: 800;
+}
+
+.topbar-account-summary strong {
+    color: #17372d;
+    font-size: 10px;
+    font-weight: 900;
+}
+
+.topbar-account-actions {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    gap: 9px;
+}
+
+.topbar-logout-form { margin: 0; }
+
+.topbar-profile-button,
+.topbar-logout-button {
+    width: 100%;
+    min-height: 39px;
+    padding: 8px 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 900;
+    text-decoration: none;
+    box-sizing: border-box;
+    cursor: pointer;
+    transition: transform .18s ease, box-shadow .18s ease, background .18s ease, color .18s ease;
+}
+
+.topbar-profile-button {
+    border: 1px solid #bcded0;
+    background: #edf8f3;
+    color: #08714f;
+}
+
+.topbar-logout-button {
+    border: 1px solid #f0b7b2;
+    background: #fff5f4;
+    color: #bd3a32;
+}
+
+.topbar-profile-button:hover,
+.topbar-logout-button:hover {
+    transform: translateY(-2px);
+    color: #fff;
+}
+
+.topbar-profile-button:hover {
+    background: #08714f;
+    box-shadow: 0 8px 18px rgba(8, 113, 79, .2);
+}
+
+.topbar-logout-button:hover {
+    background: #bd3a32;
+    box-shadow: 0 8px 18px rgba(189, 58, 50, .18);
+}
+
+.topbar-profile-button svg,
+.topbar-logout-button svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+body.dark .topbar-account-summary > div {
+    border-color: #35473f;
+    background: rgba(20, 31, 27, .9);
+}
+
+body.dark .topbar-account-summary strong { color: #edf4f0; }
+
+@media (max-width: 1050px) {
+    .abwaab-topbar { height: 180px; min-height: 180px; }
+    .topbar-account-card { width: 430px; padding-inline: 20px 25px; }
+    .topbar-account-avatar { width: 68px; height: 68px; flex-basis: 68px; }
+}
+
+@media (max-width: 760px) {
+    .abwaab-topbar { min-height: 390px; }
+    .topbar-account-card {
+        position: static;
+        width: min(100%, 520px);
+        padding: 18px 20px 18px 24px;
+        border: 1px solid #d7e6df;
+        border-radius: 24px;
+    }
+}
+
+@media (max-width: 480px) {
+    .abwaab-topbar { min-height: 425px; }
+    .topbar-account-summary { grid-template-columns: 1fr; }
+    .topbar-account-actions { grid-template-columns: 1fr; }
+    .topbar-account-identity strong { font-size: 17px; }
+}
+
+/* ==================================================
+   ACCOUNT MENU — موضع مدمج وقائمة منسدلة
+================================================== */
+.abwaab-topbar {
+    height: 150px;
+    min-height: 150px;
+    padding-inline: 28px;
+}
+
+.abwaab-topbar-logo {
+    width: 112px;
+    height: 126px;
+}
+
+.topbar-account-card {
+    position: absolute;
+    top: 50%;
+    right: auto;
+    bottom: auto;
+    left: 30px;
+    width: 310px;
+    padding: 0;
+    display: block;
+    overflow: visible;
+    transform: translateY(-50%);
+    border: 0;
+    border-radius: 18px;
+    background: transparent;
+    box-shadow: none;
+}
+
+.topbar-account-card::before,
+.topbar-account-card::after,
+.topbar-account-accent { display: none; }
+
+.topbar-account-trigger {
+    min-height: 86px;
+    padding: 11px 15px;
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    overflow: hidden;
+    list-style: none;
+    border: 1px solid #d4e4dd;
+    border-radius: 18px;
+    background: linear-gradient(145deg, #fff 0%, #f7fbf9 100%);
+    box-shadow: 0 9px 24px rgba(19, 74, 57, .09);
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.topbar-account-trigger::-webkit-details-marker { display: none; }
+.topbar-account-trigger::marker { display: none; content: ""; }
+
+.topbar-account-trigger:hover {
+    transform: translateY(-2px);
+    border-color: #b7d5c8;
+    box-shadow: 0 12px 28px rgba(19, 74, 57, .13);
+}
+
+.topbar-account-card[open] .topbar-account-trigger {
+    border-color: #9bc8b5;
+    box-shadow: 0 12px 30px rgba(19, 74, 57, .15);
+}
+
+.topbar-account-trigger .topbar-account-avatar {
+    width: 62px;
+    height: 62px;
+    flex-basis: 62px;
+    padding: 4px;
+    border-width: 2px;
+    box-shadow: none;
+}
+
+.topbar-account-trigger .topbar-account-avatar-fallback { font-size: 27px; }
+.topbar-account-trigger .topbar-online-dot {
+    width: 11px;
+    height: 11px;
+    left: -1px;
+    bottom: 3px;
+    border-width: 3px;
+}
+
+.topbar-account-trigger .topbar-account-identity { min-width: 0; }
+.topbar-account-trigger .topbar-account-identity strong {
+    color: #10253e;
+    font-size: 17px;
+    line-height: 1.4;
+}
+.topbar-account-trigger .topbar-account-identity small {
+    color: #67778a;
+    font-size: 11px;
+}
+
+.topbar-account-chevron {
+    width: 28px;
+    height: 28px;
+    margin-right: auto;
+    flex: 0 0 28px;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+    background: #edf7f2;
+    color: #08714f;
+}
+
+.topbar-account-chevron svg {
+    width: 15px;
+    height: 15px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform .2s ease;
+}
+
+.topbar-account-card[open] .topbar-account-chevron svg { transform: rotate(180deg); }
+
+.topbar-account-panel {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 0;
+    z-index: 60010;
+    width: 330px;
+    padding: 17px;
+    border: 1px solid #d6e5df;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 20px 48px rgba(15, 44, 35, .18);
+    box-sizing: border-box;
+}
+
+.topbar-panel-heading {
+    padding-bottom: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid #e4ece8;
+}
+
+.topbar-panel-heading > div { min-width: 0; }
+.topbar-panel-heading > div > span {
+    display: block;
+    color: #84918c;
+    font-size: 9px;
+    font-weight: 850;
+}
+.topbar-panel-heading > div > strong {
+    display: block;
+    overflow: hidden;
+    color: #16392e;
+    font-size: 14px;
+    font-weight: 950;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.topbar-account-panel .topbar-account-summary {
+    margin-top: 12px;
+    grid-template-columns: 1fr;
+}
+.topbar-account-panel .topbar-account-summary > div { padding: 9px 11px; }
+.topbar-account-panel .topbar-account-summary span { font-size: 9px; }
+.topbar-account-panel .topbar-account-summary strong { font-size: 11px; }
+
+.topbar-account-panel .topbar-account-actions {
+    margin-top: 12px;
+    grid-template-columns: 1.2fr 1fr;
+}
+
+body.dark .topbar-account-trigger,
+body.dark .topbar-account-panel {
+    border-color: #35473f;
+    background: #18221e;
+}
+body.dark .topbar-account-trigger .topbar-account-identity strong,
+body.dark .topbar-panel-heading > div > strong { color: #edf4f0; }
+
+@media (max-width: 900px) {
+    .abwaab-topbar {
+        height: 132px;
+        min-height: 132px;
+        flex-direction: row;
+        justify-content: flex-end;
+        gap: 16px;
+    }
+    .abwaab-topbar-brand {
+        position: static;
+        margin-right: auto;
+        transform: none;
+    }
+    .abwaab-topbar-logo { width: 92px; height: 106px; }
+    .topbar-account-card {
+        position: relative;
+        top: auto;
+        left: auto;
+        width: min(290px, calc(100vw - 150px));
+        transform: none;
+    }
+    .topbar-account-trigger { min-height: 76px; }
+    .topbar-account-panel { width: min(350px, calc(100vw - 32px)); }
+}
+
+@media (max-width: 560px) {
+    .abwaab-topbar {
+        min-height: 112px;
+        padding: 12px;
+        flex-direction: row;
+        gap: 10px;
+    }
+    .abwaab-topbar-logo { width: 72px; height: 84px; }
+    .topbar-account-card { width: calc(100vw - 108px); }
+    .topbar-account-trigger { min-height: 68px; padding: 8px 10px; gap: 9px; }
+    .topbar-account-trigger .topbar-account-avatar {
+        width: 50px;
+        height: 50px;
+        flex-basis: 50px;
+    }
+    .topbar-account-trigger .topbar-account-identity strong { font-size: 14px; }
+    .topbar-account-trigger .topbar-account-identity small { font-size: 9px; }
+    .topbar-account-chevron { width: 24px; height: 24px; flex-basis: 24px; }
+    .topbar-account-panel { left: 0; }
+    .topbar-account-panel .topbar-account-actions { grid-template-columns: 1fr; }
+}
+</style>

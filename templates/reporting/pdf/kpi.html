@@ -1,0 +1,205 @@
+<section class="section">
+
+    <div class="section-title">
+        ملخص مؤشرات الوردية
+    </div>
+
+    <div class="kpi-grid">
+
+        <div class="kpi-card blue">
+            <div class="kpi-icon">🚪</div>
+            <div class="kpi-label">إجمالي الأبواب</div>
+            <div class="kpi-value">{{ report.total_doors|default:0 }}</div>
+        </div>
+
+        <div class="kpi-card green">
+            <div class="kpi-icon">👥</div>
+            <div class="kpi-label">إجمالي الموظفين</div>
+            <div class="kpi-value">{{ report.total_employees|default:0 }}</div>
+        </div>
+
+        <div class="kpi-card gold">
+            <div class="kpi-icon">🛠</div>
+            <div class="kpi-label">طلبات الصيانة</div>
+            <div class="kpi-value">{{ report.total_maintenance_requests|default:0 }}</div>
+        </div>
+
+        <div class="kpi-card green">
+            <div class="kpi-icon">✅</div>
+            <div class="kpi-label">طلبات منجزة</div>
+            <div class="kpi-value">{{ report.completed_maintenance_requests|default:0 }}</div>
+        </div>
+
+    </div>
+
+</section>
+
+<section class="section">
+
+    <div class="section-title">
+        حالة الأبواب
+    </div>
+
+    <div class="kpi-grid">
+
+        <div class="kpi-card green">
+            <div class="kpi-dot"></div>
+            <div class="kpi-label">الأبواب المفتوحة</div>
+            <div class="kpi-value">{{ report.open_doors|default:0 }}</div>
+        </div>
+
+        <div class="kpi-card red">
+            <div class="kpi-dot"></div>
+            <div class="kpi-label">الأبواب المغلقة</div>
+            <div class="kpi-value">{{ report.closed_doors|default:0 }}</div>
+        </div>
+
+        <div class="kpi-card gold">
+            <div class="kpi-dot"></div>
+            <div class="kpi-label">تحت الصيانة</div>
+            <div class="kpi-value">{{ report.maintenance_doors|default:0 }}</div>
+        </div>
+
+        <div class="kpi-card blue">
+            <div class="kpi-dot"></div>
+            <div class="kpi-label">الأبواب المؤمنة</div>
+            <div class="kpi-value">{{ report.secured_doors|default:0 }}</div>
+        </div>
+
+    </div>
+
+    <div class="readiness-card">
+
+        <div class="readiness-value">
+            {{ readiness_rate }}%
+        </div>
+
+        <div class="readiness-bar">
+            <span style="width:{{ readiness_rate }}%;"></span>
+        </div>
+
+        <div class="readiness-label">
+            نسبة الجاهزية التشغيلية
+        </div>
+
+    </div>
+
+</section>
+
+<style>
+
+.kpi-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:8px;
+}
+
+.kpi-card{
+    background:white;
+    border:1px solid #e5e7eb;
+    border-radius:12px;
+    padding:8px 6px;
+    text-align:center;
+    box-shadow:0 4px 10px rgba(0,0,0,.04);
+    min-height:76px;
+}
+
+.kpi-icon{
+    font-size:18px;
+    margin-bottom:3px;
+}
+
+.kpi-dot{
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    margin:0 auto 6px;
+}
+
+.kpi-label{
+    color:#111827;
+    font-size:10px;
+    font-weight:900;
+    white-space:nowrap;
+}
+
+.kpi-value{
+    margin-top:3px;
+    font-size:22px;
+    font-weight:900;
+    line-height:1;
+}
+
+.green .kpi-value{
+    color:#0f7b5c;
+}
+
+.red .kpi-value{
+    color:#dc2626;
+}
+
+.gold .kpi-value{
+    color:#b45309;
+}
+
+.blue .kpi-value{
+    color:#2563eb;
+}
+
+.green .kpi-dot{
+    background:#0f7b5c;
+}
+
+.red .kpi-dot{
+    background:#dc2626;
+}
+
+.gold .kpi-dot{
+    background:#b45309;
+}
+
+.blue .kpi-dot{
+    background:#2563eb;
+}
+
+.readiness-card{
+    margin-top:8px;
+    display:grid;
+    grid-template-columns:70px 1fr 170px;
+    gap:10px;
+    align-items:center;
+    background:white;
+    border:1px solid #e5e7eb;
+    border-radius:12px;
+    padding:8px 10px;
+}
+
+.readiness-value{
+    color:#0f7b5c;
+    font-size:24px;
+    font-weight:900;
+    text-align:center;
+}
+
+.readiness-bar{
+    height:10px;
+    background:#e5e7eb;
+    border-radius:999px;
+    overflow:hidden;
+}
+
+.readiness-bar span{
+    display:block;
+    height:100%;
+    background:#0f7b5c;
+    border-radius:999px;
+}
+
+.readiness-label{
+    font-size:12px;
+    font-weight:900;
+    color:#0f7b5c;
+    white-space:nowrap;
+}
+
+</style>

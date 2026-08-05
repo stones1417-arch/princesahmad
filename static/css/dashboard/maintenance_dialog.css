@@ -1,0 +1,105 @@
+/* Maintenance request dialog — scoped enterprise layer */
+.dashboard-dialog:has(.maintenance-dialog-card) {
+    padding: clamp(10px, 3vw, 32px);
+    background: rgba(25, 31, 28, .74);
+    backdrop-filter: blur(10px) saturate(.85);
+}
+
+.maintenance-dialog-card {
+    width: min(720px, 100%) !important;
+    border: 1px solid rgba(255,255,255,.74) !important;
+    border-radius: 26px !important;
+    box-shadow: 0 35px 100px rgba(11, 20, 16, .38), 0 0 0 1px rgba(194, 104, 11, .08) !important;
+    animation: maintenance-dialog-enter .24s cubic-bezier(.2,.8,.2,1) both;
+}
+
+.maintenance-dialog-card .dashboard-dialog-header {
+    position: relative;
+    min-height: 118px;
+    padding: 24px 28px;
+    align-items: center;
+    overflow: hidden;
+    background: linear-gradient(135deg, #fffdfa 0%, #fff8ec 100%);
+    border-bottom-color: #eee3d3;
+}
+.maintenance-dialog-card .dashboard-dialog-header::before {
+    content: ""; position: absolute; inset-block: 0; right: 0; width: 5px;
+    background: linear-gradient(180deg, #e3b33e, #c45f0a);
+}
+.maintenance-dialog-kicker {
+    display: inline-flex; margin-bottom: 7px; padding: 4px 9px;
+    color: #8b5416; background: #fff0cf; border: 1px solid #f2d596;
+    border-radius: 999px; font-size: 9px; font-weight: 950;
+}
+.maintenance-dialog-card .dashboard-dialog-heading h3 { font-size: clamp(22px, 3vw, 28px); letter-spacing: -.02em; }
+.maintenance-dialog-card .dashboard-dialog-heading p { margin-top: 5px; }
+.maintenance-dialog-card .dashboard-dialog-close { width: 44px; height: 44px; flex-basis: 44px; border-radius: 14px; background: rgba(255,255,255,.82); transition: .18s ease; }
+.maintenance-dialog-card .dashboard-dialog-close:hover { transform: rotate(6deg); }
+.maintenance-dialog-card .dashboard-dialog-body { padding: 24px 28px 28px; }
+
+.maintenance-dialog-context {
+    display: grid; grid-template-columns: 42px minmax(0,1fr) auto; align-items: center; gap: 12px;
+    margin-bottom: 24px; padding: 12px 14px; background: #fffaf1;
+    border: 1px solid #f0e2cb; border-radius: 16px;
+}
+.maintenance-context-icon { width: 42px; height: 42px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg,#dc7b18,#b95709); border-radius: 13px; font-size: 20px; }
+.maintenance-dialog-context > div:nth-child(2) span { display: block; margin-bottom: 2px; color: #887966; font-size: 9px; font-weight: 850; }
+.maintenance-dialog-context strong { color: #3a3024; font-size: 14px; }
+.maintenance-priority-badge { padding: 6px 10px; border-radius: 999px; font-size: 9px; font-weight: 950; white-space: nowrap; }
+.maintenance-priority-badge.is-low { color: #166534; background: #dcfce7; }
+.maintenance-priority-badge.is-medium { color: #92400e; background: #fef3c7; }
+.maintenance-priority-badge.is-high { color: #9a3412; background: #ffedd5; }
+.maintenance-priority-badge.is-urgent { color: #991b1b; background: #fee2e2; animation: priority-pulse 1.8s ease-in-out infinite; }
+
+.maintenance-dialog-card .dashboard-dialog-form { gap: 19px; }
+.maintenance-dialog-card .dashboard-dialog-field label { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+.field-optional { padding: 2px 7px; color: #64748b; background: #eef2f6; border-radius: 999px; font-size: 8px; font-weight: 900; }
+.maintenance-dialog-card .dashboard-dialog-field input,
+.maintenance-dialog-card .dashboard-dialog-field select,
+.maintenance-dialog-card .dashboard-dialog-field textarea {
+    min-height: 54px; padding: 13px 15px; border-color: #dddcd6; border-radius: 14px;
+    background: #fffefd; transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.maintenance-dialog-card .dashboard-dialog-field textarea { min-height: 130px; line-height: 1.8; }
+.maintenance-dialog-card .dashboard-dialog-field input:hover,
+.maintenance-dialog-card .dashboard-dialog-field select:hover,
+.maintenance-dialog-card .dashboard-dialog-field textarea:hover { border-color: #c4b9a8; background: #fff; }
+.maintenance-dialog-card .dashboard-dialog-field input:focus,
+.maintenance-dialog-card .dashboard-dialog-field select:focus,
+.maintenance-dialog-card .dashboard-dialog-field textarea:focus { border-color: #cf6b11; box-shadow: 0 0 0 4px rgba(207,107,17,.1); }
+.maintenance-field-meta { display: flex; justify-content: space-between; gap: 12px; margin-top: 7px; color: #7d7a74; font-size: 9px; }
+.maintenance-field-meta small { font-size: inherit; }
+.maintenance-field-meta b { color: #c45f0a; }
+
+.maintenance-dialog-card .dashboard-dialog-footer { min-height: 86px; padding: 16px 28px; gap: 10px; background: #fdfbf7; border-top-color: #eee3d3; }
+.maintenance-dialog-card .dashboard-dialog-button { min-height: 48px; border-radius: 13px; transition: transform .18s ease, box-shadow .18s ease; }
+.maintenance-dialog-card .dashboard-dialog-button:hover { transform: translateY(-1px); }
+.maintenance-dialog-card .dashboard-dialog-button.is-maintenance { min-width: 190px; background: linear-gradient(135deg,#dc7614,#b95408); box-shadow: 0 8px 20px rgba(190,87,8,.22); }
+.maintenance-dialog-card .dashboard-dialog-button.is-maintenance:hover { box-shadow: 0 11px 25px rgba(190,87,8,.3); }
+.maintenance-button-icon { width: 22px; height: 22px; display: grid; place-items: center; color: #b95408; background: #fff; border-radius: 50%; font-size: 14px; }
+.maintenance-dialog-card .is-loading .maintenance-button-icon { font-size: 0; border: 2px solid rgba(185,84,8,.25); border-top-color: #b95408; animation: maintenance-spin .7s linear infinite; }
+
+html[data-theme="dark"] .maintenance-dialog-card .dashboard-dialog-header { background: linear-gradient(135deg,#1d1c18,#171612); }
+html[data-theme="dark"] .maintenance-dialog-context { background: #211d16; border-color: #493a27; }
+html[data-theme="dark"] .maintenance-dialog-context strong { color: #f5eee4; }
+html[data-theme="dark"] .maintenance-dialog-kicker { color: #f5cf89; background: #3c2c15; border-color: #67491e; }
+html[data-theme="dark"] .field-optional { color: #bdc8c2; background: #26312d; }
+
+@keyframes maintenance-dialog-enter { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes maintenance-spin { to { transform: rotate(360deg); } }
+@keyframes priority-pulse { 50% { box-shadow: 0 0 0 4px rgba(220,38,38,.09); } }
+
+@media (max-width: 620px) {
+    .maintenance-dialog-card { border-radius: 20px !important; }
+    .maintenance-dialog-card .dashboard-dialog-header,
+    .maintenance-dialog-card .dashboard-dialog-body,
+    .maintenance-dialog-card .dashboard-dialog-footer { padding: 16px; }
+    .maintenance-dialog-context { grid-template-columns: 38px 1fr; }
+    .maintenance-priority-badge { grid-column: 1 / -1; width: fit-content; }
+    .maintenance-dialog-card .dashboard-dialog-footer { flex-direction: column-reverse; }
+    .maintenance-dialog-card .dashboard-dialog-button { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .maintenance-dialog-card, .maintenance-priority-badge.is-urgent { animation: none; }
+}

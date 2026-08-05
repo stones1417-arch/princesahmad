@@ -1,0 +1,3455 @@
+{% extends "base.html" %}
+{% load static %}
+{% load dashboard_extras %}
+
+{% block title %}{% if show_shift_dashboard %}مركز القيادة والتحكم | منصة أبواب{% else %}إدارة الأبواب التشغيلية | منصة أبواب{% endif %}{% endblock %}
+{% block page_name %}operations-dashboard{% endblock %}
+{% block body_class %}app-body dashboard-body{% endblock %}
+
+{% block extra_css %}
+<style>
+/* =========================================================
+   الصفحة
+========================================================= */
+
+.dashboard-page {
+    width: min(calc(100% - 2rem), 1700px);
+    margin: 0 auto;
+    padding: 24px 0 48px;
+}
+
+.dashboard-section {
+    margin-top: 22px;
+}
+
+.dashboard-section-heading {
+    margin-bottom: 14px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.dashboard-section-heading h2 {
+    margin: 0;
+
+    color: var(--color-text-strong, #111827);
+
+    font-size: 22px;
+    font-weight: 950;
+}
+
+.dashboard-section-heading p {
+    margin: 5px 0 0;
+
+    color: var(--color-muted, #6b7280);
+
+    font-size: 12px;
+}
+
+
+/* =========================================================
+   رأس لوحة التحكم
+========================================================= */
+
+.dashboard-hero {
+    position: relative;
+
+    min-height: 230px;
+    padding: 32px;
+
+    display: grid;
+    grid-template-columns:
+        minmax(0, 1.35fr)
+        minmax(360px, 0.65fr);
+    align-items: center;
+    gap: 24px;
+
+    overflow: hidden;
+
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 28px;
+
+    color: #ffffff;
+
+    background:
+        radial-gradient(
+            circle at 12% 20%,
+            rgba(212, 169, 67, 0.25),
+            transparent 34%
+        ),
+        linear-gradient(
+            135deg,
+            #034235,
+            #08765a 56%,
+            #0b8a68
+        );
+
+    box-shadow: var(--shadow-lg);
+}
+
+.dashboard-hero::after {
+    content: "";
+
+    position: absolute;
+    inset: 0;
+
+    opacity: 0.12;
+
+    background-image:
+        radial-gradient(
+            circle,
+            #ffffff 1px,
+            transparent 1px
+        );
+
+    background-size: 18px 18px;
+
+    pointer-events: none;
+}
+
+.dashboard-hero-content,
+.dashboard-shift-card {
+    position: relative;
+    z-index: 2;
+}
+
+.dashboard-eyebrow {
+    min-height: 34px;
+    padding: 0 13px;
+
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 999px;
+
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.dashboard-hero h1 {
+    margin: 16px 0 0;
+
+    color: #ffffff;
+
+    font-size: clamp(2rem, 4vw, 3.4rem);
+    font-weight: 950;
+}
+
+.dashboard-hero p {
+    max-width: 760px;
+    margin: 12px 0 0;
+
+    color: rgba(255, 255, 255, 0.8);
+
+    font-size: 15px;
+    line-height: 1.9;
+}
+
+.dashboard-status-row {
+    margin-top: 20px;
+
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.dashboard-status-pill {
+    min-height: 36px;
+    padding: 0 14px;
+
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+
+    border-radius: 999px;
+
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.dashboard-status-pill.stable {
+    color: #166534;
+    background: #dcfce7;
+}
+
+.dashboard-status-pill.warning {
+    color: #92400e;
+    background: #fef3c7;
+}
+
+.dashboard-status-pill.critical {
+    color: #991b1b;
+    background: #fee2e2;
+}
+
+.dashboard-status-pill.inactive {
+    color: #374151;
+    background: #e5e7eb;
+}
+
+.dashboard-status-dot {
+    width: 8px;
+    height: 8px;
+
+    border-radius: 50%;
+
+    background: currentColor;
+}
+
+
+/* =========================================================
+   بطاقة الوردية
+========================================================= */
+
+.dashboard-shift-card {
+    padding: 22px;
+
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 22px;
+
+    background: rgba(255, 255, 255, 0.12);
+
+    backdrop-filter: blur(10px);
+}
+
+.dashboard-shift-label {
+    color: rgba(255, 255, 255, 0.72);
+
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.dashboard-shift-name {
+    margin-top: 7px;
+
+    color: #ffffff;
+
+    font-size: 27px;
+    font-weight: 950;
+}
+
+.dashboard-shift-grid {
+    margin-top: 18px;
+
+    display: grid;
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.dashboard-shift-item {
+    min-width: 0;
+    padding: 12px;
+
+    border-radius: 14px;
+
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.dashboard-shift-item span {
+    display: block;
+
+    color: rgba(255, 255, 255, 0.65);
+
+    font-size: 10px;
+}
+
+.dashboard-shift-item strong {
+    display: block;
+    margin-top: 5px;
+
+    overflow: hidden;
+
+    color: #ffffff;
+
+    font-size: 13px;
+    font-weight: 900;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+
+/* =========================================================
+   بطاقات الإحصائيات
+========================================================= */
+
+.dashboard-stats {
+    display: grid;
+    grid-template-columns:
+        repeat(6, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.dashboard-stat {
+    --stat-color: #08765a;
+    --stat-bg: #f0fdfa;
+
+    position: relative;
+
+    min-height: 124px;
+    padding: 18px;
+
+    overflow: hidden;
+
+    border: 1px solid var(--color-border, #e5e7eb);
+    border-radius: 20px;
+
+    background: var(--color-white, #ffffff);
+
+    box-shadow: var(--shadow-sm);
+}
+
+.dashboard-stat::before {
+    content: "";
+
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+
+    width: 5px;
+
+    background: var(--stat-color);
+}
+
+.dashboard-stat-icon {
+    width: 42px;
+    height: 42px;
+
+    display: grid;
+    place-items: center;
+
+    border-radius: 13px;
+
+    color: var(--stat-color);
+    background: var(--stat-bg);
+
+    font-size: 20px;
+}
+
+.dashboard-stat-label {
+    margin-top: 13px;
+
+    color: var(--color-muted, #6b7280);
+
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.dashboard-stat-value {
+    margin-top: 5px;
+
+    color: var(--color-text-strong, #111827);
+
+    font-size: 28px;
+    font-weight: 950;
+}
+
+.dashboard-stat.is-open {
+    --stat-color: #16a34a;
+    --stat-bg: #f0fdf4;
+}
+
+.dashboard-stat.is-closed {
+    --stat-color: #dc2626;
+    --stat-bg: #fef2f2;
+}
+
+.dashboard-stat.is-maintenance {
+    --stat-color: #d97706;
+    --stat-bg: #fffbeb;
+}
+
+.dashboard-stat.is-unassigned {
+    --stat-color: #7c3aed;
+    --stat-bg: #f5f3ff;
+}
+
+.dashboard-stat.is-employees {
+    --stat-color: #2563eb;
+    --stat-bg: #eff6ff;
+}
+
+.dashboard-stat.is-total {
+    --stat-color: #08765a;
+    --stat-bg: #f0fdfa;
+}
+
+
+/* =========================================================
+   اللوحات
+========================================================= */
+
+.dashboard-two-columns {
+    display: grid;
+    grid-template-columns:
+        minmax(0, 1.05fr)
+        minmax(0, 0.95fr);
+    gap: 18px;
+}
+
+.dashboard-panel {
+    overflow: hidden;
+
+    border: 1px solid var(--color-border, #e5e7eb);
+    border-radius: 22px;
+
+    background: var(--color-white, #ffffff);
+
+    box-shadow: var(--shadow-sm);
+}
+
+.dashboard-panel-header {
+    min-height: 76px;
+    padding: 18px 20px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+
+    border-bottom: 1px solid var(--color-border, #e5e7eb);
+
+    background:
+        linear-gradient(
+            180deg,
+            var(--color-white, #ffffff),
+            var(--color-surface-soft, #f9fafb)
+        );
+}
+
+.dashboard-panel-header h3 {
+    margin: 0;
+
+    color: var(--color-text-strong, #111827);
+
+    font-size: 18px;
+    font-weight: 950;
+}
+
+.dashboard-panel-header p {
+    margin: 4px 0 0;
+
+    color: var(--color-muted, #6b7280);
+
+    font-size: 11px;
+}
+
+.dashboard-panel-count {
+    min-width: 36px;
+    height: 36px;
+    padding: 0 10px;
+
+    display: grid;
+    place-items: center;
+
+    border-radius: 999px;
+
+    color: #0b5e46;
+    background: #dff4ea;
+
+    font-size: 12px;
+    font-weight: 950;
+}
+
+
+/* =========================================================
+   التنبيهات
+========================================================= */
+
+.dashboard-alert-list {
+    padding: 10px;
+}
+
+.dashboard-alert-item {
+    min-height: 72px;
+    padding: 12px;
+
+    display: grid;
+    grid-template-columns:
+        42px
+        minmax(0, 1fr)
+        42px;
+    align-items: center;
+    gap: 12px;
+
+    border-bottom: 1px solid var(--color-border-soft, #edf0ee);
+}
+
+.dashboard-alert-item:last-child {
+    border-bottom: 0;
+}
+
+.dashboard-alert-icon {
+    width: 42px;
+    height: 42px;
+
+    display: grid;
+    place-items: center;
+
+    border-radius: 13px;
+
+    font-size: 18px;
+    font-weight: 950;
+}
+
+.dashboard-alert-item.danger .dashboard-alert-icon {
+    color: #dc2626;
+    background: #fef2f2;
+}
+
+.dashboard-alert-item.warning .dashboard-alert-icon {
+    color: #d97706;
+    background: #fffbeb;
+}
+
+.dashboard-alert-content strong {
+    display: block;
+
+    color: var(--color-text-strong, #111827);
+
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.dashboard-alert-content small {
+    display: block;
+    margin-top: 4px;
+
+    color: var(--color-muted, #6b7280);
+
+    font-size: 10px;
+    line-height: 1.6;
+}
+
+.dashboard-alert-number {
+    min-width: 34px;
+    height: 34px;
+    padding: 0 8px;
+
+    display: grid;
+    place-items: center;
+
+    border-radius: 11px;
+
+    color: #ffffff;
+    background: #64748b;
+
+    font-size: 12px;
+    font-weight: 950;
+}
+
+.dashboard-alert-item.danger .dashboard-alert-number {
+    background: #dc2626;
+}
+
+.dashboard-alert-item.warning .dashboard-alert-number {
+    background: #d97706;
+}
+
+
+/* =========================================================
+   المؤشرات
+========================================================= */
+
+.dashboard-metrics-grid {
+    padding: 16px;
+
+    display: grid;
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.dashboard-metric {
+    padding: 16px;
+
+    border: 1px solid var(--color-border, #e5e7eb);
+    border-radius: 17px;
+
+    background: var(--color-surface-soft, #f9fafb);
+}
+
+.dashboard-metric-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.dashboard-metric-label {
+    color: var(--color-muted, #6b7280);
+
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.dashboard-metric-value {
+    color: var(--color-text-strong, #111827);
+
+    font-size: 24px;
+    font-weight: 950;
+}
+
+.dashboard-progress {
+    height: 8px;
+    margin-top: 12px;
+
+    overflow: hidden;
+
+    border-radius: 999px;
+
+    background: #e5e7eb;
+}
+
+.dashboard-progress span {
+    display: block;
+    height: 100%;
+
+    border-radius: inherit;
+
+    background:
+        linear-gradient(
+            90deg,
+            #0b5e46,
+            #21a57e
+        );
+}
+
+.dashboard-metric-note {
+    margin-top: 8px;
+
+    color: var(--color-muted, #6b7280);
+
+    font-size: 10px;
+}
+
+
+/* =========================================================
+   الجهات
+========================================================= */
+
+.dashboard-directions {
+    display: grid;
+    grid-template-columns:
+        repeat(5, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.dashboard-direction {
+    padding: 17px;
+
+    border: 1px solid var(--color-border, #e5e7eb);
+    border-radius: 18px;
+
+    background: var(--color-white, #ffffff);
+
+    box-shadow: var(--shadow-xs);
+}
+
+.dashboard-direction h3 {
+    margin: 0;
+
+    color: var(--color-text-strong, #111827);
+
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.dashboard-direction-total {
+    margin-top: 8px;
+
+    color: #0b5e46;
+
+    font-size: 26px;
+    font-weight: 950;
+}
+
+.dashboard-direction-details {
+    margin-top: 12px;
+
+    display: grid;
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+    gap: 7px;
+}
+
+.dashboard-direction-details span {
+    padding: 7px 8px;
+
+    border-radius: 9px;
+
+    color: var(--color-muted, #6b7280);
+    background: var(--color-surface-soft, #f9fafb);
+
+    font-size: 9px;
+    font-weight: 800;
+}
+
+.dashboard-direction-details strong {
+    display: block;
+    margin-top: 3px;
+
+    color: var(--color-text-strong, #111827);
+
+    font-size: 12px;
+    font-weight: 950;
+}
+
+
+/* =========================================================
+   الجداول
+========================================================= */
+
+.dashboard-table-scroll {
+    width: 100%;
+
+    overflow-x: auto;
+}
+
+.dashboard-table {
+    width: 100%;
+
+    border-collapse: collapse;
+}
+
+.dashboard-table th,
+.dashboard-table td {
+    padding: 13px 15px;
+
+    border-bottom: 1px solid var(--color-border, #e5e7eb);
+
+    text-align: right;
+
+    font-size: 11px;
+}
+
+.dashboard-table th {
+    color: #ffffff;
+    background: #0b5e46;
+
+    font-weight: 900;
+}
+
+.dashboard-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.dashboard-table td small {
+    color: var(--color-muted, #6b7280);
+}
+
+.dashboard-empty {
+    padding: 28px !important;
+
+    color: var(--color-muted, #6b7280) !important;
+
+    text-align: center !important;
+}
+
+
+/* =========================================================
+   إدارة الأبواب
+========================================================= */
+
+.dashboard-door-management {
+    margin-top: 18px;
+}
+
+.dashboard-door-toolbar {
+    padding: 16px;
+
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+
+    border-bottom: 1px solid var(--color-border, #e5e7eb);
+}
+
+.dashboard-door-toolbar input,
+.dashboard-door-toolbar select {
+    min-height: 44px;
+    padding: 0 13px;
+
+    border: 1px solid var(--color-border, #d8e1dd);
+    border-radius: 12px;
+
+    color: var(--color-text, #111827);
+    background: var(--color-white, #ffffff);
+
+    font-family: inherit;
+}
+
+.dashboard-door-toolbar input {
+    min-width: 240px;
+
+    flex: 1;
+}
+
+.dashboard-door-group {
+    padding: 18px;
+
+    border-bottom: 1px solid var(--color-border, #e5e7eb);
+}
+
+.dashboard-door-group:last-child {
+    border-bottom: 0;
+}
+
+.dashboard-door-group-header {
+    margin-bottom: 12px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.dashboard-door-group-header h3 {
+    margin: 0;
+
+    color: var(--color-text-strong, #111827);
+
+    font-size: 16px;
+    font-weight: 950;
+}
+
+.dashboard-door-count {
+    min-height: 32px;
+    padding: 0 10px;
+
+    display: inline-flex;
+    align-items: center;
+
+    border-radius: 999px;
+
+    color: #374151;
+    background: #f3f4f6;
+
+    font-size: 10px;
+    font-weight: 900;
+}
+
+.dashboard-door-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(
+            auto-fill,
+            minmax(245px, 1fr)
+        );
+    gap: 12px;
+}
+
+.dashboard-door-card {
+    position: relative;
+
+    padding: 15px;
+
+    overflow: hidden;
+
+    border: 1px solid var(--color-border, #e5e7eb);
+    border-radius: 17px;
+
+    background: var(--color-surface-soft, #f9fafb);
+}
+
+.dashboard-door-card::before {
+    content: "";
+
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+
+    width: 5px;
+
+    background: #94a3b8;
+}
+
+.dashboard-door-card.open::before {
+    background: #16a34a;
+}
+
+.dashboard-door-card.closed::before {
+    background: #dc2626;
+}
+
+.dashboard-door-card.maintenance::before {
+    background: #d97706;
+}
+
+.dashboard-door-card.secured::before {
+    background: #2563eb;
+}
+
+.dashboard-door-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.dashboard-door-title {
+    color: var(--color-text-strong, #111827);
+
+    font-size: 16px;
+    font-weight: 950;
+}
+
+.dashboard-door-state {
+    padding: 5px 8px;
+
+    border-radius: 999px;
+
+    color: #475569;
+    background: #e2e8f0;
+
+    font-size: 9px;
+    font-weight: 950;
+}
+
+.dashboard-door-card.open .dashboard-door-state {
+    color: #166534;
+    background: #dcfce7;
+}
+
+.dashboard-door-card.closed .dashboard-door-state {
+    color: #991b1b;
+    background: #fee2e2;
+}
+
+.dashboard-door-card.maintenance .dashboard-door-state {
+    color: #92400e;
+    background: #fef3c7;
+}
+
+.dashboard-door-card.secured .dashboard-door-state {
+    color: #1d4ed8;
+    background: #dbeafe;
+}
+
+.dashboard-door-meta {
+    margin-top: 10px;
+
+    color: var(--color-muted, #6b7280);
+
+    font-size: 10px;
+    line-height: 1.9;
+}
+
+.dashboard-door-actions {
+    margin-top: 12px;
+
+    display: flex;
+    gap: 8px;
+}
+
+.dashboard-door-actions button {
+    min-height: 38px;
+
+    flex: 1;
+
+    border: 0;
+    border-radius: 10px;
+
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 900;
+}
+
+.dashboard-door-edit {
+    color: #ffffff;
+    background: #0f7b5c;
+}
+
+.dashboard-door-maintenance {
+    color: #92400e;
+    background: #fef3c7;
+}
+
+
+/* =========================================================
+   النوافذ
+========================================================= */
+
+.dashboard-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 150000;
+
+    padding: 20px;
+
+    display: none;
+    align-items: center;
+    justify-content: center;
+
+    background: rgba(3, 24, 18, 0.66);
+
+    backdrop-filter: blur(5px);
+}
+
+.dashboard-dialog.is-open {
+    display: flex;
+}
+
+.dashboard-dialog-card {
+    width: min(620px, 100%);
+    max-height: calc(100vh - 40px);
+
+    display: flex;
+    flex-direction: column;
+
+    overflow: hidden;
+
+    border: 1px solid #dde6e2;
+    border-radius: 24px;
+
+    color: #111827;
+    background: #ffffff;
+
+    box-shadow:
+        0 28px 80px rgba(0, 0, 0, 0.3);
+}
+
+.dashboard-dialog-card.is-maintenance {
+    width: min(720px, 100%);
+}
+
+.dashboard-dialog-header {
+    min-height: 92px;
+    padding: 20px 24px;
+
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+
+    border-bottom: 1px solid #e5e7eb;
+
+    background:
+        linear-gradient(
+            180deg,
+            #ffffff,
+            #fafcfb
+        );
+}
+
+.dashboard-dialog-heading {
+    min-width: 0;
+
+    flex: 1;
+}
+
+.dashboard-dialog-heading h3 {
+    margin: 0;
+
+    color: #111827;
+
+    font-size: 24px;
+    font-weight: 950;
+}
+
+.dashboard-dialog-heading p {
+    margin: 7px 0 0;
+
+    color: #6b7280;
+
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+.dashboard-dialog-close {
+    width: 40px;
+    height: 40px;
+
+    flex: 0 0 40px;
+
+    display: grid;
+    place-items: center;
+
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+
+    color: #374151;
+    background: #f8faf9;
+
+    font-family: inherit;
+    font-size: 22px;
+}
+
+.dashboard-dialog-close:hover {
+    color: #991b1b;
+    background: #fee2e2;
+}
+
+.dashboard-dialog-body {
+    padding: 24px;
+
+    overflow-y: auto;
+
+    background: #ffffff;
+}
+
+.dashboard-dialog-form {
+    display: grid;
+    gap: 20px;
+}
+
+.dashboard-dialog-field {
+    min-width: 0;
+}
+
+.dashboard-dialog-field label {
+    display: block;
+    margin-bottom: 8px;
+
+    color: #111827;
+
+    font-size: 14px;
+    font-weight: 950;
+}
+
+.dashboard-dialog-field input,
+.dashboard-dialog-field select,
+.dashboard-dialog-field textarea {
+    width: 100%;
+    min-height: 48px;
+    margin: 0;
+    padding: 12px 14px;
+
+    display: block;
+
+    border: 1px solid #d8e1dd;
+    border-radius: 14px;
+
+    color: #111827;
+    background: #ffffff;
+
+    font-family: inherit;
+    font-size: 14px;
+
+    box-shadow: none;
+}
+
+.dashboard-dialog-field textarea {
+    min-height: 130px;
+
+    resize: vertical;
+}
+
+.dashboard-dialog-field input:focus,
+.dashboard-dialog-field select:focus,
+.dashboard-dialog-field textarea:focus {
+    outline: none;
+
+    border-color: #0f7b5c;
+
+    box-shadow:
+        0 0 0 4px
+        rgba(15, 123, 92, 0.1);
+}
+
+.dashboard-dialog-help {
+    display: block;
+    margin-top: 7px;
+
+    color: #6b7280;
+
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.dashboard-dialog-message {
+    display: none;
+
+    margin-bottom: 18px;
+    padding: 13px 15px;
+
+    border: 1px solid transparent;
+    border-radius: 13px;
+
+    font-size: 12px;
+    font-weight: 850;
+    line-height: 1.7;
+}
+
+.dashboard-dialog-message.is-visible {
+    display: block;
+}
+
+.dashboard-dialog-message.success {
+    color: #166534;
+    border-color: #bbf7d0;
+    background: #dcfce7;
+}
+
+.dashboard-dialog-message.warning {
+    color: #92400e;
+    border-color: #fde68a;
+    background: #fef3c7;
+}
+
+.dashboard-dialog-message.danger {
+    color: #991b1b;
+    border-color: #fecaca;
+    background: #fee2e2;
+}
+
+.dashboard-dialog-footer {
+    min-height: 82px;
+    padding: 16px 24px;
+
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+
+    border-top: 1px solid #e5e7eb;
+
+    background: #fafcfb;
+}
+
+.dashboard-dialog-button {
+    min-width: 130px;
+    min-height: 46px;
+    padding: 0 18px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    border: 0;
+    border-radius: 13px;
+
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 950;
+}
+
+.dashboard-dialog-button.is-cancel {
+    color: #374151;
+    border: 1px solid #d8e1dd;
+    background: #ffffff;
+}
+
+.dashboard-dialog-button.is-primary {
+    color: #ffffff;
+
+    background:
+        linear-gradient(
+            135deg,
+            #0f7b5c,
+            #0b5e46
+        );
+}
+
+.dashboard-dialog-button.is-maintenance {
+    color: #ffffff;
+
+    background:
+        linear-gradient(
+            135deg,
+            #d97706,
+            #b45309
+        );
+}
+
+.dashboard-dialog-button:disabled {
+    opacity: 0.6;
+
+    cursor: not-allowed;
+}
+
+
+/* =========================================================
+   الوضع الداكن للنوافذ
+========================================================= */
+
+html[data-theme="dark"] .dashboard-dialog-card,
+html[data-theme="dark"] .dashboard-dialog-header,
+html[data-theme="dark"] .dashboard-dialog-body,
+html[data-theme="dark"] .dashboard-dialog-footer {
+    color: #e5e7eb;
+    border-color: #29312e;
+    background: #141918;
+}
+
+html[data-theme="dark"] .dashboard-dialog-header {
+    background:
+        linear-gradient(
+            180deg,
+            #141918,
+            #191f1d
+        );
+}
+
+html[data-theme="dark"] .dashboard-dialog-footer {
+    background: #191f1d;
+}
+
+html[data-theme="dark"] .dashboard-dialog-heading h3,
+html[data-theme="dark"] .dashboard-dialog-field label {
+    color: #f3f4f6;
+}
+
+html[data-theme="dark"] .dashboard-dialog-heading p,
+html[data-theme="dark"] .dashboard-dialog-help {
+    color: #9ca3af;
+}
+
+html[data-theme="dark"] .dashboard-dialog-field input,
+html[data-theme="dark"] .dashboard-dialog-field select,
+html[data-theme="dark"] .dashboard-dialog-field textarea {
+    color: #e5e7eb;
+    border-color: #37413d;
+    background: #191f1d;
+}
+
+html[data-theme="dark"] .dashboard-dialog-close,
+html[data-theme="dark"] .dashboard-dialog-button.is-cancel {
+    color: #e5e7eb;
+    border-color: #37413d;
+    background: #1f2926;
+}
+
+
+.executive-services-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.executive-services-grid>a{display:grid;grid-template-columns:42px minmax(0,1fr) 18px;align-items:center;gap:11px;min-height:92px;padding:15px;border:1px solid var(--color-border,#e5e7eb);border-radius:18px;color:var(--color-text-strong,#111827);background:var(--color-surface,#fff);text-decoration:none;box-shadow:var(--shadow-sm);transition:.2s}.executive-services-grid>a:hover{transform:translateY(-3px);border-color:#a9cfc0}.executive-services-grid>a>span{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;color:#fff;background:#0b6b50;font-size:11px;font-weight:950}.executive-services-grid small,.executive-services-grid strong,.executive-services-grid p{display:block}.executive-services-grid small{color:#8a958f;font-size:9px;font-weight:800}.executive-services-grid strong{margin-top:3px;font-size:14px}.executive-services-grid p{margin:4px 0 0;color:#707c76;font-size:9.5px;line-height:1.5}.executive-services-grid i{color:#9da7a2;font-style:normal;font-size:20px}.executive-quick-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px;padding:12px;border:1px solid #e2e9e6;border-radius:15px;background:#f8fbfa}.executive-quick-actions:before{content:"إجراءات سريعة";margin-left:5px;color:#67736d;font-size:11px;font-weight:950}.executive-quick-actions a{padding:8px 12px;border-radius:9px;color:#075c45;background:#e6f3ed;text-decoration:none;font-size:10px;font-weight:900}.executive-quick-actions a.primary{color:#fff;background:#0b6b50}
+
+/* =========================================================
+   الاستجابة
+========================================================= */
+
+@media (max-width: 1400px) {
+    .executive-services-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .dashboard-stats {
+        grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+    }
+
+    .dashboard-directions {
+        grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 1000px) {
+    .dashboard-hero,
+    .dashboard-two-columns {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-directions {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 700px) {
+    .executive-services-grid{grid-template-columns:1fr}
+    .dashboard-page {
+        width: calc(100% - 1rem);
+        padding-top: 12px;
+    }
+
+    .dashboard-hero {
+        padding: 20px;
+
+        border-radius: 20px;
+    }
+
+    .dashboard-stats {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+
+    .dashboard-metrics-grid,
+    .dashboard-directions,
+    .dashboard-shift-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-door-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .dashboard-door-toolbar input,
+    .dashboard-door-toolbar select,
+    .dashboard-door-toolbar button {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .dashboard-dialog {
+        padding: 8px;
+    }
+
+    .dashboard-dialog-card {
+        max-height: calc(100vh - 16px);
+
+        border-radius: 18px;
+    }
+
+    .dashboard-dialog-header,
+    .dashboard-dialog-body,
+    .dashboard-dialog-footer {
+        padding: 16px;
+    }
+
+    .dashboard-dialog-heading h3 {
+        font-size: 20px;
+    }
+
+    .dashboard-dialog-footer {
+        align-items: stretch;
+        flex-direction: column-reverse;
+    }
+
+    .dashboard-dialog-button {
+        width: 100%;
+    }
+}
+/* =========================================================
+   Enterprise dashboard refinement
+========================================================= */
+
+.dashboard-page {
+    --dashboard-ink: #10231d;
+    --dashboard-green: #075f49;
+    --dashboard-green-2: #0d8061;
+    --dashboard-gold: #cda844;
+    --dashboard-line: #dce6e2;
+    width: min(calc(100% - 32px), 1760px);
+    padding: 20px 0 44px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Shift intelligence is reserved for the current-shift page. */
+.dashboard-shift-only {
+    display: none !important;
+}
+
+.dashboard-section { margin-top: 26px; }
+
+.dashboard-section-heading {
+    margin-bottom: 15px;
+    padding-inline: 4px;
+}
+
+.dashboard-section-heading h2 {
+    position: relative;
+    padding-inline-start: 16px;
+    font-size: clamp(20px, 1.7vw, 27px);
+    letter-spacing: -.02em;
+}
+
+.dashboard-section-heading h2::before {
+    content: "";
+    position: absolute;
+    inset-inline-start: 0;
+    top: 4px;
+    width: 5px;
+    height: calc(100% - 8px);
+    border-radius: 999px;
+    background: linear-gradient(180deg, var(--dashboard-gold), #e5c96e);
+}
+
+.dashboard-section-heading p { font-size: 12.5px; line-height: 1.75; }
+
+.dashboard-hero {
+    min-height: 270px;
+    padding: clamp(26px, 3vw, 46px);
+    grid-template-columns: minmax(0, 1.55fr) minmax(330px, .62fr);
+    border-radius: 30px;
+    background:
+        linear-gradient(90deg, rgba(3, 54, 43, .12), transparent 45%),
+        radial-gradient(circle at 8% 15%, rgba(221, 184, 87, .32), transparent 30%),
+        linear-gradient(135deg, #064b3b 0%, #08775b 52%, #159271 100%);
+    box-shadow: 0 22px 54px rgba(4, 61, 47, .2);
+}
+
+.dashboard-hero::before {
+    content: "";
+    position: absolute;
+    inset-inline-start: -90px;
+    bottom: -150px;
+    width: 360px;
+    height: 360px;
+    border: 1px solid rgba(223, 188, 93, .28);
+    border-radius: 50%;
+}
+
+.dashboard-hero h1 { font-size: clamp(2.25rem, 4vw, 4rem); line-height: 1.15; }
+.dashboard-hero p { max-width: 900px; font-size: 15.5px; }
+
+.dashboard-shift-card {
+    padding: 24px;
+    border-color: rgba(255, 255, 255, .25);
+    background: linear-gradient(145deg, rgba(255,255,255,.18), rgba(255,255,255,.1));
+    box-shadow: inset 0 1px rgba(255,255,255,.2), 0 18px 38px rgba(0,0,0,.12);
+}
+
+.dashboard-shift-item { min-height: 74px; padding: 13px; }
+.dashboard-shift-item strong { white-space: normal; line-height: 1.5; }
+
+.executive-services-grid { gap: 14px; }
+.executive-services-grid > a {
+    position: relative;
+    min-height: 108px;
+    padding: 17px;
+    overflow: hidden;
+    border-radius: 20px;
+    box-shadow: 0 8px 24px rgba(16, 35, 29, .06);
+}
+.executive-services-grid > a::after {
+    content: "";
+    position: absolute;
+    inset-inline-start: 0;
+    bottom: 0;
+    width: 72px;
+    height: 3px;
+    border-radius: 0 999px 0 0;
+    background: var(--dashboard-gold);
+    transition: width .2s ease;
+}
+.executive-services-grid > a:hover::after { width: 100%; }
+.executive-services-grid > a > span {
+    width: 46px;
+    height: 46px;
+    background: linear-gradient(145deg, var(--dashboard-green-2), var(--dashboard-green));
+    box-shadow: 0 8px 18px rgba(7, 95, 73, .2);
+}
+.executive-services-grid strong { font-size: 15px; }
+.executive-services-grid p { font-size: 10.5px; }
+
+.executive-quick-actions {
+    min-height: 58px;
+    padding: 10px 14px;
+    border-color: var(--dashboard-line);
+    background: linear-gradient(180deg, #fbfdfc, #f3f8f6);
+}
+.executive-quick-actions a { min-height: 36px; display: inline-flex; align-items: center; }
+
+.dashboard-stats { gap: 14px; }
+.dashboard-stat {
+    min-height: 142px;
+    padding: 18px 19px;
+    border-radius: 21px;
+    box-shadow: 0 9px 25px rgba(16, 35, 29, .055);
+    transition: transform .2s ease, box-shadow .2s ease;
+}
+.dashboard-stat:hover { transform: translateY(-3px); box-shadow: 0 15px 32px rgba(16,35,29,.09); }
+.dashboard-stat-icon { width: 46px; height: 46px; border-radius: 14px; }
+.dashboard-stat-label { font-size: 12px; }
+.dashboard-stat-value { font-size: 31px; line-height: 1; }
+
+.dashboard-two-columns { align-items: start; gap: 20px; }
+.dashboard-panel {
+    border-color: var(--dashboard-line);
+    border-radius: 24px;
+    box-shadow: 0 10px 30px rgba(16,35,29,.055);
+}
+.dashboard-panel-header { min-height: 88px; padding: 19px 22px; }
+.dashboard-panel-header h3 { font-size: 20px; }
+.dashboard-panel-header p { font-size: 11.5px; line-height: 1.7; }
+
+.dashboard-alert-item { min-height: 78px; border-radius: 14px; }
+.dashboard-alert-item:hover { background: #f8fbfa; }
+.dashboard-alert-content strong { font-size: 13.5px; }
+.dashboard-alert-content small { font-size: 10.5px; }
+
+.dashboard-metrics-grid { gap: 13px; }
+.dashboard-metric { min-height: 142px; border-radius: 18px; background: linear-gradient(145deg, #fff, #f7faf9); }
+.dashboard-metric-label { font-size: 11.5px; }
+.dashboard-metric-note { font-size: 10.5px; line-height: 1.65; }
+
+.dashboard-directions { gap: 15px; }
+.dashboard-direction {
+    min-height: 190px;
+    padding: 18px;
+    border-radius: 20px;
+    box-shadow: 0 8px 25px rgba(16,35,29,.05);
+}
+.dashboard-direction h3 { font-size: 15.5px; }
+.dashboard-direction-total { font-size: 29px; }
+.dashboard-direction-details span { padding: 9px; font-size: 9.5px; }
+
+.dashboard-table-scroll { max-height: 520px; }
+.dashboard-table { min-width: 620px; }
+.dashboard-table th { position: sticky; top: 0; z-index: 1; }
+.dashboard-table th, .dashboard-table td { padding: 14px 16px; font-size: 11.5px; }
+.dashboard-table tbody tr { transition: background .15s ease; }
+.dashboard-table tbody tr:hover { background: #f7faf9; }
+
+.dashboard-door-management {
+    order: -1;
+    margin-top: 0;
+}
+
+.dashboard-door-management .dashboard-panel-header {
+    min-height: 106px;
+    color: #fff;
+    border-bottom-color: rgba(255, 255, 255, .12);
+    background:
+        radial-gradient(circle at 8% 15%, rgba(205, 168, 68, .24), transparent 28%),
+        linear-gradient(135deg, #064b3b, #08775b 64%, #118b6b);
+}
+
+.dashboard-door-management .dashboard-panel-header h3 {
+    color: #fff;
+    font-size: clamp(22px, 2vw, 30px);
+}
+
+.dashboard-door-management .dashboard-panel-header p {
+    max-width: 760px;
+    color: rgba(255, 255, 255, .76);
+    font-size: 12.5px;
+}
+
+.dashboard-door-management .dashboard-panel-count {
+    min-width: 52px;
+    height: 52px;
+    color: #563f05;
+    border: 1px solid rgba(255, 255, 255, .45);
+    background: linear-gradient(145deg, #f9e8a7, #cda844);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, .14);
+    font-size: 15px;
+}
+.dashboard-door-toolbar {
+    display: grid;
+    grid-template-columns: minmax(320px, 2fr) minmax(180px, .65fr) minmax(180px, .65fr) auto;
+    padding: 18px 20px;
+    gap: 12px;
+    background: #f8fbfa;
+}
+.dashboard-door-toolbar input,
+.dashboard-door-toolbar select,
+.dashboard-door-toolbar button { width: 100%; min-width: 0; min-height: 48px; }
+.dashboard-door-toolbar input:focus,
+.dashboard-door-toolbar select:focus { outline: 0; border-color: var(--dashboard-green-2); box-shadow: 0 0 0 3px rgba(13,128,97,.1); }
+
+.dashboard-door-group { padding: 22px 20px; }
+.dashboard-door-group-header { margin-bottom: 15px; padding-bottom: 12px; border-bottom: 1px solid #edf1ef; }
+.dashboard-door-group-header h3 { font-size: 18px; }
+.dashboard-door-grid { grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 14px; }
+.dashboard-door-card {
+    min-height: 210px;
+    padding: 17px;
+    border-radius: 19px;
+    background: linear-gradient(145deg, #fff, #f7f9f8);
+    box-shadow: 0 6px 18px rgba(16,35,29,.04);
+    transition: transform .18s ease, box-shadow .18s ease;
+}
+.dashboard-door-card:hover { transform: translateY(-2px); box-shadow: 0 12px 25px rgba(16,35,29,.08); }
+.dashboard-door-meta { min-height: 72px; font-size: 10.5px; }
+.dashboard-door-actions button { min-height: 42px; font-size: 11px; cursor: pointer; }
+.dashboard-door-edit:hover { background: #095c46; }
+.dashboard-door-maintenance:hover { background: #fde9a9; }
+
+html[data-theme="dark"] .dashboard-section-heading h2,
+html[data-theme="dark"] .dashboard-panel-header h3 { color: #f5f8f7; }
+html[data-theme="dark"] .executive-quick-actions,
+html[data-theme="dark"] .dashboard-door-toolbar { border-color: #2a3c36; background: #11231d; }
+html[data-theme="dark"] .dashboard-metric,
+html[data-theme="dark"] .dashboard-door-card { background: linear-gradient(145deg, #14251f, #102019); }
+
+@media (max-width: 1200px) {
+    .dashboard-door-toolbar { grid-template-columns: minmax(260px, 2fr) 1fr 1fr; }
+    .dashboard-door-toolbar button { grid-column: 1 / -1; }
+}
+
+@media (max-width: 1000px) {
+    .dashboard-hero { grid-template-columns: 1fr; }
+    .dashboard-shift-card { max-width: none; }
+    .dashboard-two-columns { grid-template-columns: 1fr; }
+    .dashboard-table-scroll { max-height: 430px; }
+}
+
+@media (max-width: 700px) {
+    .dashboard-page { width: min(calc(100% - 16px), 1760px); padding-top: 10px; }
+    .dashboard-hero { min-height: 0; padding: 22px 18px; }
+    .dashboard-hero h1 { font-size: 2rem; }
+    .dashboard-shift-card { padding: 17px; }
+    .dashboard-section { margin-top: 20px; }
+    .dashboard-stats { grid-template-columns: 1fr 1fr; gap: 9px; }
+    .dashboard-stat { min-height: 124px; padding: 14px; }
+    .dashboard-stat-value { font-size: 25px; }
+    .dashboard-door-toolbar { display: flex; padding: 14px; }
+    .dashboard-door-group { padding: 17px 14px; }
+    .dashboard-door-grid { grid-template-columns: 1fr; }
+    .dashboard-door-card { min-height: 0; }
+}
+</style>
+<link rel="stylesheet" href="{% static 'css/dashboard/door_status_dialog.css' %}?v=20260803-1">
+<link rel="stylesheet" href="{% static 'css/dashboard/maintenance_dialog.css' %}?v=20260803-1">
+{% endblock %}
+
+{% block content %}
+<section class="dashboard-page">
+
+    {% if show_shift_dashboard %}
+    <section class="dashboard-hero">
+        <div class="dashboard-hero-content">
+            <span class="dashboard-eyebrow">
+                مركز القيادة والسيطرة التشغيلية
+            </span>
+
+            <h1>لوحة التحكم التنفيذية</h1>
+
+            <p>
+                متابعة فورية لحالة الوردية، جاهزية الأبواب، توزيع الموظفين،
+                التنبيهات الحرجة والمؤشرات التشغيلية لمنصة أبواب.
+            </p>
+
+            <div class="dashboard-status-row">
+                <span class="dashboard-status-pill {{ operational_status.key }}">
+                    <span class="dashboard-status-dot"></span>
+                    {{ operational_status.label }}
+                </span>
+
+                <span class="dashboard-eyebrow">
+                    آخر تحديث:
+                    {{ dashboard_generated_at|date:"h:i A" }}
+                </span>
+            </div>
+        </div>
+
+        <div class="dashboard-shift-card">
+            <span class="dashboard-shift-label">
+                الوردية الحالية
+            </span>
+
+            <div class="dashboard-shift-name">
+                {% if active_shift %}
+                    {{ active_shift.shift_type.name }}
+                {% else %}
+                    لا توجد وردية نشطة
+                {% endif %}
+            </div>
+
+            <div class="dashboard-shift-grid">
+                <div class="dashboard-shift-item">
+                    <span>وقت البداية</span>
+                    <strong>
+                        {% if shift_start_time %}
+                            {{ shift_start_time|time:"h:i A" }}
+                        {% else %}
+                            غير محدد
+                        {% endif %}
+                    </strong>
+                </div>
+
+                <div class="dashboard-shift-item">
+                    <span>وقت النهاية</span>
+                    <strong>
+                        {% if shift_end_time %}
+                            {{ shift_end_time|time:"h:i A" }}
+                        {% else %}
+                            غير محدد
+                        {% endif %}
+                    </strong>
+                </div>
+
+                <div class="dashboard-shift-item">
+                    <span>المشرف</span>
+                    <strong>{{ shift_supervisor_name }}</strong>
+                </div>
+
+                <div class="dashboard-shift-item">
+                    <span>الموظفون الموجودون</span>
+                    <strong>{{ assigned_unique_employee_count }}</strong>
+                </div>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    <section class="executive-services dashboard-section{% if not show_shift_dashboard %} dashboard-shift-only{% endif %}">
+        <div class="dashboard-section-heading"><div><h2>الخدمات التنفيذية</h2><p>وصول مباشر إلى مراكز العمل الأساسية وفق دورة التشغيل المؤسسية.</p></div></div>
+        <div class="executive-services-grid">
+            <a href="{% url 'ops:operations-center' %}"><span>01</span><div><small>التشغيل المباشر</small><strong>مركز العمليات</strong><p>{{ open_incidents_count }} بلاغ مفتوح · {{ maintenance_open }} طلب صيانة</p></div><i>‹</i></a>
+            <a href="{% url 'scheduling:workforce-center' %}"><span>02</span><div><small>الموارد والتغطية</small><strong>القوى العاملة</strong><p>{{ assigned_unique_employee_count }} موظفًا في الوردية الحالية</p></div><i>‹</i></a>
+            <a href="{% url 'scheduling:status' %}"><span>03</span><div><small>التخطيط التشغيلي</small><strong>إدارة الورديات</strong><p>{{ upcoming_shifts|length }} ورديات قادمة ضمن الخطة</p></div><i>‹</i></a>
+            <a href="{% url 'reporting:list' %}"><span>04</span><div><small>الأداء والحوكمة</small><strong>مركز التقارير</strong><p>{{ pending_reports_count }} تقارير بانتظار الاستكمال</p></div><i>‹</i></a>
+            <a href="{% url 'exports_center:dashboard' %}"><span>05</span><div><small>البيانات المؤسسية</small><strong>مركز التصدير</strong><p>PDF وExcel وسجل الملفات</p></div><i>‹</i></a>
+        </div>
+        <div class="executive-quick-actions">
+            {% if active_shift %}<a href="{% url 'scheduling:assignments' %}">تسكين موظف</a><a href="{% url 'distribution:dashboard' %}">توزيع الأبواب</a><a href="{% url 'reporting:generate-active' %}">إنشاء تقرير الوردية</a>{% else %}<a class="primary" href="{% url 'scheduling:status' %}">إنشاء أو تفعيل وردية</a>{% endif %}
+            <a href="{% url 'ops:incidents' %}">تسجيل ومتابعة بلاغ</a><a href="{% url 'ops:maintenance-list' %}">متابعة الصيانة</a>
+        </div>
+    </section>
+
+
+    <section class="dashboard-section{% if not show_shift_dashboard %} dashboard-shift-only{% endif %}">
+        <div class="dashboard-section-heading">
+            <div>
+                <h2>حالة التشغيل الحالية</h2>
+                <p>{{ operational_status.description }}</p>
+            </div>
+        </div>
+
+        <div class="dashboard-stats">
+            <article class="dashboard-stat is-open">
+                <div class="dashboard-stat-icon">✓</div>
+                <div class="dashboard-stat-label">الأبواب المفتوحة</div>
+                <div class="dashboard-stat-value">{{ open_doors_count }}</div>
+            </article>
+
+            <article class="dashboard-stat is-closed">
+                <div class="dashboard-stat-icon">×</div>
+                <div class="dashboard-stat-label">الأبواب المغلقة</div>
+                <div class="dashboard-stat-value">{{ closed_doors_count }}</div>
+            </article>
+
+            <article class="dashboard-stat is-maintenance">
+                <div class="dashboard-stat-icon">🛠</div>
+                <div class="dashboard-stat-label">تحت الصيانة</div>
+                <div class="dashboard-stat-value">{{ maintenance_doors_count }}</div>
+            </article>
+
+            <article class="dashboard-stat is-unassigned">
+                <div class="dashboard-stat-icon">?</div>
+                <div class="dashboard-stat-label">الأبواب غير المسندة</div>
+                <div class="dashboard-stat-value">{{ unassigned_doors_count }}</div>
+            </article>
+
+            <article class="dashboard-stat is-employees">
+                <div class="dashboard-stat-icon">👥</div>
+                <div class="dashboard-stat-label">الموظفون الموجودون</div>
+                <div class="dashboard-stat-value">{{ assigned_unique_employee_count }}</div>
+            </article>
+
+            <article class="dashboard-stat is-total">
+                <div class="dashboard-stat-icon">▦</div>
+                <div class="dashboard-stat-label">إجمالي الأبواب</div>
+                <div class="dashboard-stat-value">{{ total_doors }}</div>
+            </article>
+        </div>
+    </section>
+
+
+    <section class="dashboard-section dashboard-two-columns{% if not show_shift_dashboard %} dashboard-shift-only{% endif %}">
+        <article class="dashboard-panel">
+            <header class="dashboard-panel-header">
+                <div>
+                    <h3>مركز التنبيهات التشغيلية</h3>
+                    <p>المخالفات والتعارضات التي تحتاج متابعة مباشرة.</p>
+                </div>
+
+                <span class="dashboard-panel-count">
+                    {{ critical_alerts_count|add:warning_alerts_count }}
+                </span>
+            </header>
+
+            <div class="dashboard-alert-list">
+                {% for alert in alerts %}
+                    <div class="dashboard-alert-item {{ alert.level }}">
+                        <span class="dashboard-alert-icon">
+                            {{ alert.icon }}
+                        </span>
+
+                        <div class="dashboard-alert-content">
+                            <strong>{{ alert.title }}</strong>
+                            <small>{{ alert.description }}</small>
+                        </div>
+
+                        <span class="dashboard-alert-number">
+                            {{ alert.count }}
+                        </span>
+                    </div>
+                {% empty %}
+                    <div class="dashboard-empty">
+                        لا توجد تنبيهات تشغيلية.
+                    </div>
+                {% endfor %}
+            </div>
+        </article>
+
+
+        <article class="dashboard-panel">
+            <header class="dashboard-panel-header">
+                <div>
+                    <h3>المؤشرات التشغيلية</h3>
+                    <p>قياس الأداء الفوري للوردية الحالية واليوم التشغيلي.</p>
+                </div>
+
+                <span class="dashboard-panel-count">KPI</span>
+            </header>
+
+            <div class="dashboard-metrics-grid">
+                <div class="dashboard-metric">
+                    <div class="dashboard-metric-top">
+                        <span class="dashboard-metric-label">
+                            جاهزية الأبواب
+                        </span>
+
+                        <strong class="dashboard-metric-value">
+                            {{ door_readiness_percentage }}%
+                        </strong>
+                    </div>
+
+                    <div class="dashboard-progress">
+                        <span style="width: {{ door_readiness_percentage }}%;"></span>
+                    </div>
+
+                    <div class="dashboard-metric-note">
+                        المفتوحة والمؤمنة من إجمالي الأبواب.
+                    </div>
+                </div>
+
+
+                <div class="dashboard-metric">
+                    <div class="dashboard-metric-top">
+                        <span class="dashboard-metric-label">
+                            اكتمال التوزيع
+                        </span>
+
+                        <strong class="dashboard-metric-value">
+                            {{ distribution_completion_percentage }}%
+                        </strong>
+                    </div>
+
+                    <div class="dashboard-progress">
+                        <span style="width: {{ distribution_completion_percentage }}%;"></span>
+                    </div>
+
+                    <div class="dashboard-metric-note">
+                        الأبواب التي لديها موظف واحد على الأقل.
+                    </div>
+                </div>
+
+
+                <div class="dashboard-metric">
+                    <div class="dashboard-metric-top">
+                        <span class="dashboard-metric-label">
+                            نسبة حضور الموظفين
+                        </span>
+
+                        <strong class="dashboard-metric-value">
+                            {{ attendance_percentage }}%
+                        </strong>
+                    </div>
+
+                    <div class="dashboard-progress">
+                        <span style="width: {{ attendance_percentage }}%;"></span>
+                    </div>
+
+                    <div class="dashboard-metric-note">
+                        الموظفون المسندون مقارنة بالموظفين النشطين.
+                    </div>
+                </div>
+
+
+                <div class="dashboard-metric">
+                    <div class="dashboard-metric-top">
+                        <span class="dashboard-metric-label">
+                            متوسط معالجة البلاغ
+                        </span>
+
+                        <strong class="dashboard-metric-value">
+                            {% if average_incident_minutes != None %}
+                                {{ average_incident_minutes }} د
+                            {% else %}
+                                —
+                            {% endif %}
+                        </strong>
+                    </div>
+
+                    <div class="dashboard-metric-note">
+                        متوسط الزمن من إنشاء البلاغ حتى إغلاقه.
+                    </div>
+                </div>
+
+
+                <div class="dashboard-metric">
+                    <div class="dashboard-metric-top">
+                        <span class="dashboard-metric-label">
+                            متوسط إغلاق الصيانة
+                        </span>
+
+                        <strong class="dashboard-metric-value">
+                            {% if average_maintenance_minutes != None %}
+                                {{ average_maintenance_minutes }} د
+                            {% else %}
+                                —
+                            {% endif %}
+                        </strong>
+                    </div>
+
+                    <div class="dashboard-metric-note">
+                        متوسط الزمن من إنشاء الطلب حتى إغلاقه.
+                    </div>
+                </div>
+
+
+                <div class="dashboard-metric">
+                    <div class="dashboard-metric-top">
+                        <span class="dashboard-metric-label">
+                            عمليات اليوم
+                        </span>
+
+                        <strong class="dashboard-metric-value">
+                            {{ today_operations }}
+                        </strong>
+                    </div>
+
+                    <div class="dashboard-metric-note">
+                        تغييرات الأبواب والصيانة والتوزيعات الجديدة.
+                    </div>
+                </div>
+            </div>
+        </article>
+    </section>
+
+
+    <section class="dashboard-section{% if not show_shift_dashboard %} dashboard-shift-only{% endif %}">
+        <div class="dashboard-section-heading">
+            <div>
+                <h2>حالة الجهات</h2>
+                <p>ملخص أبواب كل جهة وحالة التوزيع الحالية.</p>
+            </div>
+        </div>
+
+        <div class="dashboard-directions">
+            {% for direction in direction_summary %}
+                {% if direction.key != "unknown" or direction.total %}
+                    <article class="dashboard-direction">
+                        <h3>{{ direction.label }}</h3>
+
+                        <div class="dashboard-direction-total">
+                            {{ direction.total }}
+                        </div>
+
+                        <div class="dashboard-direction-details">
+                            <span>
+                                مفتوح
+                                <strong>{{ direction.open }}</strong>
+                            </span>
+
+                            <span>
+                                مغلق
+                                <strong>{{ direction.closed }}</strong>
+                            </span>
+
+                            <span>
+                                صيانة
+                                <strong>{{ direction.maintenance }}</strong>
+                            </span>
+
+                            <span>
+                                غير مسند
+                                <strong>{{ direction.unassigned }}</strong>
+                            </span>
+                        </div>
+                    </article>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </section>
+
+
+    <section class="dashboard-section dashboard-two-columns{% if not show_shift_dashboard %} dashboard-shift-only{% endif %}">
+        <article class="dashboard-panel">
+            <header class="dashboard-panel-header">
+                <div>
+                    <h3>آخر العمليات</h3>
+                    <p>أحدث تغييرات حالات الأبواب المسجلة.</p>
+                </div>
+
+                <span class="dashboard-panel-count">
+                    {{ latest_logs|length }}
+                </span>
+            </header>
+
+            <div class="dashboard-table-scroll">
+                <table class="dashboard-table">
+                    <thead>
+                        <tr>
+                            <th>الباب</th>
+                            <th>التغيير</th>
+                            <th>المستخدم</th>
+                            <th>الوقت</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for log in latest_logs %}
+                            <tr>
+                                <td>
+                                    باب {{ log.door_shift.door_number }}
+                                </td>
+
+                                <td>
+                                    <strong>
+                                        {% if log.old_value.state_label %}
+                                            {{ log.old_value.state_label }}
+                                        {% else %}
+                                            {{ log.old_value.state|default:"—" }}
+                                        {% endif %}
+
+                                        ←
+
+                                        {% if log.new_value.state_label %}
+                                            {{ log.new_value.state_label }}
+                                        {% else %}
+                                            {{ log.new_value.state|default:"—" }}
+                                        {% endif %}
+                                    </strong>
+
+                                    {% if log.change_reason %}
+                                        <small
+                                            style="
+                                                display: block;
+                                                margin-top: 4px;
+                                                line-height: 1.6;
+                                            "
+                                        >
+                                            السبب: {{ log.change_reason }}
+                                        </small>
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    {% if log.changed_by %}
+                                        {% if log.changed_by.get_full_name %}
+                                            {{ log.changed_by.get_full_name }}
+                                        {% else %}
+                                            {{ log.changed_by.username }}
+                                        {% endif %}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    <small>
+                                        {{ log.changed_at|date:"Y/m/d h:i A" }}
+                                    </small>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="4" class="dashboard-empty">
+                                    لا توجد عمليات مسجلة.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+
+        <article class="dashboard-panel">
+            <header class="dashboard-panel-header">
+                <div>
+                    <h3>آخر طلبات الصيانة</h3>
+                    <p>الطلبات الأحدث وحالتها الحالية.</p>
+                </div>
+
+                <span class="dashboard-panel-count">
+                    {{ maintenance_open }}
+                </span>
+            </header>
+
+            <div class="dashboard-table-scroll">
+                <table class="dashboard-table">
+                    <thead>
+                        <tr>
+                            <th>الباب</th>
+                            <th>الحالة</th>
+                            <th>الأولوية</th>
+                            <th>الوقت</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for req in latest_maintenance %}
+                            <tr>
+                                <td>
+                                    باب {{ req.door_shift.door_number }}
+                                </td>
+
+                                <td>
+                                    {{ req.get_status_display }}
+                                </td>
+
+                                <td>
+                                    {{ req.get_priority_display|default:req.priority }}
+                                </td>
+
+                                <td>
+                                    <small>
+                                        {{ req.created_at|date:"Y/m/d h:i A" }}
+                                    </small>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="4" class="dashboard-empty">
+                                    لا توجد طلبات صيانة.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+    </section>
+
+
+    {% if not show_shift_dashboard %}
+    <section class="dashboard-section dashboard-panel dashboard-door-management">
+        <header class="dashboard-panel-header">
+            <div>
+                <h3>إدارة الأبواب التشغيلية</h3>
+                <p>البحث والتصفية وتعديل حالة الأبواب حسب الجهات.</p>
+            </div>
+
+            <span class="dashboard-panel-count">
+                {{ total_doors }}
+            </span>
+        </header>
+
+        <div class="dashboard-door-toolbar">
+            <input
+                id="doorSearch"
+                type="search"
+                placeholder="بحث برقم الباب أو اسم المشرف..."
+            >
+
+            <select id="doorStatusFilter">
+                <option value="all">كل الحالات</option>
+                <option value="open">مفتوح</option>
+                <option value="closed">مغلق</option>
+                <option value="maintenance">صيانة</option>
+                <option value="secured">مؤمّن</option>
+            </select>
+
+            <select id="doorDirectionFilter">
+                <option value="all">كل الجهات</option>
+
+                {% for section_key, section_title in sections.items %}
+                    <option value="{{ section_key }}">
+                        {{ section_title }}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <button
+                type="button"
+                class="app-btn app-btn-secondary"
+                id="resetDoorFilters"
+            >
+                إعادة تعيين
+            </button>
+        </div>
+
+
+        {% for section_key, section_title in sections.items %}
+            <section
+                class="dashboard-door-group"
+                data-door-group
+                data-direction="{{ section_key }}"
+            >
+                <div class="dashboard-door-group-header">
+                    <h3>{{ section_title }}</h3>
+
+                    <span class="dashboard-door-count">
+                        {{ grouped_doors|get_item:section_key|length }}
+                        باب
+                    </span>
+                </div>
+
+                <div class="dashboard-door-grid">
+                    {% for door in grouped_doors|get_item:section_key %}
+                        <article
+                            class="dashboard-door-card {{ door.state }}"
+                            data-door-card
+                            data-direction="{{ section_key }}"
+                            data-state="{{ door.state }}"
+                            data-door-number="{{ door.door_number }}"
+                            data-update-url="{% url 'ops:door-update-ajax' door.id %}"
+                            data-maintenance-url="{% url 'ops:maintenance-create-ajax' door.id %}"
+                        >
+                            <div class="dashboard-door-card-top">
+                                <strong class="dashboard-door-title">
+                                    باب {{ door.door_number }}
+                                </strong>
+
+                                <span class="dashboard-door-state">
+                                    {{ door.state_label }}
+                                </span>
+                            </div>
+
+                            <div class="dashboard-door-meta">
+                                <div>
+                                    المشرف:
+
+                                    {% if door.supervisor %}
+                                        {% if door.supervisor.full_name %}
+                                            {{ door.supervisor.full_name }}
+                                        {% else %}
+                                            {{ door.supervisor }}
+                                        {% endif %}
+                                    {% else %}
+                                        غير مسند
+                                    {% endif %}
+                                </div>
+
+                                <div>
+                                    الموظفون:
+                                    {{ door.assignments_count }}
+                                </div>
+
+                                <div>
+                                    الجهة:
+                                    {{ door.direction_label }}
+                                </div>
+                            </div>
+
+                            <div class="dashboard-door-actions">
+                                <button
+                                    type="button"
+                                    class="dashboard-door-edit"
+                                    data-edit-door
+                                >
+                                    تعديل الحالة
+                                </button>
+
+                                <button
+                                    type="button"
+                                    class="dashboard-door-maintenance"
+                                    data-maintenance-door
+                                >
+                                    طلب صيانة
+                                </button>
+                            </div>
+                        </article>
+                    {% empty %}
+                        <div class="dashboard-empty">
+                            لا توجد أبواب في هذه الجهة.
+                        </div>
+                    {% endfor %}
+                </div>
+            </section>
+        {% endfor %}
+    </section>
+    {% endif %}
+
+</section>
+
+
+{% comment %}
+=========================================================
+نافذة تعديل حالة الباب
+=========================================================
+{% endcomment %}
+
+<div
+    id="doorStatusDialog"
+    class="dashboard-dialog"
+    aria-hidden="true"
+>
+    <section
+        class="dashboard-dialog-card door-status-dialog-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="doorStatusDialogTitle"
+    >
+        <header class="dashboard-dialog-header">
+            <div class="dashboard-dialog-heading">
+                <span class="dialog-kicker">إجراء تشغيلي موثّق</span>
+                <h3 id="doorStatusDialogTitle">
+                    تعديل حالة الباب
+                </h3>
+
+                <p>
+                    يجب توضيح سبب التغيير واسم المسؤول المعتمد.
+                </p>
+            </div>
+
+            <button
+                type="button"
+                class="dashboard-dialog-close"
+                data-close-status-dialog
+                aria-label="إغلاق"
+            >
+                ×
+            </button>
+        </header>
+
+        <div class="dashboard-dialog-body">
+            <div class="door-status-context" aria-label="ملخص تغيير الحالة">
+                <div>
+                    <span>الحالة الحالية</span>
+                    <strong id="doorCurrentStateLabel">—</strong>
+                </div>
+                <span class="door-status-context-arrow" aria-hidden="true">←</span>
+                <div class="is-target">
+                    <span>الحالة بعد الاعتماد</span>
+                    <strong id="doorTargetStateLabel">—</strong>
+                </div>
+            </div>
+
+            <div
+                id="doorStatusMessage"
+                class="dashboard-dialog-message"
+                role="alert"
+            ></div>
+
+            <div class="dashboard-dialog-form">
+                <div class="dashboard-dialog-field">
+                    <label for="doorNewState">
+                        الحالة الجديدة
+                        <span class="field-required">مطلوب</span>
+                    </label>
+
+                    <select id="doorNewState">
+                        <option value="open">مفتوح</option>
+                        <option value="closed">مغلق</option>
+                        <option value="maintenance">تحت الصيانة</option>
+                        <option value="secured">مؤمّن</option>
+                    </select>
+                </div>
+
+                <div class="dashboard-dialog-field">
+                    <label for="doorChangeReason">
+                        سبب التغيير
+                        <span class="field-required">مطلوب</span>
+                    </label>
+
+                    <textarea
+                        id="doorChangeReason"
+                        maxlength="1000"
+                        placeholder="اكتب سبب تغيير حالة الباب..."
+                    ></textarea>
+                    <div class="dialog-field-meta">
+                        <small>اكتب سببًا واضحًا يمكن الرجوع إليه في سجل التدقيق.</small>
+                        <span><b id="doorReasonCount">0</b>/1000</span>
+                    </div>
+                </div>
+
+                <div class="dashboard-dialog-field">
+                    <label for="doorApprovedBy">
+                        اسم المسؤول المعتمد
+                        <span class="field-required">مطلوب</span>
+                    </label>
+
+                    <input
+                        id="doorApprovedBy"
+                        type="text"
+                        maxlength="150"
+                        placeholder="اكتب اسم المسؤول الذي اعتمد التغيير"
+                        autocomplete="name"
+                    >
+                </div>
+            </div>
+        </div>
+
+        <footer class="dashboard-dialog-footer">
+            <button
+                type="button"
+                class="dashboard-dialog-button is-cancel"
+                data-close-status-dialog
+            >
+                <span aria-hidden="true">×</span>
+                إلغاء
+            </button>
+
+            <button
+                type="button"
+                class="dashboard-dialog-button is-primary"
+                id="saveDoorStateButton"
+            >
+                <span class="button-check" aria-hidden="true">✓</span>
+                اعتماد التغيير
+            </button>
+        </footer>
+    </section>
+</div>
+
+
+{% comment %}
+=========================================================
+نافذة إنشاء طلب صيانة
+=========================================================
+{% endcomment %}
+
+<div
+    id="maintenanceDialog"
+    class="dashboard-dialog"
+    aria-hidden="true"
+>
+    <section
+        class="dashboard-dialog-card is-maintenance maintenance-dialog-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="maintenanceDialogTitle"
+    >
+        <header class="dashboard-dialog-header">
+            <div class="dashboard-dialog-heading">
+                <span class="maintenance-dialog-kicker">بلاغ صيانة تشغيلي</span>
+                <h3 id="maintenanceDialogTitle">
+                    إنشاء طلب صيانة
+                </h3>
+
+                <p>
+                    أدخل وصف المشكلة والأولوية واسم الفني عند توفره.
+                </p>
+            </div>
+
+            <button
+                type="button"
+                class="dashboard-dialog-close"
+                data-close-maintenance-dialog
+                aria-label="إغلاق"
+            >
+                ×
+            </button>
+        </header>
+
+        <div class="dashboard-dialog-body">
+            <div class="maintenance-dialog-context" aria-label="بيانات طلب الصيانة">
+                <div class="maintenance-context-icon" aria-hidden="true">⚙</div>
+                <div>
+                    <span>موقع البلاغ</span>
+                    <strong id="maintenanceDoorLabel">باب —</strong>
+                </div>
+                <span id="maintenancePriorityBadge" class="maintenance-priority-badge is-medium">أولوية متوسطة</span>
+            </div>
+
+            <div
+                id="maintenanceDialogMessage"
+                class="dashboard-dialog-message"
+                role="alert"
+            ></div>
+
+            <div class="dashboard-dialog-form">
+                <div class="dashboard-dialog-field">
+                    <label for="maintenancePriority">
+                        أولوية الطلب
+                        <span class="field-required">مطلوب</span>
+                    </label>
+
+                    <select id="maintenancePriority">
+                        <option value="low">منخفضة</option>
+                        <option value="medium" selected>متوسطة</option>
+                        <option value="high">عالية</option>
+                        <option value="urgent">عاجلة</option>
+                    </select>
+                </div>
+
+                <div class="dashboard-dialog-field">
+                    <label for="maintenanceDescription">
+                        وصف المشكلة
+                        <span class="field-required">مطلوب</span>
+                    </label>
+
+                    <textarea
+                        id="maintenanceDescription"
+                        maxlength="2000"
+                        placeholder="اكتب وصفًا واضحًا لمشكلة الباب..."
+                    ></textarea>
+
+                    <div class="maintenance-field-meta">
+                        <small>وضّح العطل وموقعه وأثره التشغيلي لفريق الصيانة.</small>
+                        <span><b id="maintenanceDescriptionCount">0</b>/2000</span>
+                    </div>
+                </div>
+
+                <div class="dashboard-dialog-field">
+                    <label for="maintenanceTechnician">
+                        اسم الفني
+                        <span class="field-optional">اختياري</span>
+                    </label>
+
+                    <input
+                        id="maintenanceTechnician"
+                        type="text"
+                        maxlength="150"
+                        placeholder="اختياري"
+                    >
+
+                    <small class="dashboard-dialog-help">
+                        يمكن ترك الحقل فارغًا إذا لم يتم تحديد الفني بعد.
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <footer class="dashboard-dialog-footer">
+            <button
+                type="button"
+                class="dashboard-dialog-button is-cancel"
+                data-close-maintenance-dialog
+            >
+                <span aria-hidden="true">×</span>
+                إلغاء
+            </button>
+
+            <button
+                type="button"
+                class="dashboard-dialog-button is-maintenance"
+                id="createMaintenanceButton"
+            >
+                <span class="maintenance-button-icon" aria-hidden="true">＋</span>
+                <span id="createMaintenanceButtonLabel">إنشاء طلب الصيانة</span>
+            </button>
+        </footer>
+    </section>
+</div>
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+(function () {
+    "use strict";
+
+    const searchInput =
+        document.getElementById("doorSearch");
+
+    const statusFilter =
+        document.getElementById("doorStatusFilter");
+
+    const directionFilter =
+        document.getElementById("doorDirectionFilter");
+
+    const resetDoorFilters =
+        document.getElementById("resetDoorFilters");
+
+    const statusDialog =
+        document.getElementById("doorStatusDialog");
+
+    const statusDialogTitle =
+        document.getElementById("doorStatusDialogTitle");
+
+    const statusMessage =
+        document.getElementById("doorStatusMessage");
+
+    const stateField =
+        document.getElementById("doorNewState");
+
+    const reasonField =
+        document.getElementById("doorChangeReason");
+
+    const approvedField =
+        document.getElementById("doorApprovedBy");
+
+    const saveDoorStateButton =
+        document.getElementById("saveDoorStateButton");
+
+    const currentStateLabel =
+        document.getElementById("doorCurrentStateLabel");
+
+    const targetStateLabel =
+        document.getElementById("doorTargetStateLabel");
+
+    const reasonCount =
+        document.getElementById("doorReasonCount");
+
+    const maintenanceDialog =
+        document.getElementById("maintenanceDialog");
+
+    const maintenanceDialogTitle =
+        document.getElementById("maintenanceDialogTitle");
+
+    const maintenanceMessage =
+        document.getElementById("maintenanceDialogMessage");
+
+    const maintenancePriority =
+        document.getElementById("maintenancePriority");
+
+    const maintenanceDescription =
+        document.getElementById("maintenanceDescription");
+
+    const maintenanceTechnician =
+        document.getElementById("maintenanceTechnician");
+
+    const createMaintenanceButton =
+        document.getElementById("createMaintenanceButton");
+
+    const createMaintenanceButtonLabel =
+        document.getElementById("createMaintenanceButtonLabel");
+
+    const maintenanceDoorLabel =
+        document.getElementById("maintenanceDoorLabel");
+
+    const maintenancePriorityBadge =
+        document.getElementById("maintenancePriorityBadge");
+
+    const maintenanceDescriptionCount =
+        document.getElementById("maintenanceDescriptionCount");
+
+    let activeStatusCard = null;
+    let activeMaintenanceCard = null;
+
+
+    function getCookie(name) {
+        if (
+            window.AbwaabApp &&
+            typeof window.AbwaabApp.getCookie === "function"
+        ) {
+            const appCookie = window.AbwaabApp.getCookie(name) || "";
+
+            if (appCookie) {
+                return appCookie;
+            }
+        }
+
+        const cookie = document.cookie
+            .split(";")
+            .map((item) => item.trim())
+            .find((item) => item.startsWith(`${name}=`));
+
+        if (!cookie) {
+            if (name === "csrftoken") {
+                const metaToken = document
+                    .querySelector('meta[name="csrf-token"]')
+                    ?.getAttribute("content");
+
+                return metaToken && metaToken !== "NOTPROVIDED"
+                    ? metaToken
+                    : "";
+            }
+
+            return "";
+        }
+
+        return decodeURIComponent(
+            cookie
+                .split("=")
+                .slice(1)
+                .join("=")
+        );
+    }
+
+
+    function showToast(message, type = "info") {
+        if (typeof window.showToast === "function") {
+            window.showToast(message, {
+                type: type,
+            });
+
+            return;
+        }
+
+        window.alert(message);
+    }
+
+
+    function showDialogMessage(
+        element,
+        message,
+        type = "danger"
+    ) {
+        if (!element) {
+            return;
+        }
+
+        element.className = [
+            "dashboard-dialog-message",
+            "is-visible",
+            type,
+        ].join(" ");
+
+        element.textContent = message;
+    }
+
+
+    function clearDialogMessage(element) {
+        if (!element) {
+            return;
+        }
+
+        element.className =
+            "dashboard-dialog-message";
+
+        element.textContent = "";
+    }
+
+
+    function openDialog(dialog) {
+        if (!dialog) {
+            return;
+        }
+
+        dialog.classList.add("is-open");
+
+        dialog.setAttribute(
+            "aria-hidden",
+            "false"
+        );
+
+        document.body.classList.add(
+            "app-overlay-open"
+        );
+    }
+
+
+    function closeDialog(dialog) {
+        if (!dialog) {
+            return;
+        }
+
+        dialog.classList.remove("is-open");
+
+        dialog.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+
+        if (
+            !document.querySelector(
+                ".dashboard-dialog.is-open"
+            )
+        ) {
+            document.body.classList.remove(
+                "app-overlay-open"
+            );
+        }
+    }
+
+
+    async function parseJsonResponse(response) {
+        const contentType =
+            response.headers.get("content-type") || "";
+
+        if (
+            !contentType.includes(
+                "application/json"
+            )
+        ) {
+            if (response.status === 403) {
+                throw new Error(
+                    "تعذر التحقق من أمان الطلب. حدّث الصفحة ثم أعد المحاولة."
+                );
+            }
+
+            if (response.status === 401 || response.redirected) {
+                throw new Error(
+                    "انتهت جلسة الدخول. حدّث الصفحة وسجّل الدخول مجددًا."
+                );
+            }
+
+            if (response.status === 404) {
+                throw new Error(
+                    "لم يعد سجل الباب مرتبطًا بالوردية النشطة. حدّث الصفحة."
+                );
+            }
+
+            throw new Error(
+                "تعذر إكمال الطلب بسبب استجابة غير متوقعة من الخادم."
+            );
+        }
+
+        const data =
+            await response.json();
+
+        if (
+            !response.ok ||
+            data.success === false
+        ) {
+            throw new Error(
+                data.error ||
+                data.message ||
+                "تعذر تنفيذ العملية."
+            );
+        }
+
+        return data;
+    }
+
+
+    function updateDoorCardState(
+        card,
+        state,
+        label
+    ) {
+        if (!card) {
+            return;
+        }
+
+        card.classList.remove(
+            "open",
+            "closed",
+            "maintenance",
+            "secured"
+        );
+
+        card.classList.add(state);
+
+        card.dataset.state = state;
+
+        const stateElement =
+            card.querySelector(
+                ".dashboard-door-state"
+            );
+
+        if (stateElement) {
+            stateElement.textContent = label;
+        }
+    }
+
+
+    function applyDoorFilters() {
+        const search = (
+            searchInput?.value || ""
+        )
+            .trim()
+            .toLowerCase();
+
+        const state =
+            statusFilter?.value || "all";
+
+        const direction =
+            directionFilter?.value || "all";
+
+        document
+            .querySelectorAll("[data-door-card]")
+            .forEach((card) => {
+                const matchesSearch =
+                    !search ||
+                    card.innerText
+                        .toLowerCase()
+                        .includes(search);
+
+                const matchesState =
+                    state === "all" ||
+                    card.dataset.state === state;
+
+                const matchesDirection =
+                    direction === "all" ||
+                    card.dataset.direction === direction;
+
+                card.hidden = !(
+                    matchesSearch &&
+                    matchesState &&
+                    matchesDirection
+                );
+            });
+
+        document
+            .querySelectorAll("[data-door-group]")
+            .forEach((group) => {
+                const visibleDoorExists =
+                    Array.from(
+                        group.querySelectorAll(
+                            "[data-door-card]"
+                        )
+                    ).some((card) => !card.hidden);
+
+                group.hidden =
+                    !visibleDoorExists;
+            });
+    }
+
+
+    function openStatusDialog(card) {
+        if (!card) {
+            return;
+        }
+
+        activeStatusCard = card;
+
+        const doorNumber =
+            card.dataset.doorNumber || "";
+
+        statusDialogTitle.textContent =
+            `تعديل حالة باب ${doorNumber}`;
+
+        stateField.value =
+            card.dataset.state || "closed";
+
+        const visibleState = card.querySelector(".dashboard-door-state");
+        currentStateLabel.textContent = visibleState?.textContent.trim() || "غير محددة";
+        targetStateLabel.textContent = stateField.options[stateField.selectedIndex]?.text || "—";
+
+        reasonField.value = "";
+        approvedField.value = "";
+        reasonCount.textContent = "0";
+
+        clearDialogMessage(statusMessage);
+        openDialog(statusDialog);
+
+        window.setTimeout(() => {
+            stateField.focus();
+        }, 100);
+    }
+
+
+    function closeStatusDialog() {
+        closeDialog(statusDialog);
+
+        activeStatusCard = null;
+
+        clearDialogMessage(statusMessage);
+    }
+
+
+    async function saveDoorState() {
+        if (!activeStatusCard) {
+            return;
+        }
+
+        const reason =
+            reasonField.value.trim();
+
+        const approvedBy =
+            approvedField.value.trim();
+
+        if (!reason) {
+            showDialogMessage(
+                statusMessage,
+                "يرجى كتابة سبب تغيير الحالة.",
+                "warning"
+            );
+
+            reasonField.focus();
+
+            return;
+        }
+
+        if (!approvedBy) {
+            showDialogMessage(
+                statusMessage,
+                "يرجى كتابة اسم المسؤول المعتمد.",
+                "warning"
+            );
+
+            approvedField.focus();
+
+            return;
+        }
+
+        const formData =
+            new FormData();
+
+        formData.append(
+            "state",
+            stateField.value
+        );
+
+        formData.append(
+            "reason",
+            reason
+        );
+
+        formData.append(
+            "approved_by",
+            approvedBy
+        );
+
+        saveDoorStateButton.disabled = true;
+
+        clearDialogMessage(statusMessage);
+
+        try {
+            const response =
+                await fetch(
+                    activeStatusCard.dataset.updateUrl,
+                    {
+                        method: "POST",
+
+                        credentials: "same-origin",
+
+                        headers: {
+                            "X-CSRFToken":
+                                getCookie("csrftoken"),
+
+                            "X-Requested-With":
+                                "XMLHttpRequest",
+                        },
+
+                        body: formData,
+                    }
+                );
+
+            const data =
+                await parseJsonResponse(response);
+
+            const newState =
+                data.door?.state ||
+                stateField.value;
+
+            const newLabel =
+                data.door?.state_label ||
+                stateField.options[
+                    stateField.selectedIndex
+                ].text;
+
+            updateDoorCardState(
+                activeStatusCard,
+                newState,
+                newLabel
+            );
+
+            showToast(
+                data.message ||
+                "تم تحديث حالة الباب بنجاح.",
+                "success"
+            );
+
+            closeStatusDialog();
+            applyDoorFilters();
+        } catch (error) {
+            showDialogMessage(
+                statusMessage,
+                error.message ||
+                "تعذر تحديث حالة الباب.",
+                "danger"
+            );
+        } finally {
+            saveDoorStateButton.disabled = false;
+        }
+    }
+
+
+    function openMaintenanceDialog(card) {
+        if (!card) {
+            return;
+        }
+
+        activeMaintenanceCard = card;
+
+        const doorNumber =
+            card.dataset.doorNumber || "";
+
+        maintenanceDialogTitle.textContent =
+            `إنشاء طلب صيانة لباب ${doorNumber}`;
+
+        maintenancePriority.value = "medium";
+        maintenanceDescription.value = "";
+        maintenanceTechnician.value = "";
+        maintenanceDoorLabel.textContent = `باب ${doorNumber}`;
+        maintenanceDescriptionCount.textContent = "0";
+        updateMaintenancePriorityBadge();
+
+        clearDialogMessage(
+            maintenanceMessage
+        );
+
+        openDialog(maintenanceDialog);
+
+        window.setTimeout(() => {
+            maintenanceDescription.focus();
+        }, 100);
+    }
+
+
+    function closeMaintenanceDialog() {
+        closeDialog(maintenanceDialog);
+
+        activeMaintenanceCard = null;
+
+        clearDialogMessage(
+            maintenanceMessage
+        );
+    }
+
+
+    async function createMaintenanceRequest() {
+        if (!activeMaintenanceCard) {
+            return;
+        }
+
+        const description =
+            maintenanceDescription
+                .value
+                .trim();
+
+        const priority =
+            maintenancePriority.value;
+
+        const technicianName =
+            maintenanceTechnician
+                .value
+                .trim();
+
+        if (!description) {
+            showDialogMessage(
+                maintenanceMessage,
+                "يرجى كتابة وصف مشكلة الصيانة.",
+                "warning"
+            );
+
+            maintenanceDescription.focus();
+
+            return;
+        }
+
+        const formData =
+            new FormData();
+
+        formData.append(
+            "description",
+            description
+        );
+
+        formData.append(
+            "priority",
+            priority
+        );
+
+        formData.append(
+            "technician_name",
+            technicianName
+        );
+
+        createMaintenanceButton.disabled = true;
+        createMaintenanceButton.classList.add("is-loading");
+        createMaintenanceButtonLabel.textContent = "جارٍ إنشاء الطلب...";
+
+        clearDialogMessage(
+            maintenanceMessage
+        );
+
+        try {
+            const response =
+                await fetch(
+                    activeMaintenanceCard
+                        .dataset
+                        .maintenanceUrl,
+                    {
+                        method: "POST",
+
+                        credentials: "same-origin",
+
+                        headers: {
+                            "X-CSRFToken":
+                                getCookie("csrftoken"),
+
+                            "X-Requested-With":
+                                "XMLHttpRequest",
+                        },
+
+                        body: formData,
+                    }
+                );
+
+            const data =
+                await parseJsonResponse(response);
+
+            updateDoorCardState(
+                activeMaintenanceCard,
+                "maintenance",
+                "تحت الصيانة"
+            );
+
+            const requestNumber =
+                data.maintenance
+                    ?.request_number;
+
+            showToast(
+                requestNumber
+                    ? `تم إنشاء طلب الصيانة رقم ${requestNumber}.`
+                    : "تم إنشاء طلب الصيانة بنجاح.",
+                "success"
+            );
+
+            closeMaintenanceDialog();
+            applyDoorFilters();
+        } catch (error) {
+            showDialogMessage(
+                maintenanceMessage,
+                error.message ||
+                "تعذر إنشاء طلب الصيانة.",
+                "danger"
+            );
+        } finally {
+            createMaintenanceButton.disabled = false;
+            createMaintenanceButton.classList.remove("is-loading");
+            createMaintenanceButtonLabel.textContent = "إنشاء طلب الصيانة";
+        }
+    }
+
+    function updateMaintenancePriorityBadge() {
+        const labels = {
+            low: "أولوية منخفضة",
+            medium: "أولوية متوسطة",
+            high: "أولوية عالية",
+            urgent: "أولوية عاجلة",
+        };
+        const priority = maintenancePriority?.value || "medium";
+        maintenancePriorityBadge.textContent = labels[priority];
+        maintenancePriorityBadge.className = `maintenance-priority-badge is-${priority}`;
+    }
+
+
+    document
+        .querySelectorAll("[data-edit-door]")
+        .forEach((button) => {
+            button.addEventListener(
+                "click",
+                () => {
+                    openStatusDialog(
+                        button.closest(
+                            "[data-door-card]"
+                        )
+                    );
+                }
+            );
+        });
+
+
+    document
+        .querySelectorAll("[data-maintenance-door]")
+        .forEach((button) => {
+            button.addEventListener(
+                "click",
+                () => {
+                    openMaintenanceDialog(
+                        button.closest(
+                            "[data-door-card]"
+                        )
+                    );
+                }
+            );
+        });
+
+
+    document
+        .querySelectorAll(
+            "[data-close-status-dialog]"
+        )
+        .forEach((button) => {
+            button.addEventListener(
+                "click",
+                closeStatusDialog
+            );
+        });
+
+
+    document
+        .querySelectorAll(
+            "[data-close-maintenance-dialog]"
+        )
+        .forEach((button) => {
+            button.addEventListener(
+                "click",
+                closeMaintenanceDialog
+            );
+        });
+
+
+    statusDialog?.addEventListener(
+        "click",
+        (event) => {
+            if (event.target === statusDialog) {
+                closeStatusDialog();
+            }
+        }
+    );
+
+
+    maintenanceDialog?.addEventListener(
+        "click",
+        (event) => {
+            if (
+                event.target ===
+                maintenanceDialog
+            ) {
+                closeMaintenanceDialog();
+            }
+        }
+    );
+
+
+    document.addEventListener(
+        "keydown",
+        (event) => {
+            if (event.key !== "Escape") {
+                return;
+            }
+
+            if (
+                statusDialog
+                    ?.classList
+                    .contains("is-open")
+            ) {
+                closeStatusDialog();
+            }
+
+            if (
+                maintenanceDialog
+                    ?.classList
+                    .contains("is-open")
+            ) {
+                closeMaintenanceDialog();
+            }
+        }
+    );
+
+
+    saveDoorStateButton?.addEventListener(
+        "click",
+        saveDoorState
+    );
+
+    stateField?.addEventListener("change", () => {
+        targetStateLabel.textContent =
+            stateField.options[stateField.selectedIndex]?.text || "—";
+    });
+
+    reasonField?.addEventListener("input", () => {
+        reasonCount.textContent = String(reasonField.value.length);
+    });
+
+    maintenancePriority?.addEventListener("change", updateMaintenancePriorityBadge);
+
+    maintenanceDescription?.addEventListener("input", () => {
+        maintenanceDescriptionCount.textContent =
+            String(maintenanceDescription.value.length);
+    });
+
+
+    createMaintenanceButton?.addEventListener(
+        "click",
+        createMaintenanceRequest
+    );
+
+
+    searchInput?.addEventListener(
+        "input",
+        applyDoorFilters
+    );
+
+
+    statusFilter?.addEventListener(
+        "change",
+        applyDoorFilters
+    );
+
+
+    directionFilter?.addEventListener(
+        "change",
+        applyDoorFilters
+    );
+
+
+    resetDoorFilters?.addEventListener(
+        "click",
+        () => {
+            searchInput.value = "";
+            statusFilter.value = "all";
+            directionFilter.value = "all";
+
+            applyDoorFilters();
+        }
+    );
+})();
+</script>
+{% endblock %}

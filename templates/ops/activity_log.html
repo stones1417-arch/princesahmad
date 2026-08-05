@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}سجل العمليات المباشرة{% endblock %}
+{% block content %}
+<div class="ops-log-page" dir="rtl">
+  <div class="ops-log-head enterprise-log-head">
+    <div>
+      <span class="log-eyebrow">الحوكمة والتدقيق التشغيلي</span>
+      <h1>سجل العمليات المباشرة</h1>
+      <p>سجل مركزي موثق لجميع عمليات الأبواب والصيانة والبلاغات والتوزيع الميداني.</p>
+    </div>
+    <div class="log-head-actions"><a href="{% url 'ops:operations-center' %}">مركز العمليات</a><a class="export" href="{% url 'ops:activity-log-export' %}?q={{ q|urlencode }}&module={{ selected_module|urlencode }}&action={{ selected_action|urlencode }}&user={{ selected_user|urlencode }}&date_from={{ date_from }}&date_to={{ date_to }}">تصدير Excel</a></div>
+  </div>
+
+  <div class="ops-log-stats">
+    <article><span>الإجمالي</span><strong>{{ total_logs }}</strong></article>
+    <article><span>عمليات اليوم</span><strong>{{ today_logs }}</strong></article>
+    <article><span>الأبواب</span><strong>{{ door_logs }}</strong></article>
+    <article><span>الصيانة</span><strong>{{ maintenance_logs }}</strong></article>
+    <article><span>البلاغات</span><strong>{{ incident_logs }}</strong></article>
+    <article><span>التوزيع</span><strong>{{ distribution_logs }}</strong></article>
+    <article><span>مستخدمون نشطون اليوم</span><strong>{{ active_users_today }}</strong></article>
+  </div>
+
+  <form method="get" class="ops-log-filter">
+    <input name="q" value="{{ q }}" placeholder="بحث في الوصف أو المستخدم أو IP">
+
+    <select name="module">
+      <option value="">كل الأقسام</option>
+      {% for item in module_choices %}
+        <option value="{{ item }}" {% if selected_module == item %}selected{% endif %}>{{ item }}</option>
+      {% endfor %}
+    </select>
+
+    <select name="action">
+      <option value="">كل العمليات</option>
+      {% for value, label in action_choices %}
+        <option value="{{ value }}" {% if selected_action == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+
+    <select name="user">
+      <option value="">كل المستخدمين</option>
+      {% for item in operational_users %}
+        <option value="{{ item.user_id }}" {% if selected_user == item.user_id|stringformat:"s" %}selected{% endif %}>
+          {% if item.user__first_name or item.user__last_name %}
+            {{ item.user__first_name }} {{ item.user__last_name }}
+          {% else %}
+            {{ item.user__username }}
+          {% endif %}
+        </option>
+      {% endfor %}
+    </select>
+
+    <input type="date" name="date_from" value="{{ date_from }}">
+    <input type="date" name="date_to" value="{{ date_to }}">
+
+    <button type="submit">تطبيق</button>
+    <a href="{% url 'ops:activity-log' %}">إعادة تعيين</a>
+  </form>
+
+  <div class="ops-log-table-wrap">
+    <div class="table-summary"><div><strong>سجل الإجراءات</strong><span>النتائج المطابقة للفلاتر المحددة</span></div><b>{{ filtered_logs_count }} نتيجة</b></div>
+    <table class="ops-log-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>التاريخ</th>
+          <th>القسم</th>
+          <th>العملية</th>
+          <th>الوصف</th>
+          <th>المستخدم</th>
+          <th>IP</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+          <tr>
+            <td><span class="row-number">{{ forloop.counter0|add:page_obj.start_index }}</span></td>
+            <td><div class="date-cell"><strong>{{ log.created_at|date:"Y-m-d" }}</strong><small>{{ log.created_at|date:"H:i:s" }}</small></div></td>
+            <td><span class="module-badge module-{{ log.module|slugify }}">{{ log.module }}</span></td>
+            <td><span class="action-badge {{ log.action }}">{{ log.get_action_display }}</span></td>
+            <td class="description">{{ log.description }}</td>
+            <td>
+              {% if log.user %}
+                <div class="user-cell"><i>{% if log.user.first_name %}{{ log.user.first_name|slice:":1" }}{% else %}{{ log.user.username|slice:":1"|upper }}{% endif %}</i><span><strong>{% if log.user.get_full_name %}{{ log.user.get_full_name }}{% else %}{{ log.user.username }}{% endif %}</strong><small>{{ log.user.username }}</small></span></div>
+              {% else %}
+                <div class="user-cell system"><i>ن</i><span><strong>النظام</strong><small>إجراء آلي</small></span></div>
+              {% endif %}
+            </td>
+            <td>{{ log.ip_address|default:"—" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="empty">لا توجد عمليات مطابقة للفلاتر المحددة.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page_obj.paginator.num_pages > 1 %}
+    <div class="ops-pagination">
+      {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}&q={{ q|urlencode }}&module={{ selected_module|urlencode }}&action={{ selected_action|urlencode }}&user={{ selected_user|urlencode }}&date_from={{ date_from }}&date_to={{ date_to }}">السابق</a>
+      {% endif %}
+      <span>صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}&q={{ q|urlencode }}&module={{ selected_module|urlencode }}&action={{ selected_action|urlencode }}&user={{ selected_user|urlencode }}&date_from={{ date_from }}&date_to={{ date_to }}">التالي</a>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+
+<style>
+.ops-log-page{padding:28px 36px 80px;background:var(--background)}
+.ops-log-head{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-bottom:22px}
+.ops-log-head h1{margin:0;color:var(--green-dark);font-size:30px;font-weight:900}
+.ops-log-head p{margin:7px 0 0;color:var(--muted)}
+.ops-log-head>a{padding:13px 17px;border-radius:13px;background:var(--green);color:#fff;text-decoration:none;font-weight:900}
+.enterprise-log-head{padding:28px 30px;border-radius:24px;background:linear-gradient(125deg,#064e3b,#0b7658);color:#fff;box-shadow:0 18px 44px rgba(6,78,59,.18)}.enterprise-log-head h1{color:#fff}.enterprise-log-head p{color:#d5eee5}.log-eyebrow{color:#d9c275;font-size:11px;font-weight:900}.log-head-actions{display:flex;gap:8px;flex-wrap:wrap}.ops-log-head .log-head-actions a{background:#fff;color:#075c45}.ops-log-head .log-head-actions a.export{background:#c5a34d;color:#17231e}
+.ops-log-stats{display:grid;grid-template-columns:repeat(7,1fr);gap:13px;margin:20px 0}
+.ops-log-stats article{padding:17px;background:var(--surface);border:1px solid var(--border);border-radius:18px}
+.ops-log-stats span{display:block;color:var(--muted);font-size:11px;font-weight:800}
+.ops-log-stats strong{display:block;margin-top:8px;color:var(--green);font-size:28px}
+.ops-log-filter{display:grid;grid-template-columns:2fr repeat(5,1fr) auto auto;gap:10px;padding:18px;margin-bottom:20px;background:var(--surface);border:1px solid var(--border);border-radius:18px}
+.ops-log-filter input,.ops-log-filter select{min-height:44px;padding:0 11px;border:1px solid var(--border);border-radius:11px;background:var(--surface);color:var(--text)}
+.ops-log-filter button,.ops-log-filter>a{min-height:44px;padding:0 14px;display:flex;align-items:center;justify-content:center;border:0;border-radius:11px;text-decoration:none;font-weight:900}
+.ops-log-filter button{background:var(--green);color:#fff}.ops-log-filter>a{background:#f3f4f6;color:#111827}
+.ops-log-table-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--border);border-radius:18px}.table-summary{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:17px 20px;border-bottom:1px solid var(--border)}.table-summary strong,.table-summary span{display:block}.table-summary span{margin-top:3px;color:var(--muted);font-size:10px}.table-summary>b{padding:7px 11px;border-radius:20px;background:var(--green-light);color:var(--green-dark);font-size:11px}.row-number{display:grid;place-items:center;width:28px;height:28px;margin:auto;border-radius:9px;background:#edf5f1;color:#0b6b50;font-size:10px;font-weight:900}.date-cell strong,.date-cell small{display:block;white-space:nowrap}.date-cell small{margin-top:3px;color:var(--muted);font-size:10px}.user-cell{display:flex;align-items:center;gap:8px;text-align:right}.user-cell>i{display:grid;place-items:center;width:32px;height:32px;flex:0 0 32px;border-radius:10px;background:#e5f2ec;color:#0b6b50;font-style:normal;font-weight:900}.user-cell span,.user-cell strong,.user-cell small{display:block}.user-cell small{color:var(--muted);font-size:9px;margin-top:2px}.user-cell.system>i{background:#eceff1;color:#55615b}
+.ops-log-table{width:100%;min-width:1050px;border-collapse:collapse}
+.ops-log-table th{padding:14px;background:var(--green);color:#fff;text-align:center}
+.ops-log-table td{padding:14px;border-bottom:1px solid var(--border);text-align:center;color:var(--text)}
+.ops-log-table tr:nth-child(even){background:var(--surface-soft)}
+.ops-log-table .description{text-align:right;min-width:320px;line-height:1.7}
+.module-badge,.action-badge{padding:6px 10px;border-radius:999px;font-size:11px;font-weight:900}
+.module-badge{background:var(--green-light);color:var(--green-dark)}
+.action-badge.create{background:#dcfce7;color:#166534}.action-badge.update{background:#dbeafe;color:#1d4ed8}.action-badge.delete{background:#fee2e2;color:#991b1b}.action-badge.export{background:#ede9fe;color:#6d28d9}.action-badge.approve{background:#fef3c7;color:#92400e}.action-badge.other{background:#f1f5f9;color:#475569}
+.empty{padding:35px!important;color:var(--muted)!important;font-weight:900}
+.ops-pagination{display:flex;justify-content:center;align-items:center;gap:10px;margin-top:18px}
+.ops-pagination a,.ops-pagination span{padding:10px 14px;border-radius:10px;text-decoration:none;font-weight:900}
+.ops-pagination a{background:var(--green);color:#fff}.ops-pagination span{background:var(--surface);border:1px solid var(--border)}
+@media(max-width:1200px){.ops-log-stats{grid-template-columns:repeat(3,1fr)}.ops-log-filter{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:700px){.ops-log-page{padding:20px 14px 70px}.ops-log-head{align-items:flex-start;flex-direction:column}.ops-log-stats,.ops-log-filter{grid-template-columns:1fr}}
+</style>
+{% endblock %}

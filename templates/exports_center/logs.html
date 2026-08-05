@@ -1,0 +1,1603 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+    سجل عمليات التصدير
+{% endblock %}
+
+{% block extra_css %}
+<link
+    rel="stylesheet"
+    href="{% static 'css/exports_center/exports-center.css' %}?v=20260726-16"
+>
+
+<style>
+    .xel-page,
+    .xel-page * {
+        box-sizing: border-box;
+    }
+
+    .xel-page {
+        --xel-green: #087457;
+        --xel-green-dark: #05503f;
+        --xel-green-deep: #043c31;
+        --xel-green-soft: #eaf7f2;
+        --xel-green-pale: #f6fcf9;
+        --xel-gold: #d4aa45;
+        --xel-gold-soft: #fff8e7;
+        --xel-red: #df3e3e;
+        --xel-red-soft: #fff1f1;
+        --xel-purple: #7043ce;
+        --xel-purple-soft: #f4f0ff;
+        --xel-blue: #397bd5;
+        --xel-text: #14261f;
+        --xel-muted: #78847f;
+        --xel-border: #dce7e2;
+        --xel-white: #ffffff;
+        --xel-background: #f6f9f8;
+
+        min-height: calc(100vh - 80px);
+        padding: 16px;
+
+        direction: rtl;
+        color: var(--xel-text);
+
+        background:
+            radial-gradient(
+                circle at 8% 10%,
+                rgba(8, 116, 87, 0.055),
+                transparent 26%
+            ),
+            linear-gradient(
+                180deg,
+                #ffffff 0%,
+                var(--xel-background) 100%
+            );
+    }
+
+    /* =========================================================
+       رأس الصفحة
+    ========================================================= */
+
+    .xel-hero {
+        position: relative;
+        min-height: 205px;
+        padding: 30px 38px;
+        margin-bottom: 16px;
+
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 30px;
+
+        overflow: hidden;
+
+        border: 1px solid var(--xel-border);
+        border-radius: 21px;
+
+        background:
+            linear-gradient(
+                105deg,
+                #ffffff 0%,
+                #ffffff 59%,
+                #f1f9f5 59.2%,
+                #e8f5ef 100%
+            );
+
+        box-shadow:
+            0 16px 38px
+            rgba(18, 52, 41, 0.075);
+    }
+
+    .xel-hero::before {
+        content: "";
+
+        position: absolute;
+        top: -190px;
+        left: -110px;
+
+        width: 500px;
+        height: 500px;
+
+        border: 4px solid
+            rgba(212, 170, 69, 0.78);
+
+        border-radius: 50%;
+
+        background:
+            linear-gradient(
+                145deg,
+                var(--xel-green),
+                var(--xel-green-dark)
+            );
+    }
+
+    .xel-hero::after {
+        content: "";
+
+        position: absolute;
+        inset: 0;
+
+        opacity: 0.18;
+
+        background-image:
+            radial-gradient(
+                circle,
+                var(--xel-green) 1px,
+                transparent 1.5px
+            );
+
+        background-size: 18px 18px;
+
+        mask-image:
+            linear-gradient(
+                90deg,
+                #000 0%,
+                transparent 46%
+            );
+
+        pointer-events: none;
+    }
+
+    .xel-hero-content {
+        position: relative;
+        z-index: 3;
+
+        flex: 1;
+        max-width: 780px;
+    }
+
+    .xel-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+
+        margin-bottom: 9px;
+
+        color: var(--xel-green);
+
+        font-size: 11px;
+        font-weight: 900;
+    }
+
+    .xel-eyebrow-icon {
+        width: 29px;
+        height: 29px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 8px;
+
+        color: var(--xel-green);
+        background: var(--xel-green-soft);
+    }
+
+    .xel-eyebrow-icon svg {
+        width: 16px;
+        height: 16px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .xel-hero h1 {
+        margin: 0;
+
+        color: var(--xel-text);
+
+        font-size: clamp(
+            32px,
+            3.6vw,
+            47px
+        );
+
+        line-height: 1.2;
+    }
+
+    .xel-hero p {
+        max-width: 690px;
+        margin: 10px 0 0;
+
+        color: var(--xel-muted);
+
+        font-size: 13px;
+        line-height: 1.9;
+    }
+
+    .xel-hero-actions {
+        position: relative;
+        z-index: 3;
+
+        flex: 0 0 auto;
+
+        display: flex;
+        align-items: center;
+        gap: 9px;
+    }
+
+    .xel-back-button,
+    .xel-dashboard-button {
+        min-height: 43px;
+        padding: 0 17px;
+
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+
+        border-radius: 11px;
+
+        font-size: 10px;
+        font-weight: 900;
+
+        text-decoration: none;
+
+        transition:
+            transform 0.18s ease,
+            box-shadow 0.18s ease;
+    }
+
+    .xel-back-button {
+        color: var(--xel-green);
+
+        border: 1px solid #b9dccf;
+        background: var(--xel-white);
+    }
+
+    .xel-dashboard-button {
+        color: var(--xel-white);
+
+        border: 1px solid var(--xel-green);
+
+        background:
+            linear-gradient(
+                135deg,
+                var(--xel-green),
+                var(--xel-green-dark)
+            );
+
+        box-shadow:
+            0 8px 19px
+            rgba(8, 116, 87, 0.18);
+    }
+
+    .xel-back-button:hover,
+    .xel-dashboard-button:hover {
+        transform: translateY(-2px);
+    }
+
+    .xel-back-button svg,
+    .xel-dashboard-button svg {
+        width: 16px;
+        height: 16px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    /* =========================================================
+       المؤشرات
+    ========================================================= */
+
+    .xel-stats {
+        margin-bottom: 16px;
+
+        display: grid;
+        grid-template-columns:
+            repeat(4, minmax(0, 1fr));
+
+        gap: 12px;
+    }
+
+    .xel-stat {
+        min-width: 0;
+        min-height: 92px;
+        padding: 16px 17px;
+
+        display: flex;
+        align-items: center;
+        gap: 13px;
+
+        border: 1px solid var(--xel-border);
+        border-radius: 15px;
+
+        background: var(--xel-white);
+
+        box-shadow:
+            0 8px 24px
+            rgba(18, 52, 41, 0.055);
+    }
+
+    .xel-stat.featured {
+        color: #ffffff;
+
+        border-color: var(--xel-green);
+
+        background:
+            radial-gradient(
+                circle at 15% 20%,
+                rgba(255, 255, 255, 0.1),
+                transparent 30%
+            ),
+            linear-gradient(
+                145deg,
+                var(--xel-green),
+                var(--xel-green-dark)
+            );
+    }
+
+    .xel-stat-icon {
+        flex: 0 0 48px;
+
+        width: 48px;
+        height: 48px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 14px;
+
+        color: var(--xel-green);
+        background: var(--xel-green-soft);
+    }
+
+    .xel-stat.featured .xel-stat-icon {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.14);
+    }
+
+    .xel-stat-icon.pdf {
+        color: var(--xel-red);
+        background: var(--xel-red-soft);
+    }
+
+    .xel-stat-icon.excel {
+        color: var(--xel-green);
+        background: var(--xel-green-soft);
+    }
+
+    .xel-stat-icon.csv {
+        color: var(--xel-purple);
+        background: var(--xel-purple-soft);
+    }
+
+    .xel-stat-icon svg {
+        width: 24px;
+        height: 24px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .xel-stat-content {
+        min-width: 0;
+    }
+
+    .xel-stat-content small,
+    .xel-stat-content strong {
+        display: block;
+    }
+
+    .xel-stat-content small {
+        color: var(--xel-muted);
+        font-size: 9px;
+        font-weight: 900;
+    }
+
+    .xel-stat.featured .xel-stat-content small {
+        color: rgba(255, 255, 255, 0.77);
+    }
+
+    .xel-stat-content strong {
+        margin-top: 5px;
+
+        color: var(--xel-text);
+        font-size: 25px;
+        line-height: 1;
+    }
+
+    .xel-stat.featured .xel-stat-content strong {
+        color: #ffffff;
+    }
+
+    /* =========================================================
+       شريط الأدوات
+    ========================================================= */
+
+    .xel-toolbar {
+        min-height: 71px;
+        padding: 12px 15px;
+        margin-bottom: 16px;
+
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+
+        border: 1px solid var(--xel-border);
+        border-radius: 15px;
+
+        background: var(--xel-white);
+
+        box-shadow:
+            0 8px 24px
+            rgba(18, 52, 41, 0.055);
+    }
+
+    .xel-search {
+        position: relative;
+
+        flex: 1;
+        max-width: 560px;
+    }
+
+    .xel-search svg {
+        position: absolute;
+
+        top: 50%;
+        right: 15px;
+
+        width: 19px;
+        height: 19px;
+
+        transform: translateY(-50%);
+
+        fill: none;
+        stroke: var(--xel-muted);
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+
+        pointer-events: none;
+    }
+
+    .xel-search input {
+        width: 100%;
+        height: 45px;
+        padding: 0 46px 0 14px;
+
+        outline: none;
+
+        border: 1px solid var(--xel-border);
+        border-radius: 10px;
+
+        color: var(--xel-text);
+        background: #ffffff;
+
+        font-family: inherit;
+        font-size: 11px;
+    }
+
+    .xel-search input:focus {
+        border-color: var(--xel-green);
+
+        box-shadow:
+            0 0 0 4px
+            rgba(8, 116, 87, 0.085);
+    }
+
+    .xel-toolbar-meta {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+    }
+
+    .xel-count-badge,
+    .xel-status-badge {
+        min-height: 38px;
+        padding: 0 13px;
+
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+
+        border-radius: 9px;
+
+        font-size: 9px;
+        font-weight: 900;
+    }
+
+    .xel-count-badge {
+        color: var(--xel-green);
+        background: var(--xel-green-soft);
+    }
+
+    .xel-status-badge {
+        color: #9a7427;
+        background: var(--xel-gold-soft);
+    }
+
+    .xel-count-badge svg,
+    .xel-status-badge svg {
+        width: 16px;
+        height: 16px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    /* =========================================================
+       بطاقة الجدول
+    ========================================================= */
+
+    .xel-table-card {
+        overflow: hidden;
+
+        border: 1px solid var(--xel-border);
+        border-radius: 18px;
+
+        background: var(--xel-white);
+
+        box-shadow:
+            0 10px 30px
+            rgba(18, 52, 41, 0.065);
+    }
+
+    .xel-table-heading {
+        min-height: 72px;
+        padding: 16px 20px;
+
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+
+        border-bottom: 1px solid var(--xel-border);
+
+        background:
+            linear-gradient(
+                180deg,
+                #ffffff,
+                #fbfdfc
+            );
+    }
+
+    .xel-table-heading-copy {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .xel-table-heading-icon {
+        flex: 0 0 44px;
+
+        width: 44px;
+        height: 44px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 12px;
+
+        color: var(--xel-green);
+        background: var(--xel-green-soft);
+    }
+
+    .xel-table-heading-icon svg {
+        width: 22px;
+        height: 22px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .xel-table-heading h2 {
+        margin: 0;
+        font-size: 18px;
+    }
+
+    .xel-table-heading p {
+        margin: 4px 0 0;
+
+        color: var(--xel-muted);
+        font-size: 9px;
+    }
+
+    .xel-table-wrap {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .xel-table {
+        width: 100%;
+        min-width: 950px;
+
+        border-collapse: collapse;
+        border-spacing: 0;
+    }
+
+    .xel-table thead th {
+        padding: 14px 16px;
+
+        color: var(--xel-green-dark);
+        background: #f4faf7;
+
+        border-bottom: 1px solid var(--xel-border);
+
+        text-align: right;
+
+        font-size: 9px;
+        font-weight: 900;
+        white-space: nowrap;
+    }
+
+    .xel-table tbody td {
+        padding: 14px 16px;
+
+        border-bottom: 1px solid #edf2ef;
+
+        color: #4f5c57;
+
+        font-size: 9px;
+        vertical-align: middle;
+    }
+
+    .xel-table tbody tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .xel-table tbody tr {
+        transition:
+            background 0.17s ease,
+            transform 0.17s ease;
+    }
+
+    .xel-table tbody tr:hover {
+        background: #fbfefc;
+    }
+
+    .xel-report-cell {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .xel-report-icon {
+        flex: 0 0 36px;
+
+        width: 36px;
+        height: 36px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 10px;
+
+        color: var(--xel-green);
+        background: var(--xel-green-soft);
+    }
+
+    .xel-report-icon svg {
+        width: 18px;
+        height: 18px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .xel-report-details strong,
+    .xel-report-details small {
+        display: block;
+    }
+
+    .xel-report-details strong {
+        color: var(--xel-text);
+        font-size: 10px;
+    }
+
+    .xel-report-details small {
+        margin-top: 3px;
+
+        color: var(--xel-muted);
+        font-size: 7px;
+    }
+
+    .xel-format {
+        min-width: 62px;
+        min-height: 27px;
+        padding: 0 10px;
+
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+
+        border-radius: 999px;
+
+        font-family: Arial, sans-serif;
+        font-size: 8px;
+        font-weight: 900;
+    }
+
+    .xel-format.excel {
+        color: var(--xel-green);
+        background: var(--xel-green-soft);
+    }
+
+    .xel-format.pdf {
+        color: var(--xel-red);
+        background: var(--xel-red-soft);
+    }
+
+    .xel-format.csv {
+        color: var(--xel-purple);
+        background: var(--xel-purple-soft);
+    }
+
+    .xel-user {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .xel-user-avatar {
+        flex: 0 0 32px;
+
+        width: 32px;
+        height: 32px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 50%;
+
+        color: var(--xel-green);
+        background: var(--xel-green-soft);
+
+        font-size: 10px;
+        font-weight: 900;
+    }
+
+    .xel-records {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+
+        color: var(--xel-green-dark);
+        font-weight: 900;
+    }
+
+    .xel-records svg {
+        width: 15px;
+        height: 15px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+    }
+
+    .xel-status {
+        min-width: 72px;
+        min-height: 27px;
+        padding: 0 10px;
+
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+
+        border-radius: 999px;
+
+        font-size: 8px;
+        font-weight: 900;
+    }
+
+    .xel-status.success {
+        color: var(--xel-green);
+        background: var(--xel-green-soft);
+    }
+
+    .xel-status.failed {
+        color: var(--xel-red);
+        background: var(--xel-red-soft);
+    }
+
+    .xel-status::before {
+        content: "";
+
+        width: 6px;
+        height: 6px;
+
+        border-radius: 50%;
+        background: currentColor;
+    }
+
+    .xel-date {
+        color: var(--xel-text);
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .xel-date small {
+        display: block;
+        margin-top: 3px;
+
+        color: var(--xel-muted);
+        font-size: 7px;
+    }
+
+    /* =========================================================
+       الحالة الفارغة
+    ========================================================= */
+
+    .xel-empty {
+        min-height: 360px;
+        padding: 45px 20px;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        text-align: center;
+    }
+
+    .xel-empty-content {
+        max-width: 440px;
+    }
+
+    .xel-empty-illustration {
+        position: relative;
+
+        width: 116px;
+        height: 116px;
+        margin: 0 auto 18px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 32px;
+
+        color: var(--xel-green);
+
+        background:
+            linear-gradient(
+                145deg,
+                #eff9f5,
+                #e4f4ed
+            );
+    }
+
+    .xel-empty-illustration::before,
+    .xel-empty-illustration::after {
+        content: "";
+
+        position: absolute;
+
+        width: 12px;
+        height: 12px;
+
+        border-radius: 50%;
+
+        background: var(--xel-gold);
+    }
+
+    .xel-empty-illustration::before {
+        top: -6px;
+        right: 16px;
+    }
+
+    .xel-empty-illustration::after {
+        bottom: 4px;
+        left: -7px;
+
+        width: 8px;
+        height: 8px;
+
+        opacity: 0.6;
+    }
+
+    .xel-empty-illustration svg {
+        width: 57px;
+        height: 57px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.6;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .xel-empty h3 {
+        margin: 0;
+
+        color: var(--xel-text);
+        font-size: 20px;
+    }
+
+    .xel-empty p {
+        margin: 8px auto 18px;
+
+        color: var(--xel-muted);
+
+        font-size: 10px;
+        line-height: 1.8;
+    }
+
+    .xel-empty-button {
+        min-height: 42px;
+        padding: 0 17px;
+
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+
+        border-radius: 10px;
+
+        color: #ffffff;
+
+        background:
+            linear-gradient(
+                135deg,
+                var(--xel-green),
+                var(--xel-green-dark)
+            );
+
+        font-size: 10px;
+        font-weight: 900;
+
+        text-decoration: none;
+
+        box-shadow:
+            0 8px 18px
+            rgba(8, 116, 87, 0.18);
+    }
+
+    .xel-empty-button svg {
+        width: 16px;
+        height: 16px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    /* =========================================================
+       التجاوب
+    ========================================================= */
+
+    @media (max-width: 1100px) {
+        .xel-stats {
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 760px) {
+        .xel-page {
+            padding: 9px;
+        }
+
+        .xel-hero {
+            min-height: 270px;
+            padding: 24px;
+
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .xel-hero::before {
+            width: 300px;
+            height: 300px;
+
+            top: -215px;
+            left: -130px;
+        }
+
+        .xel-hero-actions {
+            width: 100%;
+        }
+
+        .xel-back-button,
+        .xel-dashboard-button {
+            flex: 1;
+        }
+
+        .xel-stats {
+            grid-template-columns: 1fr;
+        }
+
+        .xel-toolbar {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .xel-search {
+            width: 100%;
+            max-width: none;
+        }
+
+        .xel-toolbar-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .xel-table-heading {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="xel-page">
+
+    <!-- ==================================================
+         رأس سجل التصدير
+    ================================================== -->
+    <section class="xel-hero">
+
+        <div class="xel-hero-content">
+
+            <div class="xel-eyebrow">
+
+                <span class="xel-eyebrow-icon">
+                    <svg
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                    >
+                        <path d="M6 3h9l4 4v14H6z"></path>
+                        <path d="M15 3v5h4"></path>
+                        <path d="M9 12h7"></path>
+                        <path d="M9 16h7"></path>
+                    </svg>
+                </span>
+
+                <span>
+                    مركز التصدير
+                </span>
+            </div>
+
+            <h1>
+                سجل عمليات التصدير
+            </h1>
+
+            <p>
+                متابعة جميع التقارير والملفات التي تم تصديرها من المنصة،
+                مع معرفة المستخدم والصيغة وعدد السجلات وتاريخ العملية.
+            </p>
+        </div>
+
+        <div class="xel-hero-actions">
+
+            <a
+                href="javascript:history.back()"
+                class="xel-back-button"
+            >
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <path d="m9 6 6 6-6 6"></path>
+                </svg>
+
+                <span>
+                    العودة
+                </span>
+            </a>
+
+            <a
+                href="{% url 'exports_center:dashboard' %}"
+                class="xel-dashboard-button"
+            >
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <rect
+                        x="4"
+                        y="4"
+                        width="6"
+                        height="6"
+                    ></rect>
+
+                    <rect
+                        x="14"
+                        y="4"
+                        width="6"
+                        height="6"
+                    ></rect>
+
+                    <rect
+                        x="4"
+                        y="14"
+                        width="6"
+                        height="6"
+                    ></rect>
+
+                    <rect
+                        x="14"
+                        y="14"
+                        width="6"
+                        height="6"
+                    ></rect>
+                </svg>
+
+                <span>
+                    مركز التصدير
+                </span>
+            </a>
+        </div>
+    </section>
+
+    <!-- ==================================================
+         مؤشرات السجل
+    ================================================== -->
+    <section class="xel-stats">
+
+        <article class="xel-stat featured">
+
+            <span class="xel-stat-icon">
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <path d="M4 6h6l2 2h8v11H4z"></path>
+                    <path d="M8 12h8"></path>
+                    <path d="M8 15h5"></path>
+                </svg>
+            </span>
+
+            <div class="xel-stat-content">
+                <small>
+                    إجمالي عمليات التصدير
+                </small>
+
+                <strong>
+                    {{ total_logs|default:logs|length|default:0 }}
+                </strong>
+            </div>
+        </article>
+
+        <article class="xel-stat">
+
+            <span class="xel-stat-icon excel">
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <path d="M6 3h9l4 4v14H6z"></path>
+                    <path d="M15 3v5h4"></path>
+                    <path d="m9 11 6 6"></path>
+                    <path d="m15 11-6 6"></path>
+                </svg>
+            </span>
+
+            <div class="xel-stat-content">
+                <small>
+                    ملفات Excel
+                </small>
+
+                <strong>
+                    {{ excel_count|default:0 }}
+                </strong>
+            </div>
+        </article>
+
+        <article class="xel-stat">
+
+            <span class="xel-stat-icon pdf">
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <path d="M6 3h9l4 4v14H6z"></path>
+                    <path d="M15 3v5h4"></path>
+                    <path d="M9 12h6"></path>
+                    <path d="M9 16h4"></path>
+                </svg>
+            </span>
+
+            <div class="xel-stat-content">
+                <small>
+                    ملفات PDF
+                </small>
+
+                <strong>
+                    {{ pdf_count|default:0 }}
+                </strong>
+            </div>
+        </article>
+
+        <article class="xel-stat">
+
+            <span class="xel-stat-icon csv">
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <path d="M6 3h9l4 4v14H6z"></path>
+                    <path d="M15 3v5h4"></path>
+                    <path d="M9 12h6"></path>
+                    <path d="M9 16h6"></path>
+                </svg>
+            </span>
+
+            <div class="xel-stat-content">
+                <small>
+                    ملفات CSV
+                </small>
+
+                <strong>
+                    {{ csv_count|default:0 }}
+                </strong>
+            </div>
+        </article>
+    </section>
+
+    <!-- ==================================================
+         البحث وحالة السجل
+    ================================================== -->
+    <section class="xel-toolbar">
+
+        <div class="xel-search">
+
+            <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+            >
+                <circle
+                    cx="11"
+                    cy="11"
+                    r="7"
+                ></circle>
+
+                <path d="m20 20-4-4"></path>
+            </svg>
+
+            <input
+                type="search"
+                id="logsSearch"
+                placeholder="ابحث باسم التقرير أو المستخدم أو الصيغة..."
+                autocomplete="off"
+                aria-label="البحث في سجل التصدير"
+            >
+        </div>
+
+        <div class="xel-toolbar-meta">
+
+            <span class="xel-count-badge">
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <path d="M4 6h16"></path>
+                    <path d="M4 12h16"></path>
+                    <path d="M4 18h10"></path>
+                </svg>
+
+                <span>
+                    {{ logs|length|default:0 }} عملية
+                </span>
+            </span>
+
+            <span class="xel-status-badge">
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <circle
+                        cx="12"
+                        cy="12"
+                        r="9"
+                    ></circle>
+
+                    <path d="M12 7v5l3 2"></path>
+                </svg>
+
+                <span>
+                    الأحدث أولًا
+                </span>
+            </span>
+        </div>
+    </section>
+
+    <!-- ==================================================
+         جدول سجل التصدير
+    ================================================== -->
+    <section class="xel-table-card">
+
+        <header class="xel-table-heading">
+
+            <div class="xel-table-heading-copy">
+
+                <span class="xel-table-heading-icon">
+                    <svg
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                    >
+                        <path d="M4 5h16v15H4z"></path>
+                        <path d="M4 10h16"></path>
+                        <path d="M9 10v10"></path>
+                    </svg>
+                </span>
+
+                <div>
+                    <h2>
+                        العمليات المسجلة
+                    </h2>
+
+                    <p>
+                        تفاصيل عمليات التصدير المنفذة من مركز التصدير.
+                    </p>
+                </div>
+            </div>
+        </header>
+
+        {% if logs %}
+
+            <div class="xel-table-wrap">
+
+                <table
+                    class="xel-table"
+                    id="logsTable"
+                >
+                    <thead>
+                        <tr>
+                            <th>التقرير</th>
+                            <th>الصيغة</th>
+                            <th>المستخدم</th>
+                            <th>السجلات</th>
+                            <th>الحالة</th>
+                            <th>التاريخ</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for log in logs %}
+
+                            <tr
+                                class="xel-log-row"
+                                data-search="
+                                    {{ log.report_title }}
+                                    {{ log.report_key }}
+                                    {{ log.export_format }}
+                                    {{ log.user.get_full_name }}
+                                    {{ log.user.username }}
+                                "
+                            >
+                                <td>
+                                    <div class="xel-report-cell">
+
+                                        <span class="xel-report-icon">
+                                            <svg
+                                                viewBox="0 0 24 24"
+                                                aria-hidden="true"
+                                            >
+                                                <path d="M6 3h9l4 4v14H6z"></path>
+                                                <path d="M15 3v5h4"></path>
+                                                <path d="M9 12h7"></path>
+                                                <path d="M9 16h5"></path>
+                                            </svg>
+                                        </span>
+
+                                        <span class="xel-report-details">
+                                            <strong>
+                                                {{ log.report_title|default:log.report_key|default:"تقرير" }}
+                                            </strong>
+
+                                            <small>
+                                                {{ log.report_key|default:"مركز التصدير" }}
+                                            </small>
+                                        </span>
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <span
+                                        class="xel-format {{ log.export_format|lower }}"
+                                    >
+                                        {{ log.export_format|upper|default:"—" }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <div class="xel-user">
+
+                                        <span class="xel-user-avatar">
+                                            {% if log.user.get_full_name %}
+                                                {{ log.user.get_full_name|slice:":1" }}
+                                            {% elif log.user.username %}
+                                                {{ log.user.username|slice:":1"|upper }}
+                                            {% else %}
+                                                م
+                                            {% endif %}
+                                        </span>
+
+                                        <span>
+                                            {% if log.user.get_full_name %}
+                                                {{ log.user.get_full_name }}
+                                            {% elif log.user.username %}
+                                                {{ log.user.username }}
+                                            {% else %}
+                                                مستخدم النظام
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <span class="xel-records">
+                                        <svg
+                                            viewBox="0 0 24 24"
+                                            aria-hidden="true"
+                                        >
+                                            <path d="M4 6h16"></path>
+                                            <path d="M4 12h16"></path>
+                                            <path d="M4 18h10"></path>
+                                        </svg>
+
+                                        {{ log.records_count|default:0 }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    {% if log.status == "failed" or log.status == "error" %}
+                                        <span class="xel-status failed">
+                                            فشل
+                                        </span>
+                                    {% else %}
+                                        <span class="xel-status success">
+                                            مكتمل
+                                        </span>
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    <span class="xel-date">
+                                        {{ log.created_at|date:"Y-m-d"|default:"—" }}
+
+                                        <small>
+                                            {{ log.created_at|date:"H:i"|default:"" }}
+                                        </small>
+                                    </span>
+                                    {% if log.is_ready_for_download %}
+                                        <a
+                                            href="{% url 'exports_center:download-export' export_log_id=log.pk %}"
+                                            class="xel-download"
+                                        >إعادة تنزيل الملف</a>
+                                    {% elif log.status == "failed" %}
+                                        <small title="{{ log.error_message }}">تعذر إنشاء الملف</small>
+                                    {% endif %}
+                                </td>
+                            </tr>
+
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+        {% else %}
+
+            <div class="xel-empty">
+
+                <div class="xel-empty-content">
+
+                    <div class="xel-empty-illustration">
+                        <svg
+                            viewBox="0 0 64 64"
+                            aria-hidden="true"
+                        >
+                            <path d="M15 8h25l10 10v38H15z"></path>
+                            <path d="M40 8v12h10"></path>
+                            <path d="M23 31h19"></path>
+                            <path d="M23 39h19"></path>
+                            <path d="M23 47h12"></path>
+                            <circle
+                                cx="48"
+                                cy="48"
+                                r="10"
+                            ></circle>
+                            <path d="M48 43v6l4 2"></path>
+                        </svg>
+                    </div>
+
+                    <h3>
+                        لا توجد عمليات تصدير مسجلة
+                    </h3>
+
+                    <p>
+                        لم يتم تنفيذ أي عملية تصدير حتى الآن. عند تصدير
+                        أول تقرير ستظهر تفاصيل العملية في هذه الصفحة.
+                    </p>
+
+                    <a
+                        href="{% url 'exports_center:dashboard' %}"
+                        class="xel-empty-button"
+                    >
+                        <svg
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <path d="M12 3v12"></path>
+                            <path d="m7 10 5 5 5-5"></path>
+                            <path d="M5 21h14"></path>
+                        </svg>
+
+                        <span>
+                            الانتقال إلى مركز التصدير
+                        </span>
+                    </a>
+                </div>
+            </div>
+
+        {% endif %}
+    </section>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    (function () {
+        "use strict";
+
+        const searchInput =
+            document.getElementById(
+                "logsSearch"
+            );
+
+        const rows = Array.from(
+            document.querySelectorAll(
+                ".xel-log-row"
+            )
+        );
+
+        function normalizeText(value) {
+            return String(value || "")
+                .trim()
+                .toLowerCase();
+        }
+
+        function filterRows() {
+            const searchValue =
+                normalizeText(
+                    searchInput
+                        ? searchInput.value
+                        : ""
+                );
+
+            rows.forEach(function (row) {
+                const rowText =
+                    normalizeText(
+                        row.dataset.search
+                    );
+
+                row.style.display =
+                    !searchValue ||
+                    rowText.includes(searchValue)
+                        ? ""
+                        : "none";
+            });
+        }
+
+        if (searchInput) {
+            searchInput.addEventListener(
+                "input",
+                filterRows
+            );
+        }
+    })();
+</script>
+{% endblock %}

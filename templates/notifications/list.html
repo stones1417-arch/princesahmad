@@ -1,0 +1,2695 @@
+{% extends "base.html" %}
+
+{% block title %}
+    مركز الإشعارات
+{% endblock %}
+
+{% block content %}
+
+<main class="nfc-page" dir="rtl">
+
+    <!-- ==================================================
+         رأس الصفحة
+    ================================================== -->
+    <section class="nfc-hero">
+
+        <div class="nfc-hero-pattern"></div>
+
+        <div class="nfc-hero-content">
+
+            <div class="nfc-eyebrow">
+
+                <span class="nfc-eyebrow-icon">
+                    <svg
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                    >
+                        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>
+                        <path d="M10 21h4"></path>
+                    </svg>
+                </span>
+
+                <span>
+                    التنبيهات والإشعارات
+                </span>
+
+            </div>
+
+            <h1>
+                مركز
+                <span>الإشعارات</span>
+            </h1>
+
+            <p>
+                تابع جميع إشعارات النظام والتنبيهات التشغيلية،
+                واطّلع على آخر التحديثات مرتبة من الأحدث إلى الأقدم.
+            </p>
+
+        </div>
+
+        <div class="nfc-hero-actions">
+
+            <a
+                href="{% url 'notifications:read-all' %}"
+                class="nfc-read-all-button"
+            >
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <path d="m4 12 4 4L20 4"></path>
+                    <path d="m4 6 4 4"></path>
+                </svg>
+
+                <span>
+                    تحديد الكل كمقروء
+                </span>
+            </a>
+
+        </div>
+
+    </section>
+
+
+    <!-- ==================================================
+         الإحصائيات
+    ================================================== -->
+    <section class="nfc-stats">
+
+        <article class="nfc-stat nfc-stat-primary">
+
+            <span class="nfc-stat-icon">
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <path d="M4 5h16v14H4z"></path>
+                    <path d="M4 9h16"></path>
+                    <path d="M8 13h8"></path>
+                </svg>
+            </span>
+
+            <div class="nfc-stat-copy">
+                <small>
+                    إجمالي الإشعارات
+                </small>
+
+                <strong id="nfcTotalCount">
+                    0
+                </strong>
+
+                <span>
+                    جميع إشعارات النظام
+                </span>
+            </div>
+
+        </article>
+
+        <article class="nfc-stat">
+
+            <span class="nfc-stat-icon nfc-stat-unread">
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>
+                    <path d="M10 21h4"></path>
+                </svg>
+            </span>
+
+            <div class="nfc-stat-copy">
+                <small>
+                    غير المقروءة
+                </small>
+
+                <strong id="nfcUnreadCount">
+                    0
+                </strong>
+
+                <span>
+                    تحتاج إلى مراجعة
+                </span>
+            </div>
+
+        </article>
+
+        <article class="nfc-stat">
+
+            <span class="nfc-stat-icon nfc-stat-read">
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <circle
+                        cx="12"
+                        cy="12"
+                        r="9"
+                    ></circle>
+
+                    <path d="m8.5 12 2.3 2.3 4.8-5"></path>
+                </svg>
+            </span>
+
+            <div class="nfc-stat-copy">
+                <small>
+                    تمت قراءتها
+                </small>
+
+                <strong id="nfcReadCount">
+                    0
+                </strong>
+
+                <span>
+                    إشعارات تمت مراجعتها
+                </span>
+            </div>
+
+        </article>
+
+        <article class="nfc-stat">
+
+            <span class="nfc-stat-icon nfc-stat-alert">
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <path d="M12 3 2.8 20h18.4L12 3Z"></path>
+                    <path d="M12 9v4"></path>
+                    <path d="M12 17h.01"></path>
+                </svg>
+            </span>
+
+            <div class="nfc-stat-copy">
+                <small>
+                    التنبيهات المهمة
+                </small>
+
+                <strong id="nfcAlertCount">
+                    0
+                </strong>
+
+                <span>
+                    تحذيرات وتنبيهات عاجلة
+                </span>
+            </div>
+
+        </article>
+
+    </section>
+
+
+    <!-- ==================================================
+         التخطيط الرئيسي
+    ================================================== -->
+    <section class="nfc-layout">
+
+        <!-- القائمة الجانبية -->
+        <aside class="nfc-sidebar">
+
+            <section class="nfc-sidebar-card">
+
+                <div class="nfc-sidebar-heading">
+
+                    <span class="nfc-sidebar-heading-icon">
+                        <svg
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <path d="M4 6h16"></path>
+                            <path d="M7 12h10"></path>
+                            <path d="M10 18h4"></path>
+                        </svg>
+                    </span>
+
+                    <div>
+                        <h2>
+                            تصفية الإشعارات
+                        </h2>
+
+                        <p>
+                            اختر نوع الإشعارات المعروضة
+                        </p>
+                    </div>
+
+                </div>
+
+                <nav class="nfc-filter-menu">
+
+                    <button
+                        type="button"
+                        class="nfc-filter-button active"
+                        data-filter="all"
+                    >
+                        <span class="nfc-filter-button-main">
+
+                            <span class="nfc-filter-button-icon">
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    aria-hidden="true"
+                                >
+                                    <rect
+                                        x="4"
+                                        y="4"
+                                        width="6"
+                                        height="6"
+                                    ></rect>
+
+                                    <rect
+                                        x="14"
+                                        y="4"
+                                        width="6"
+                                        height="6"
+                                    ></rect>
+
+                                    <rect
+                                        x="4"
+                                        y="14"
+                                        width="6"
+                                        height="6"
+                                    ></rect>
+
+                                    <rect
+                                        x="14"
+                                        y="14"
+                                        width="6"
+                                        height="6"
+                                    ></rect>
+                                </svg>
+                            </span>
+
+                            <span>
+                                جميع الإشعارات
+                            </span>
+
+                        </span>
+
+                        <span
+                            class="nfc-filter-count"
+                            id="nfcFilterAllCount"
+                        >
+                            0
+                        </span>
+                    </button>
+
+                    <button
+                        type="button"
+                        class="nfc-filter-button"
+                        data-filter="unread"
+                    >
+                        <span class="nfc-filter-button-main">
+
+                            <span class="nfc-filter-button-icon">
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    aria-hidden="true"
+                                >
+                                    <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>
+                                    <path d="M10 21h4"></path>
+                                </svg>
+                            </span>
+
+                            <span>
+                                غير المقروءة
+                            </span>
+
+                        </span>
+
+                        <span
+                            class="nfc-filter-count"
+                            id="nfcFilterUnreadCount"
+                        >
+                            0
+                        </span>
+                    </button>
+
+                    <button
+                        type="button"
+                        class="nfc-filter-button"
+                        data-filter="success"
+                    >
+                        <span class="nfc-filter-button-main">
+
+                            <span class="nfc-filter-button-icon">
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    aria-hidden="true"
+                                >
+                                    <circle
+                                        cx="12"
+                                        cy="12"
+                                        r="9"
+                                    ></circle>
+
+                                    <path d="m8.5 12 2.3 2.3 4.8-5"></path>
+                                </svg>
+                            </span>
+
+                            <span>
+                                عمليات ناجحة
+                            </span>
+
+                        </span>
+
+                        <span
+                            class="nfc-filter-count"
+                            id="nfcFilterSuccessCount"
+                        >
+                            0
+                        </span>
+                    </button>
+
+                    <button
+                        type="button"
+                        class="nfc-filter-button"
+                        data-filter="warning"
+                    >
+                        <span class="nfc-filter-button-main">
+
+                            <span class="nfc-filter-button-icon">
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    aria-hidden="true"
+                                >
+                                    <path d="M12 3 2.8 20h18.4L12 3Z"></path>
+                                    <path d="M12 9v4"></path>
+                                    <path d="M12 17h.01"></path>
+                                </svg>
+                            </span>
+
+                            <span>
+                                تنبيهات وتحذيرات
+                            </span>
+
+                        </span>
+
+                        <span
+                            class="nfc-filter-count"
+                            id="nfcFilterWarningCount"
+                        >
+                            0
+                        </span>
+                    </button>
+
+                    <button
+                        type="button"
+                        class="nfc-filter-button"
+                        data-filter="danger"
+                    >
+                        <span class="nfc-filter-button-main">
+
+                            <span class="nfc-filter-button-icon">
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    aria-hidden="true"
+                                >
+                                    <circle
+                                        cx="12"
+                                        cy="12"
+                                        r="9"
+                                    ></circle>
+
+                                    <path d="M12 7v6"></path>
+                                    <path d="M12 17h.01"></path>
+                                </svg>
+                            </span>
+
+                            <span>
+                                إشعارات عاجلة
+                            </span>
+
+                        </span>
+
+                        <span
+                            class="nfc-filter-count"
+                            id="nfcFilterDangerCount"
+                        >
+                            0
+                        </span>
+                    </button>
+
+                    <button
+                        type="button"
+                        class="nfc-filter-button"
+                        data-filter="info"
+                    >
+                        <span class="nfc-filter-button-main">
+
+                            <span class="nfc-filter-button-icon">
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    aria-hidden="true"
+                                >
+                                    <circle
+                                        cx="12"
+                                        cy="12"
+                                        r="9"
+                                    ></circle>
+
+                                    <path d="M12 11v5"></path>
+                                    <path d="M12 8h.01"></path>
+                                </svg>
+                            </span>
+
+                            <span>
+                                معلومات النظام
+                            </span>
+
+                        </span>
+
+                        <span
+                            class="nfc-filter-count"
+                            id="nfcFilterInfoCount"
+                        >
+                            0
+                        </span>
+                    </button>
+
+                </nav>
+
+            </section>
+
+            <section class="nfc-help-card">
+
+                <span class="nfc-help-icon">
+                    <svg
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                    >
+                        <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z"></path>
+                        <path d="M9.5 9a2.7 2.7 0 1 1 4.4 2.1c-1.2.8-1.9 1.3-1.9 2.9"></path>
+                        <path d="M12 18h.01"></path>
+                    </svg>
+                </span>
+
+                <h3>
+                    إدارة الإشعارات
+                </h3>
+
+                <p>
+                    الإشعارات غير المقروءة تظهر بعلامة خضراء.
+                    استخدم زر الفتح للاطلاع عليها وتحديث حالتها.
+                </p>
+
+            </section>
+
+        </aside>
+
+
+        <!-- محتوى الإشعارات -->
+        <section class="nfc-content-card">
+
+            <header class="nfc-toolbar">
+
+                <div class="nfc-toolbar-copy">
+
+                    <h2>
+                        سجل الإشعارات
+                    </h2>
+
+                    <p id="nfcResultsText">
+                        جميع الإشعارات المتاحة
+                    </p>
+
+                </div>
+
+                <div class="nfc-toolbar-actions">
+
+                    <label class="nfc-search">
+
+                        <svg
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <circle
+                                cx="11"
+                                cy="11"
+                                r="7"
+                            ></circle>
+
+                            <path d="m20 20-4-4"></path>
+                        </svg>
+
+                        <input
+                            type="search"
+                            id="nfcSearchInput"
+                            placeholder="ابحث في الإشعارات..."
+                            autocomplete="off"
+                        >
+
+                        <button
+                            type="button"
+                            id="nfcClearSearch"
+                            aria-label="مسح البحث"
+                            title="مسح البحث"
+                        >
+                            <svg
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                            >
+                                <path d="m7 7 10 10"></path>
+                                <path d="m17 7-10 10"></path>
+                            </svg>
+                        </button>
+
+                    </label>
+
+                </div>
+
+            </header>
+
+
+            {% if notifications %}
+
+                <div
+                    class="nfc-notifications-list"
+                    id="nfcNotificationsList"
+                >
+
+                    {% for notification in notifications %}
+
+                        <article
+                            class="
+                                nfc-notification
+                                nfc-level-{{ notification.level|default:'info' }}
+                                {% if not notification.is_read %}
+                                    nfc-unread
+                                {% else %}
+                                    nfc-read
+                                {% endif %}
+                            "
+                            data-level="{{ notification.level|default:'info' }}"
+                            data-read="{% if notification.is_read %}read{% else %}unread{% endif %}"
+                            data-search="{{ notification.title|default:'' }} {{ notification.message|default:'' }}"
+                        >
+
+                            <div class="nfc-notification-status">
+
+                                {% if not notification.is_read %}
+                                    <span
+                                        class="nfc-unread-dot"
+                                        title="إشعار غير مقروء"
+                                    ></span>
+                                {% else %}
+                                    <span
+                                        class="nfc-read-check"
+                                        title="تمت القراءة"
+                                    >
+                                        <svg
+                                            viewBox="0 0 24 24"
+                                            aria-hidden="true"
+                                        >
+                                            <path d="m5 12 4 4L19 6"></path>
+                                        </svg>
+                                    </span>
+                                {% endif %}
+
+                            </div>
+
+                            <div class="nfc-notification-icon">
+
+                                {% if notification.level == "success" %}
+
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        aria-hidden="true"
+                                    >
+                                        <circle
+                                            cx="12"
+                                            cy="12"
+                                            r="9"
+                                        ></circle>
+
+                                        <path d="m8.5 12 2.3 2.3 4.8-5"></path>
+                                    </svg>
+
+                                {% elif notification.level == "warning" %}
+
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        aria-hidden="true"
+                                    >
+                                        <path d="M12 3 2.8 20h18.4L12 3Z"></path>
+                                        <path d="M12 9v4"></path>
+                                        <path d="M12 17h.01"></path>
+                                    </svg>
+
+                                {% elif notification.level == "danger" %}
+
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        aria-hidden="true"
+                                    >
+                                        <circle
+                                            cx="12"
+                                            cy="12"
+                                            r="9"
+                                        ></circle>
+
+                                        <path d="M12 7v6"></path>
+                                        <path d="M12 17h.01"></path>
+                                    </svg>
+
+                                {% else %}
+
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        aria-hidden="true"
+                                    >
+                                        <circle
+                                            cx="12"
+                                            cy="12"
+                                            r="9"
+                                        ></circle>
+
+                                        <path d="M12 11v5"></path>
+                                        <path d="M12 8h.01"></path>
+                                    </svg>
+
+                                {% endif %}
+
+                            </div>
+
+                            <div class="nfc-notification-body">
+
+                                <div class="nfc-notification-top">
+
+                                    <div class="nfc-notification-heading">
+
+                                        <h3>
+                                            {{ notification.title }}
+                                        </h3>
+
+                                        <span class="nfc-level-badge">
+
+                                            {% if notification.level == "success" %}
+                                                نجاح
+                                            {% elif notification.level == "warning" %}
+                                                تنبيه
+                                            {% elif notification.level == "danger" %}
+                                                عاجل
+                                            {% else %}
+                                                معلومات
+                                            {% endif %}
+
+                                        </span>
+
+                                    </div>
+
+                                    <time
+                                        datetime="{{ notification.created_at|date:'c' }}"
+                                    >
+                                        <svg
+                                            viewBox="0 0 24 24"
+                                            aria-hidden="true"
+                                        >
+                                            <circle
+                                                cx="12"
+                                                cy="12"
+                                                r="9"
+                                            ></circle>
+
+                                            <path d="M12 7v5l3 2"></path>
+                                        </svg>
+
+                                        <span>
+                                            {{ notification.created_at|date:"Y-m-d" }}
+                                        </span>
+
+                                        <span class="nfc-time-divider">
+                                            •
+                                        </span>
+
+                                        <span>
+                                            {{ notification.created_at|date:"H:i" }}
+                                        </span>
+                                    </time>
+
+                                </div>
+
+                                <p class="nfc-notification-message">
+                                    {{ notification.message }}
+                                </p>
+
+                                <div class="nfc-notification-footer">
+
+                                    <span class="nfc-notification-source">
+
+                                        <svg
+                                            viewBox="0 0 24 24"
+                                            aria-hidden="true"
+                                        >
+                                            <path d="M4 5h16v14H4z"></path>
+                                            <path d="M8 9h8"></path>
+                                            <path d="M8 13h5"></path>
+                                        </svg>
+
+                                        إشعار من النظام
+
+                                    </span>
+
+                                    {% if notification.is_read %}
+
+                                        <span class="nfc-read-badge">
+
+                                            <svg
+                                                viewBox="0 0 24 24"
+                                                aria-hidden="true"
+                                            >
+                                                <path d="m5 12 4 4L19 6"></path>
+                                            </svg>
+
+                                            تمت القراءة
+
+                                        </span>
+
+                                    {% endif %}
+
+                                </div>
+
+                            </div>
+
+                            <div class="nfc-notification-actions">
+
+                                {% if not notification.is_read %}
+
+                                    <a
+                                        href="{% url 'notifications:read' notification.id %}"
+                                        class="nfc-open-button"
+                                    >
+                                        <span>
+                                            فتح الإشعار
+                                        </span>
+
+                                        <svg
+                                            viewBox="0 0 24 24"
+                                            aria-hidden="true"
+                                        >
+                                            <path d="m9 6 6 6-6 6"></path>
+                                        </svg>
+                                    </a>
+
+                                {% else %}
+
+                                    <span class="nfc-completed-label">
+
+                                        <svg
+                                            viewBox="0 0 24 24"
+                                            aria-hidden="true"
+                                        >
+                                            <path d="m5 12 4 4L19 6"></path>
+                                        </svg>
+
+                                        تمت المراجعة
+
+                                    </span>
+
+                                {% endif %}
+
+                            </div>
+
+                        </article>
+
+                    {% endfor %}
+
+                </div>
+
+                <div
+                    class="nfc-no-results"
+                    id="nfcNoResults"
+                    hidden
+                >
+
+                    <span class="nfc-no-results-icon">
+                        <svg
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <circle
+                                cx="11"
+                                cy="11"
+                                r="7"
+                            ></circle>
+
+                            <path d="m20 20-4-4"></path>
+                            <path d="M8.5 11h5"></path>
+                        </svg>
+                    </span>
+
+                    <h3>
+                        لا توجد نتائج مطابقة
+                    </h3>
+
+                    <p>
+                        لم يتم العثور على إشعارات مطابقة للبحث
+                        أو عامل التصفية المحدد.
+                    </p>
+
+                    <button
+                        type="button"
+                        id="nfcResetFilters"
+                    >
+                        إعادة عرض جميع الإشعارات
+                    </button>
+
+                </div>
+
+            {% else %}
+
+                <div class="nfc-empty-state">
+
+                    <div class="nfc-empty-illustration">
+
+                        <span class="nfc-empty-ring"></span>
+
+                        <svg
+                            viewBox="0 0 64 64"
+                            aria-hidden="true"
+                        >
+                            <path d="M45 25a13 13 0 0 0-26 0c0 16-7 16-7 22h40c0-6-7-6-7-22Z"></path>
+                            <path d="M27 53h10"></path>
+                        </svg>
+
+                    </div>
+
+                    <h3>
+                        لا توجد إشعارات حاليًا
+                    </h3>
+
+                    <p>
+                        لم يتم إنشاء أي إشعارات حتى الآن.
+                        ستظهر هنا جميع التنبيهات والتحديثات الجديدة.
+                    </p>
+
+                </div>
+
+            {% endif %}
+
+        </section>
+
+    </section>
+
+</main>
+
+
+<style>
+
+    /* =========================================================
+       الإعدادات العامة
+    ========================================================= */
+
+    .nfc-page,
+    .nfc-page * {
+        box-sizing: border-box;
+    }
+
+    .nfc-page {
+        --nfc-primary: #08765a;
+        --nfc-primary-dark: #045442;
+        --nfc-primary-deep: #033b2f;
+        --nfc-primary-soft: #eaf7f2;
+        --nfc-primary-light: #f4fbf8;
+
+        --nfc-gold: #d4a943;
+        --nfc-gold-soft: #fff8e8;
+
+        --nfc-blue: #3578d4;
+        --nfc-blue-soft: #edf4ff;
+
+        --nfc-orange: #d98422;
+        --nfc-orange-soft: #fff5e8;
+
+        --nfc-red: #d94949;
+        --nfc-red-soft: #fff0f0;
+
+        --nfc-purple: #7455c8;
+        --nfc-purple-soft: #f4f0ff;
+
+        --nfc-text: #15251f;
+        --nfc-muted: #718079;
+        --nfc-border: #dce7e2;
+        --nfc-background: #f5f9f7;
+        --nfc-white: #ffffff;
+
+        min-height: calc(100vh - 70px);
+        padding: 18px;
+
+        color: var(--nfc-text);
+
+        background:
+            radial-gradient(
+                circle at 6% 4%,
+                rgba(8, 118, 90, 0.055),
+                transparent 27%
+            ),
+            linear-gradient(
+                180deg,
+                #ffffff 0%,
+                var(--nfc-background) 100%
+            );
+    }
+
+
+    /* =========================================================
+       رأس الصفحة
+    ========================================================= */
+
+    .nfc-hero {
+        position: relative;
+
+        min-height: 220px;
+        margin-bottom: 16px;
+        padding: 34px 40px;
+
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 30px;
+
+        overflow: hidden;
+
+        border: 1px solid var(--nfc-border);
+        border-radius: 22px;
+
+        background:
+            linear-gradient(
+                108deg,
+                #ffffff 0%,
+                #ffffff 60%,
+                #f2faf6 60.2%,
+                #e5f4ed 100%
+            );
+
+        box-shadow:
+            0 16px 38px
+            rgba(18, 52, 41, 0.075);
+    }
+
+    .nfc-hero::before {
+        content: "";
+
+        position: absolute;
+        top: -230px;
+        left: -130px;
+
+        width: 540px;
+        height: 540px;
+
+        border: 4px solid
+            rgba(212, 169, 67, 0.82);
+
+        border-radius: 50%;
+
+        background:
+            linear-gradient(
+                145deg,
+                var(--nfc-primary),
+                var(--nfc-primary-dark)
+            );
+    }
+
+    .nfc-hero-pattern {
+        position: absolute;
+        inset: 0;
+
+        opacity: 0.2;
+
+        background-image:
+            radial-gradient(
+                circle,
+                var(--nfc-primary) 1px,
+                transparent 1.6px
+            );
+
+        background-size: 18px 18px;
+
+        mask-image:
+            linear-gradient(
+                90deg,
+                #000 0%,
+                transparent 45%
+            );
+
+        pointer-events: none;
+    }
+
+    .nfc-hero-content {
+        position: relative;
+        z-index: 3;
+
+        flex: 1;
+        max-width: 760px;
+    }
+
+    .nfc-eyebrow {
+        margin-bottom: 10px;
+
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+
+        color: var(--nfc-primary);
+
+        font-size: 12px;
+        font-weight: 900;
+    }
+
+    .nfc-eyebrow-icon {
+        width: 34px;
+        height: 34px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 10px;
+
+        color: var(--nfc-primary);
+        background: var(--nfc-primary-soft);
+    }
+
+    .nfc-eyebrow-icon svg {
+        width: 18px;
+        height: 18px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .nfc-hero h1 {
+        margin: 0;
+
+        color: var(--nfc-text);
+
+        font-size: clamp(
+            34px,
+            4vw,
+            52px
+        );
+
+        line-height: 1.15;
+    }
+
+    .nfc-hero h1 span {
+        color: var(--nfc-primary);
+    }
+
+    .nfc-hero p {
+        max-width: 700px;
+        margin: 13px 0 0;
+
+        color: var(--nfc-muted);
+
+        font-size: 14px;
+        line-height: 1.9;
+    }
+
+    .nfc-hero-actions {
+        position: relative;
+        z-index: 3;
+
+        flex: 0 0 auto;
+    }
+
+    .nfc-read-all-button {
+        min-height: 48px;
+        padding: 0 21px;
+
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+
+        border: 1px solid
+            var(--nfc-primary);
+
+        border-radius: 13px;
+
+        color: #ffffff;
+
+        background:
+            linear-gradient(
+                135deg,
+                var(--nfc-primary),
+                var(--nfc-primary-dark)
+            );
+
+        box-shadow:
+            0 10px 22px
+            rgba(8, 118, 90, 0.2);
+
+        font-size: 12px;
+        font-weight: 900;
+
+        text-decoration: none;
+
+        transition:
+            transform 0.18s ease,
+            box-shadow 0.18s ease;
+    }
+
+    .nfc-read-all-button:hover {
+        transform: translateY(-2px);
+
+        box-shadow:
+            0 14px 27px
+            rgba(8, 118, 90, 0.25);
+    }
+
+    .nfc-read-all-button svg {
+        width: 18px;
+        height: 18px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+
+    /* =========================================================
+       الإحصائيات
+    ========================================================= */
+
+    .nfc-stats {
+        margin-bottom: 16px;
+
+        display: grid;
+        grid-template-columns:
+            repeat(4, minmax(0, 1fr));
+
+        gap: 12px;
+    }
+
+    .nfc-stat {
+        min-width: 0;
+        min-height: 104px;
+        padding: 18px;
+
+        display: flex;
+        align-items: center;
+        gap: 14px;
+
+        border: 1px solid var(--nfc-border);
+        border-radius: 16px;
+
+        background: var(--nfc-white);
+
+        box-shadow:
+            0 9px 26px
+            rgba(18, 52, 41, 0.055);
+    }
+
+    .nfc-stat-primary {
+        color: #ffffff;
+
+        border-color: var(--nfc-primary);
+
+        background:
+            radial-gradient(
+                circle at 15% 20%,
+                rgba(255, 255, 255, 0.11),
+                transparent 30%
+            ),
+            linear-gradient(
+                145deg,
+                var(--nfc-primary),
+                var(--nfc-primary-dark)
+            );
+    }
+
+    .nfc-stat-icon {
+        flex: 0 0 52px;
+
+        width: 52px;
+        height: 52px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 15px;
+
+        color: var(--nfc-primary);
+        background: var(--nfc-primary-soft);
+    }
+
+    .nfc-stat-primary .nfc-stat-icon {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    .nfc-stat-unread {
+        color: var(--nfc-orange);
+        background: var(--nfc-orange-soft);
+    }
+
+    .nfc-stat-read {
+        color: var(--nfc-blue);
+        background: var(--nfc-blue-soft);
+    }
+
+    .nfc-stat-alert {
+        color: var(--nfc-red);
+        background: var(--nfc-red-soft);
+    }
+
+    .nfc-stat-icon svg {
+        width: 25px;
+        height: 25px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .nfc-stat-copy {
+        min-width: 0;
+    }
+
+    .nfc-stat-copy small,
+    .nfc-stat-copy strong,
+    .nfc-stat-copy span {
+        display: block;
+    }
+
+    .nfc-stat-copy small {
+        color: var(--nfc-muted);
+
+        font-size: 10px;
+        font-weight: 900;
+    }
+
+    .nfc-stat-primary .nfc-stat-copy small {
+        color: rgba(255, 255, 255, 0.76);
+    }
+
+    .nfc-stat-copy strong {
+        margin-top: 6px;
+
+        color: var(--nfc-text);
+
+        font-size: 28px;
+        line-height: 1;
+    }
+
+    .nfc-stat-primary .nfc-stat-copy strong {
+        color: #ffffff;
+    }
+
+    .nfc-stat-copy span {
+        margin-top: 5px;
+
+        overflow: hidden;
+
+        color: var(--nfc-muted);
+
+        font-size: 8px;
+
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .nfc-stat-primary .nfc-stat-copy span {
+        color: rgba(255, 255, 255, 0.72);
+    }
+
+
+    /* =========================================================
+       التخطيط الرئيسي
+    ========================================================= */
+
+    .nfc-layout {
+        display: grid;
+        grid-template-columns:
+            290px
+            minmax(0, 1fr);
+
+        gap: 16px;
+        align-items: start;
+    }
+
+
+    /* =========================================================
+       الشريط الجانبي
+    ========================================================= */
+
+    .nfc-sidebar {
+        display: grid;
+        gap: 14px;
+    }
+
+    .nfc-sidebar-card,
+    .nfc-help-card {
+        padding: 18px;
+
+        border: 1px solid var(--nfc-border);
+        border-radius: 17px;
+
+        background: var(--nfc-white);
+
+        box-shadow:
+            0 9px 26px
+            rgba(18, 52, 41, 0.055);
+    }
+
+    .nfc-sidebar-heading {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+
+        padding-bottom: 14px;
+
+        border-bottom: 1px solid
+            var(--nfc-border);
+    }
+
+    .nfc-sidebar-heading-icon {
+        flex: 0 0 42px;
+
+        width: 42px;
+        height: 42px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 12px;
+
+        color: var(--nfc-primary);
+        background: var(--nfc-primary-soft);
+    }
+
+    .nfc-sidebar-heading-icon svg {
+        width: 21px;
+        height: 21px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .nfc-sidebar-heading h2 {
+        margin: 0;
+
+        font-size: 14px;
+    }
+
+    .nfc-sidebar-heading p {
+        margin: 4px 0 0;
+
+        color: var(--nfc-muted);
+
+        font-size: 8px;
+    }
+
+    .nfc-filter-menu {
+        margin-top: 13px;
+
+        display: grid;
+        gap: 7px;
+    }
+
+    .nfc-filter-button {
+        width: 100%;
+        min-height: 44px;
+        padding: 7px 10px;
+
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+
+        border: 1px solid transparent;
+        border-radius: 10px;
+
+        color: #59665f;
+        background: transparent;
+
+        font-family: inherit;
+        font-size: 9px;
+        font-weight: 800;
+
+        cursor: pointer;
+
+        transition:
+            color 0.16s ease,
+            background 0.16s ease,
+            border-color 0.16s ease,
+            transform 0.16s ease;
+    }
+
+    .nfc-filter-button:hover {
+        color: var(--nfc-primary);
+
+        background: var(--nfc-primary-light);
+
+        transform: translateX(-2px);
+    }
+
+    .nfc-filter-button.active {
+        color: var(--nfc-primary);
+
+        border-color: #c5e3d8;
+
+        background: var(--nfc-primary-soft);
+    }
+
+    .nfc-filter-button-main {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .nfc-filter-button-icon {
+        width: 29px;
+        height: 29px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 8px;
+
+        color: currentColor;
+        background: rgba(255, 255, 255, 0.7);
+    }
+
+    .nfc-filter-button-icon svg {
+        width: 15px;
+        height: 15px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .nfc-filter-count {
+        min-width: 25px;
+        height: 22px;
+        padding: 0 6px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 999px;
+
+        color: var(--nfc-muted);
+        background: #edf2ef;
+
+        font-size: 8px;
+        font-weight: 900;
+    }
+
+    .nfc-filter-button.active .nfc-filter-count {
+        color: #ffffff;
+        background: var(--nfc-primary);
+    }
+
+    .nfc-help-card {
+        color: #ffffff;
+
+        border-color: var(--nfc-primary);
+
+        background:
+            radial-gradient(
+                circle at 15% 15%,
+                rgba(255, 255, 255, 0.1),
+                transparent 28%
+            ),
+            linear-gradient(
+                145deg,
+                var(--nfc-primary),
+                var(--nfc-primary-dark)
+            );
+    }
+
+    .nfc-help-icon {
+        width: 43px;
+        height: 43px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 12px;
+
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    .nfc-help-icon svg {
+        width: 22px;
+        height: 22px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .nfc-help-card h3 {
+        margin: 13px 0 0;
+
+        font-size: 14px;
+    }
+
+    .nfc-help-card p {
+        margin: 8px 0 0;
+
+        color: rgba(255, 255, 255, 0.78);
+
+        font-size: 8px;
+        line-height: 1.8;
+    }
+
+
+    /* =========================================================
+       بطاقة المحتوى
+    ========================================================= */
+
+    .nfc-content-card {
+        min-width: 0;
+        overflow: hidden;
+
+        border: 1px solid var(--nfc-border);
+        border-radius: 18px;
+
+        background: var(--nfc-white);
+
+        box-shadow:
+            0 10px 30px
+            rgba(18, 52, 41, 0.065);
+    }
+
+    .nfc-toolbar {
+        min-height: 80px;
+        padding: 16px 19px;
+
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+
+        border-bottom: 1px solid
+            var(--nfc-border);
+
+        background:
+            linear-gradient(
+                180deg,
+                #ffffff,
+                #fbfdfc
+            );
+    }
+
+    .nfc-toolbar-copy h2 {
+        margin: 0;
+
+        font-size: 18px;
+    }
+
+    .nfc-toolbar-copy p {
+        margin: 5px 0 0;
+
+        color: var(--nfc-muted);
+
+        font-size: 9px;
+    }
+
+    .nfc-search {
+        width: min(340px, 100%);
+        min-height: 43px;
+        padding: 0 12px;
+
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        border: 1px solid var(--nfc-border);
+        border-radius: 11px;
+
+        background: #ffffff;
+
+        transition:
+            border-color 0.17s ease,
+            box-shadow 0.17s ease;
+    }
+
+    .nfc-search:focus-within {
+        border-color: #9bcfbd;
+
+        box-shadow:
+            0 0 0 4px
+            rgba(8, 118, 90, 0.08);
+    }
+
+    .nfc-search > svg {
+        flex: 0 0 17px;
+
+        width: 17px;
+        height: 17px;
+
+        fill: none;
+        stroke: var(--nfc-muted);
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .nfc-search input {
+        min-width: 0;
+        flex: 1;
+
+        border: 0;
+        outline: 0;
+
+        color: var(--nfc-text);
+        background: transparent;
+
+        font-family: inherit;
+        font-size: 10px;
+    }
+
+    .nfc-search input::placeholder {
+        color: #9aa49f;
+    }
+
+    .nfc-search button {
+        flex: 0 0 27px;
+
+        width: 27px;
+        height: 27px;
+        padding: 0;
+
+        display: none;
+        place-items: center;
+
+        border: 0;
+        border-radius: 7px;
+
+        color: var(--nfc-muted);
+        background: #f2f5f3;
+
+        cursor: pointer;
+    }
+
+    .nfc-search button.visible {
+        display: grid;
+    }
+
+    .nfc-search button svg {
+        width: 14px;
+        height: 14px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+
+    /* =========================================================
+       الإشعارات
+    ========================================================= */
+
+    .nfc-notifications-list {
+        display: grid;
+    }
+
+    .nfc-notification {
+        position: relative;
+
+        min-width: 0;
+        min-height: 132px;
+        padding: 19px;
+
+        display: grid;
+        grid-template-columns:
+            11px
+            52px
+            minmax(0, 1fr)
+            125px;
+
+        align-items: center;
+        gap: 15px;
+
+        border-bottom: 1px solid
+            #edf2ef;
+
+        background: #ffffff;
+
+        transition:
+            background 0.17s ease,
+            transform 0.17s ease,
+            box-shadow 0.17s ease;
+    }
+
+    .nfc-notification:last-child {
+        border-bottom: 0;
+    }
+
+    .nfc-notification:hover {
+        z-index: 2;
+
+        background: #fbfefc;
+
+        box-shadow:
+            0 10px 25px
+            rgba(18, 52, 41, 0.07);
+
+        transform: translateY(-1px);
+    }
+
+    .nfc-notification.nfc-unread {
+        background:
+            linear-gradient(
+                90deg,
+                rgba(8, 118, 90, 0.04),
+                #ffffff 32%
+            );
+    }
+
+    .nfc-notification.nfc-hidden {
+        display: none;
+    }
+
+    .nfc-notification-status {
+        display: grid;
+        place-items: center;
+    }
+
+    .nfc-unread-dot {
+        width: 9px;
+        height: 9px;
+
+        display: block;
+
+        border: 2px solid #d9f4e9;
+        border-radius: 50%;
+
+        background: var(--nfc-primary);
+
+        box-shadow:
+            0 0 0 4px
+            rgba(8, 118, 90, 0.09);
+    }
+
+    .nfc-read-check {
+        width: 22px;
+        height: 22px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 50%;
+
+        color: #8c9993;
+        background: #f1f4f2;
+    }
+
+    .nfc-read-check svg {
+        width: 13px;
+        height: 13px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .nfc-notification-icon {
+        width: 52px;
+        height: 52px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 15px;
+
+        color: var(--nfc-blue);
+        background: var(--nfc-blue-soft);
+    }
+
+    .nfc-level-success .nfc-notification-icon {
+        color: var(--nfc-primary);
+        background: var(--nfc-primary-soft);
+    }
+
+    .nfc-level-warning .nfc-notification-icon {
+        color: var(--nfc-orange);
+        background: var(--nfc-orange-soft);
+    }
+
+    .nfc-level-danger .nfc-notification-icon {
+        color: var(--nfc-red);
+        background: var(--nfc-red-soft);
+    }
+
+    .nfc-notification-icon svg {
+        width: 25px;
+        height: 25px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .nfc-notification-body {
+        min-width: 0;
+    }
+
+    .nfc-notification-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 15px;
+    }
+
+    .nfc-notification-heading {
+        min-width: 0;
+
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .nfc-notification-heading h3 {
+        margin: 0;
+
+        overflow: hidden;
+
+        color: var(--nfc-text);
+
+        font-size: 14px;
+        line-height: 1.5;
+
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .nfc-unread .nfc-notification-heading h3 {
+        font-weight: 900;
+    }
+
+    .nfc-level-badge {
+        padding: 4px 8px;
+
+        border-radius: 999px;
+
+        color: var(--nfc-blue);
+        background: var(--nfc-blue-soft);
+
+        font-size: 7px;
+        font-weight: 900;
+    }
+
+    .nfc-level-success .nfc-level-badge {
+        color: var(--nfc-primary);
+        background: var(--nfc-primary-soft);
+    }
+
+    .nfc-level-warning .nfc-level-badge {
+        color: var(--nfc-orange);
+        background: var(--nfc-orange-soft);
+    }
+
+    .nfc-level-danger .nfc-level-badge {
+        color: var(--nfc-red);
+        background: var(--nfc-red-soft);
+    }
+
+    .nfc-notification-top time {
+        flex: 0 0 auto;
+
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+
+        color: #929d98;
+
+        font-size: 8px;
+        white-space: nowrap;
+    }
+
+    .nfc-notification-top time svg {
+        width: 14px;
+        height: 14px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .nfc-time-divider {
+        color: #c2cac6;
+    }
+
+    .nfc-notification-message {
+        max-width: 850px;
+        margin: 9px 0 0;
+
+        color: #64716b;
+
+        font-size: 10px;
+        line-height: 1.8;
+    }
+
+    .nfc-notification-footer {
+        margin-top: 11px;
+
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .nfc-notification-source,
+    .nfc-read-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+
+        font-size: 7px;
+        font-weight: 800;
+    }
+
+    .nfc-notification-source {
+        color: #88948e;
+    }
+
+    .nfc-read-badge {
+        padding: 4px 8px;
+
+        border-radius: 999px;
+
+        color: var(--nfc-primary);
+        background: var(--nfc-primary-soft);
+    }
+
+    .nfc-notification-source svg,
+    .nfc-read-badge svg {
+        width: 13px;
+        height: 13px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .nfc-notification-actions {
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .nfc-open-button,
+    .nfc-completed-label {
+        min-height: 39px;
+        padding: 0 13px;
+
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+
+        border-radius: 10px;
+
+        font-size: 8px;
+        font-weight: 900;
+
+        white-space: nowrap;
+    }
+
+    .nfc-open-button {
+        color: #ffffff;
+
+        background:
+            linear-gradient(
+                135deg,
+                var(--nfc-primary),
+                var(--nfc-primary-dark)
+            );
+
+        box-shadow:
+            0 7px 16px
+            rgba(8, 118, 90, 0.17);
+
+        text-decoration: none;
+
+        transition:
+            transform 0.17s ease,
+            box-shadow 0.17s ease;
+    }
+
+    .nfc-open-button:hover {
+        transform: translateY(-2px);
+
+        box-shadow:
+            0 10px 20px
+            rgba(8, 118, 90, 0.22);
+    }
+
+    .nfc-completed-label {
+        color: var(--nfc-primary);
+
+        border: 1px solid #c7e3d8;
+        background: var(--nfc-primary-soft);
+    }
+
+    .nfc-open-button svg,
+    .nfc-completed-label svg {
+        width: 14px;
+        height: 14px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+
+    /* =========================================================
+       الحالة الفارغة وعدم وجود نتائج
+    ========================================================= */
+
+    .nfc-empty-state,
+    .nfc-no-results {
+        min-height: 450px;
+        padding: 55px 20px;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+
+        text-align: center;
+    }
+
+    .nfc-empty-illustration {
+        position: relative;
+
+        width: 126px;
+        height: 126px;
+        margin-bottom: 20px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 35px;
+
+        color: var(--nfc-primary);
+
+        background:
+            linear-gradient(
+                145deg,
+                #eff9f5,
+                #e2f3eb
+            );
+    }
+
+    .nfc-empty-ring {
+        position: absolute;
+        inset: -8px;
+
+        border: 1px dashed
+            rgba(8, 118, 90, 0.25);
+
+        border-radius: 40px;
+    }
+
+    .nfc-empty-illustration svg {
+        width: 60px;
+        height: 60px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.7;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .nfc-empty-state h3,
+    .nfc-no-results h3 {
+        margin: 0;
+
+        font-size: 21px;
+    }
+
+    .nfc-empty-state p,
+    .nfc-no-results p {
+        max-width: 440px;
+        margin: 10px auto 0;
+
+        color: var(--nfc-muted);
+
+        font-size: 10px;
+        line-height: 1.9;
+    }
+
+    .nfc-no-results[hidden] {
+        display: none;
+    }
+
+    .nfc-no-results-icon {
+        width: 90px;
+        height: 90px;
+
+        margin-bottom: 17px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 26px;
+
+        color: var(--nfc-blue);
+        background: var(--nfc-blue-soft);
+    }
+
+    .nfc-no-results-icon svg {
+        width: 43px;
+        height: 43px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.7;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .nfc-no-results button {
+        min-height: 40px;
+        margin-top: 18px;
+        padding: 0 16px;
+
+        border: 0;
+        border-radius: 10px;
+
+        color: #ffffff;
+
+        background:
+            linear-gradient(
+                135deg,
+                var(--nfc-primary),
+                var(--nfc-primary-dark)
+            );
+
+        font-family: inherit;
+        font-size: 9px;
+        font-weight: 900;
+
+        cursor: pointer;
+    }
+
+
+    /* =========================================================
+       التجاوب
+    ========================================================= */
+
+    @media (max-width: 1200px) {
+
+        .nfc-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .nfc-sidebar {
+            grid-template-columns:
+                minmax(0, 1fr)
+                minmax(0, 1fr);
+        }
+
+        .nfc-stats {
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+        }
+
+    }
+
+    @media (max-width: 850px) {
+
+        .nfc-page {
+            padding: 9px;
+        }
+
+        .nfc-hero {
+            min-height: 300px;
+            padding: 25px;
+
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .nfc-hero::before {
+            width: 320px;
+            height: 320px;
+
+            top: -235px;
+            left: -135px;
+        }
+
+        .nfc-hero-actions {
+            width: 100%;
+        }
+
+        .nfc-read-all-button {
+            width: 100%;
+        }
+
+        .nfc-sidebar {
+            grid-template-columns: 1fr;
+        }
+
+        .nfc-toolbar {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .nfc-toolbar-actions,
+        .nfc-search {
+            width: 100%;
+        }
+
+        .nfc-notification {
+            grid-template-columns:
+                10px
+                46px
+                minmax(0, 1fr);
+
+            align-items: flex-start;
+        }
+
+        .nfc-notification-actions {
+            grid-column: 2 / -1;
+
+            justify-content: flex-start;
+        }
+
+        .nfc-notification-top {
+            flex-direction: column;
+        }
+
+        .nfc-notification-heading h3 {
+            white-space: normal;
+        }
+
+    }
+
+    @media (max-width: 560px) {
+
+        .nfc-stats {
+            grid-template-columns: 1fr;
+        }
+
+        .nfc-notification {
+            grid-template-columns:
+                9px
+                minmax(0, 1fr);
+
+            gap: 11px;
+        }
+
+        .nfc-notification-icon {
+            grid-column: 2;
+
+            width: 44px;
+            height: 44px;
+        }
+
+        .nfc-notification-body {
+            grid-column: 2;
+        }
+
+        .nfc-notification-actions {
+            grid-column: 2;
+        }
+
+        .nfc-open-button,
+        .nfc-completed-label {
+            width: 100%;
+        }
+
+    }
+
+</style>
+
+
+<script>
+
+    document.addEventListener(
+        "DOMContentLoaded",
+        function () {
+
+            const notifications = Array.from(
+                document.querySelectorAll(
+                    ".nfc-notification"
+                )
+            );
+
+            const filterButtons = Array.from(
+                document.querySelectorAll(
+                    ".nfc-filter-button"
+                )
+            );
+
+            const searchInput = document.getElementById(
+                "nfcSearchInput"
+            );
+
+            const clearSearchButton = document.getElementById(
+                "nfcClearSearch"
+            );
+
+            const noResults = document.getElementById(
+                "nfcNoResults"
+            );
+
+            const resetFiltersButton = document.getElementById(
+                "nfcResetFilters"
+            );
+
+            const resultsText = document.getElementById(
+                "nfcResultsText"
+            );
+
+            let currentFilter = "all";
+
+
+            function countByLevel(level) {
+
+                return notifications.filter(
+                    function (notification) {
+                        return (
+                            notification.dataset.level
+                            === level
+                        );
+                    }
+                ).length;
+
+            }
+
+
+            function setText(id, value) {
+
+                const element = document.getElementById(id);
+
+                if (element) {
+                    element.textContent = value;
+                }
+
+            }
+
+
+            function updateCounters() {
+
+                const totalCount = notifications.length;
+
+                const unreadCount = notifications.filter(
+                    function (notification) {
+                        return (
+                            notification.dataset.read
+                            === "unread"
+                        );
+                    }
+                ).length;
+
+                const readCount = totalCount - unreadCount;
+
+                const warningCount = (
+                    countByLevel("warning")
+                    + countByLevel("danger")
+                );
+
+                setText(
+                    "nfcTotalCount",
+                    totalCount
+                );
+
+                setText(
+                    "nfcUnreadCount",
+                    unreadCount
+                );
+
+                setText(
+                    "nfcReadCount",
+                    readCount
+                );
+
+                setText(
+                    "nfcAlertCount",
+                    warningCount
+                );
+
+                setText(
+                    "nfcFilterAllCount",
+                    totalCount
+                );
+
+                setText(
+                    "nfcFilterUnreadCount",
+                    unreadCount
+                );
+
+                setText(
+                    "nfcFilterSuccessCount",
+                    countByLevel("success")
+                );
+
+                setText(
+                    "nfcFilterWarningCount",
+                    countByLevel("warning")
+                );
+
+                setText(
+                    "nfcFilterDangerCount",
+                    countByLevel("danger")
+                );
+
+                setText(
+                    "nfcFilterInfoCount",
+                    countByLevel("info")
+                );
+
+            }
+
+
+            function normalizeText(value) {
+
+                return String(value || "")
+                    .trim()
+                    .toLowerCase();
+
+            }
+
+
+            function applyFilters() {
+
+                const searchValue = normalizeText(
+                    searchInput
+                        ? searchInput.value
+                        : ""
+                );
+
+                let visibleCount = 0;
+
+                notifications.forEach(
+                    function (notification) {
+
+                        const level = (
+                            notification.dataset.level
+                            || "info"
+                        );
+
+                        const readState = (
+                            notification.dataset.read
+                            || "read"
+                        );
+
+                        const searchableText = normalizeText(
+                            notification.dataset.search
+                        );
+
+                        let matchesFilter = false;
+
+                        if (currentFilter === "all") {
+                            matchesFilter = true;
+                        }
+
+                        else if (
+                            currentFilter === "unread"
+                        ) {
+                            matchesFilter = (
+                                readState === "unread"
+                            );
+                        }
+
+                        else {
+                            matchesFilter = (
+                                level === currentFilter
+                            );
+                        }
+
+                        const matchesSearch = (
+                            !searchValue
+                            || searchableText.includes(
+                                searchValue
+                            )
+                        );
+
+                        const shouldShow = (
+                            matchesFilter
+                            && matchesSearch
+                        );
+
+                        notification.classList.toggle(
+                            "nfc-hidden",
+                            !shouldShow
+                        );
+
+                        if (shouldShow) {
+                            visibleCount += 1;
+                        }
+
+                    }
+                );
+
+                if (noResults) {
+                    noResults.hidden = (
+                        visibleCount !== 0
+                    );
+                }
+
+                if (clearSearchButton) {
+                    clearSearchButton.classList.toggle(
+                        "visible",
+                        Boolean(searchValue)
+                    );
+                }
+
+                if (resultsText) {
+                    resultsText.textContent = (
+                        visibleCount
+                        + " إشعار مطابق"
+                    );
+                }
+
+            }
+
+
+            filterButtons.forEach(
+                function (button) {
+
+                    button.addEventListener(
+                        "click",
+                        function () {
+
+                            currentFilter = (
+                                button.dataset.filter
+                                || "all"
+                            );
+
+                            filterButtons.forEach(
+                                function (item) {
+                                    item.classList.remove(
+                                        "active"
+                                    );
+                                }
+                            );
+
+                            button.classList.add(
+                                "active"
+                            );
+
+                            applyFilters();
+
+                        }
+                    );
+
+                }
+            );
+
+
+            if (searchInput) {
+
+                searchInput.addEventListener(
+                    "input",
+                    applyFilters
+                );
+
+            }
+
+
+            if (clearSearchButton) {
+
+                clearSearchButton.addEventListener(
+                    "click",
+                    function () {
+
+                        if (searchInput) {
+                            searchInput.value = "";
+                            searchInput.focus();
+                        }
+
+                        applyFilters();
+
+                    }
+                );
+
+            }
+
+
+            if (resetFiltersButton) {
+
+                resetFiltersButton.addEventListener(
+                    "click",
+                    function () {
+
+                        currentFilter = "all";
+
+                        if (searchInput) {
+                            searchInput.value = "";
+                        }
+
+                        filterButtons.forEach(
+                            function (button) {
+
+                                button.classList.toggle(
+                                    "active",
+                                    (
+                                        button.dataset.filter
+                                        === "all"
+                                    )
+                                );
+
+                            }
+                        );
+
+                        applyFilters();
+
+                    }
+                );
+
+            }
+
+
+            updateCounters();
+            applyFilters();
+
+        }
+    );
+
+</script>
+
+{% endblock %}

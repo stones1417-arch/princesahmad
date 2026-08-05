@@ -1,0 +1,28 @@
+<div class="xc-modal" id="exportModal" aria-hidden="true">
+  <div class="xc-modal-overlay" data-close-modal></div>
+  <div class="xc-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="exportModalTitle">
+    <header class="xc-modal-header">
+      <div><small>إجراء مؤسسي موثّق</small><h2 id="exportModalTitle">تصدير التقرير</h2></div>
+      <button type="button" data-close-modal aria-label="إغلاق">×</button>
+    </header>
+    <div class="xc-modal-body">
+      <div class="xc-selected-report"><small>التقرير المحدد</small><strong id="selectedReportTitle">—</strong></div>
+      <p class="xc-modal-guidance">اختر الصيغة حسب الغرض. سيُحفظ الملف في سجل التصدير لتتبّعه وإعادة تنزيله.</p>
+      <div class="xc-modal-formats">
+        <a id="modalExcelLink" class="excel" data-export-format="excel"><strong>Excel</strong><small>للتحليل والجداول والحسابات</small></a>
+        <a id="modalPdfLink" class="pdf" data-export-format="pdf"><strong>PDF</strong><small>للطباعة والمراسلات الرسمية</small></a>
+        <a id="modalCsvLink" class="csv" data-export-format="csv"><strong>CSV</strong><small>لتكامل الأنظمة والبيانات الخام</small></a>
+      </div>
+    </div>
+    <footer class="xc-modal-footer">
+      <button type="button" data-close-modal>إلغاء</button>
+      <a id="modalFiltersLink">تخصيص البيانات قبل التصدير</a>
+    </footer>
+  </div>
+</div>
+<script>
+window.EXPORT_CENTER_URLS = {
+  exportTemplate: "{% url 'exports_center:export' report_key='__REPORT_KEY__' export_format='__FORMAT__' %}",
+  filtersTemplate: "{% url 'exports_center:filters' report_key='__REPORT_KEY__' %}"
+};
+</script>

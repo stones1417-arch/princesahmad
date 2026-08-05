@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}
+حذف التعميم الإداري
+{% endblock %}
+
+{% block content %}
+
+{% include "components/layout/page_container_start.html" %}
+
+    <div class="confirm-box">
+
+        <div class="confirm-icon">
+            🗑️
+        </div>
+
+        <h2>
+            حذف التعميم الإداري
+        </h2>
+
+        <p>
+            هل أنت متأكد من حذف التعميم:
+        </p>
+
+        <div class="delete-announcement-preview">
+
+            <strong>
+                {{ announcement.title }}
+            </strong>
+
+            <span>
+                {{ announcement.content|truncatechars:180 }}
+            </span>
+
+        </div>
+
+        <div class="delete-warning">
+            ⚠️ سيتم حذف التعميم نهائيًا، ولا يمكن التراجع عن هذه العملية.
+        </div>
+
+        <form method="post">
+
+            {% csrf_token %}
+
+            <div class="confirm-actions">
+
+                <button type="submit" class="btn-danger">
+                    تأكيد الحذف
+                </button>
+
+                <a
+                    href="{% url 'communications:list' %}"
+                    class="btn-cancel"
+                >
+                    إلغاء
+                </a>
+
+            </div>
+
+        </form>
+
+    </div>
+
+{% include "components/layout/page_container_end.html" %}
+
+{% endblock %}

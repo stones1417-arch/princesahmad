@@ -1,0 +1,46 @@
+/* Shift status page — enterprise operations dashboard */
+.shift-page { width:min(calc(100% - 32px),1700px); margin:0 auto; padding:28px 0 54px !important; }
+.page-head { margin-bottom:18px !important; padding:0 2px; align-items:flex-end !important; }
+.shift-page-heading > span { display:block; margin-bottom:5px; color:#9b7921; font-size:10px; font-weight:950; }
+.shift-page-heading .page-title { color:#0a654d; font-size:clamp(27px,3vw,36px); letter-spacing:-.025em; }
+.shift-page-heading p { margin:6px 0 0; color:#718078; font-size:12px; }
+.shift-page .action-btn { min-height:48px; padding:0 18px; display:inline-flex; align-items:center; gap:8px; border-radius:14px; background:linear-gradient(135deg,#0b8060,#075e47); box-shadow:0 9px 22px rgba(8,118,90,.2); transition:.18s ease; }
+.shift-page .action-btn:hover { transform:translateY(-2px); box-shadow:0 12px 27px rgba(8,118,90,.27); }
+.shift-page .action-btn > span { width:23px; height:23px; display:grid; place-items:center; color:#08765a; background:#fff; border-radius:8px; font-size:17px; }
+
+.shift-page .active-box {
+    min-height:82px; margin-bottom:18px; padding:15px 18px; display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:14px;
+    color:#14362b; background:linear-gradient(135deg,#ecfbf5,#f7fcfa); border:1px solid #bce3d4; border-radius:18px; box-shadow:0 7px 20px rgba(15,87,65,.06);
+}
+.active-box-indicator { width:13px; height:13px; display:block; background:#16a36f; border:3px solid #c9f6e4; border-radius:50%; box-shadow:0 0 0 4px rgba(22,163,111,.1); animation:shift-live-pulse 2s ease infinite; }
+.active-box small,.active-box strong,.active-box div>span { display:block; }
+.active-box small { margin-bottom:3px; color:#638077; font-size:9px; font-weight:850; }
+.active-box strong { color:#08664d; font-size:15px; }
+.active-box div>span { margin-top:3px; color:#74847c; font-size:10px; }
+.active-box-date { padding:7px 11px; color:#49655c; background:#fff; border:1px solid #d9e9e2; border-radius:11px; font-size:10px; font-weight:850; }
+.active-box.is-idle { background:#fff8f1; border-color:#f2d5b8; }.active-box.is-idle .active-box-indicator{background:#d97706;border-color:#ffedd5;box-shadow:0 0 0 4px rgba(217,119,6,.1);animation:none}.active-box.is-idle strong{color:#9a4d0b}
+
+.shift-overview { margin-bottom:20px; display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+.shift-overview article { position:relative; min-height:82px; padding:15px 17px; overflow:hidden; background:#fff; border:1px solid #e1e9e5; border-radius:16px; box-shadow:0 7px 20px rgba(17,50,40,.05); }
+.shift-overview span,.shift-overview strong { display:block; }.shift-overview span{color:#75827b;font-size:9px;font-weight:850}.shift-overview strong{margin-top:5px;color:#15251f;font-size:22px}.shift-overview i{position:absolute;inset-block:0;right:0;width:4px}.shift-overview .is-total{background:#cba43b}.shift-overview .is-running{background:#0c9b6d}.shift-overview .is-ready{background:#e2b72f}.shift-overview .is-finished{background:#7b8791}
+
+.shift-page .shift-grid { grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; }
+.shift-page .shift-card { min-height:440px; padding:20px; display:flex; flex-direction:column; border-color:#e0e8e4; border-radius:21px; box-shadow:0 14px 34px rgba(17,50,40,.08); transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease; }
+.shift-page .shift-card:hover { transform:translateY(-3px); border-color:#b9d4c9; box-shadow:0 19px 42px rgba(17,50,40,.12); }
+.shift-page .shift-card::before { width:5px; background:#d6b449; }
+.shift-page .shift-card.active { border:1px solid #70c4a7; background:linear-gradient(160deg,#f5fffb,#fff); box-shadow:0 16px 40px rgba(8,118,90,.14); }
+.shift-card-sequence { margin-bottom:12px; color:#9b8561; font-size:8px; font-weight:950; letter-spacing:.05em; }
+.shift-page .shift-header { align-items:flex-start; margin-bottom:13px; }
+.shift-page .shift-header h3 { color:#0a654d; font-size:23px; }.shift-page .shift-header h3 small{display:block;margin-top:4px;color:#839089;font-size:9px;font-weight:750}
+.shift-page .active-badge { color:#fff; background:#08765a; box-shadow:0 5px 13px rgba(8,118,90,.2); }
+.shift-page .status-badge { padding:5px 10px; font-size:9px; }
+.shift-page .shift-times { gap:9px; margin:16px 0; }.shift-page .time-box{padding:12px;border-color:#e5ece8;background:#f8faf9}.shift-page .time-box span{font-size:9px}.shift-page .time-box strong{font-size:19px}
+.shift-page .shift-info { padding:12px 0; flex:1; border-top:1px solid #edf1ef; font-size:10px; line-height:1.9; }.shift-page .shift-info strong{color:#374a42}
+.shift-page .shift-actions { margin-top:auto; gap:8px; }.shift-page .shift-actions button,.shift-page .shift-actions a{min-height:43px;padding:8px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:12px;font-size:11px}.shift-page .shift-actions a{background:#17221e}.shift-page .shift-actions button:not(.disabled){background:linear-gradient(135deg,#0b8060,#075e47)}
+
+body.dark .shift-page .shift-card,html[data-theme="dark"] .shift-page .shift-card,body.dark .shift-overview article,html[data-theme="dark"] .shift-overview article{background:#151c19;border-color:#303c37}body.dark .active-box,html[data-theme="dark"] .active-box{background:#14251f;border-color:#285443}body.dark .active-box-date,html[data-theme="dark"] .active-box-date{background:#1c2823;border-color:#35453e}
+@keyframes shift-live-pulse{50%{box-shadow:0 0 0 7px rgba(22,163,111,.04)}}
+@media(max-width:1250px){.shift-page .shift-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:800px){.shift-overview{grid-template-columns:repeat(2,1fr)}.shift-page{width:min(calc(100% - 24px),1700px);padding-top:18px!important}.active-box-date{display:none}}
+@media(max-width:560px){.page-head{align-items:stretch!important;flex-direction:column}.shift-page .action-btn{justify-content:center}.shift-page .shift-grid,.shift-overview{grid-template-columns:1fr}.shift-page .active-box{grid-template-columns:auto 1fr}.shift-page .shift-card{min-height:0}}
+@media(prefers-reduced-motion:reduce){.shift-page *{transition:none!important}.active-box-indicator{animation:none}}

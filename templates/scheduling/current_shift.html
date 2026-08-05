@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="shift-page" dir="rtl">
+
+  <div class="page-head">
+    <div>
+      <h2>مركز قيادة الوردية الحالية</h2>
+      {% if active_shift %}
+        <p>متابعة تشغيل الوردية النشطة وإجراءاتها الأساسية</p>
+      {% else %}
+        <p class="danger">لا توجد وردية نشطة حاليًا</p>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if active_shift %}
+
+    <div class="shift-main-card">
+
+      <div>
+        <span>نوع الوردية</span>
+        <strong>{{ active_shift.shift_type }}</strong>
+      </div>
+
+      <div>
+        <span>التاريخ</span>
+        <strong>{{ active_shift.date }}</strong>
+      </div>
+
+      <div>
+        <span>الحالة</span>
+        <strong class="status-running">نشطة</strong>
+      </div>
+
+      <div>
+        <span>وقت البداية</span>
+        <strong>{{ active_shift.shift_type.start_time|default:"—" }}</strong>
+      </div>
+
+      <div>
+        <span>وقت النهاية</span>
+        <strong>{{ active_shift.shift_type.end_time|default:"—" }}</strong>
+      </div>
+
+    </div>
+
+    {% if active_shift.notes %}
+      <div class="notes-card">
+        <strong>ملاحظات الوردية</strong>
+        <p>{{ active_shift.notes }}</p>
+      </div>
+    {% endif %}
+
+    <div class="quick-actions">
+
+      <a href="{% url 'scheduling:assignments' %}">
+        تسكين الموظفين
+      </a>
+
+      <a href="{% url 'ops:doors' %}">
+        حالات الأبواب
+      </a>
+
+      <a href="{% url 'locations:dashboard' %}">
+        غرفة عمليات الأبواب
+      </a>
+
+      <a href="{% url 'ops:maintenance-list' %}">
+        طلبات الصيانة
+      </a>
+
+      <a href="{% url 'ops:incidents' %}">
+        البلاغات التشغيلية
+      </a>
+
+      <a href="{% url 'reporting:generate-active' %}">
+        توليد تقرير الوردية
+      </a>
+
+    </div>
+
+    <div class="sections-grid">
+
+      <div class="section-card">
+        <h3>ماذا تفعل من هنا؟</h3>
+
+        <ul>
+          <li>مراجعة الوردية النشطة ونوعها وتوقيتها.</li>
+          <li>فتح صفحة تسكين الموظفين لتأكيد المناوبين.</li>
+          <li>متابعة حالات الأبواب والطلبات التشغيلية.</li>
+          <li>توليد تقرير الوردية عند اكتمال التشغيل.</li>
+        </ul>
+      </div>
+
+      <div class="section-card">
+        <h3>تنبيهات تشغيلية</h3>
+
+        <ul>
+          <li>راجع الأبواب بدون موظفين من غرفة عمليات الأبواب.</li>
+          <li>راجع الأبواب تحت الصيانة قبل نهاية الوردية.</li>
+          <li>تأكد من وجود رئيس وردية ونائب ومشرفين.</li>
+          <li>أغلق البلاغات التشغيلية المكتملة.</li>
+        </ul>
+      </div>
+
+    </div>
+
+  {% else %}
+
+    <div class="empty-card">
+      لا توجد وردية نشطة حاليًا.
+      <br>
+      انتقل إلى صفحة حالات الورديات لتفعيل وردية.
+    </div>
+
+    <div class="quick-actions">
+      <a href="{% url 'scheduling:status' %}">
+        الذهاب إلى حالات الورديات
+      </a>
+    </div>
+
+  {% endif %}
+
+</div>
+
+<style>
+
+.shift-page{
+  padding:28px 36px 80px;
+  background:#f7f7f7;
+}
+
+.page-head h2{
+  margin:0;
+  color:#0f7b5c;
+  font-size:30px;
+  font-weight:900;
+}
+
+.page-head p{
+  margin:8px 0 22px;
+  color:#6b7280;
+}
+
+.danger{
+  color:#b91c1c !important;
+  font-weight:900;
+}
+
+.shift-main-card{
+  background:#fff;
+  border-radius:24px;
+  padding:24px;
+  box-shadow:0 12px 30px rgba(0,0,0,.07);
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:18px;
+  margin-bottom:22px;
+}
+
+.shift-main-card div{
+  background:#f9fafb;
+  border:1px solid #eee;
+  border-radius:18px;
+  padding:18px;
+}
+
+.shift-main-card span{
+  display:block;
+  color:#6b7280;
+  font-size:13px;
+  margin-bottom:8px;
+}
+
+.shift-main-card strong{
+  display:block;
+  color:#111827;
+  font-size:22px;
+  font-weight:900;
+}
+
+.status-running{
+  color:#16a34a !important;
+}
+
+.notes-card{
+  background:#fff;
+  border-radius:22px;
+  padding:20px;
+  box-shadow:0 12px 30px rgba(0,0,0,.07);
+  margin-bottom:22px;
+}
+
+.notes-card strong{
+  color:#0f7b5c;
+  font-size:18px;
+}
+
+.notes-card p{
+  color:#374151;
+  line-height:1.8;
+  margin-bottom:0;
+}
+
+.quick-actions{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:14px;
+  margin-bottom:24px;
+}
+
+.quick-actions a{
+  display:block;
+  background:#0f7b5c;
+  color:#fff;
+  text-decoration:none;
+  text-align:center;
+  border-radius:18px;
+  padding:16px;
+  font-weight:900;
+  box-shadow:0 10px 24px rgba(15,123,92,.18);
+}
+
+.sections-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:20px;
+}
+
+.section-card{
+  background:#fff;
+  border-radius:24px;
+  padding:24px;
+  box-shadow:0 12px 30px rgba(0,0,0,.07);
+}
+
+.section-card h3{
+  margin:0 0 16px;
+  color:#111827;
+  font-size:22px;
+  font-weight:900;
+}
+
+.section-card ul{
+  margin:0;
+  padding-right:20px;
+  color:#374151;
+  line-height:2;
+}
+
+.empty-card{
+  background:#fff;
+  border-radius:24px;
+  padding:28px;
+  box-shadow:0 12px 30px rgba(0,0,0,.07);
+  color:#6b7280;
+  font-weight:900;
+  line-height:2;
+  margin-bottom:20px;
+}
+
+@media(max-width:900px){
+  .sections-grid{
+    grid-template-columns:1fr;
+  }
+}
+
+</style>
+
+{% endblock %}

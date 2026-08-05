@@ -1,0 +1,25 @@
+<div class="info-card">
+
+    <div class="info-card-header">
+        <span class="info-card-icon">
+            {{ icon|default:"ℹ️" }}
+        </span>
+
+        <h3>
+            {{ title }}
+        </h3>
+    </div>
+
+    {% if message %}
+        <p>
+            {{ message }}
+        </p>
+    {% endif %}
+
+    {% if link_url and link_text %}
+        <a href="{{ link_url }}" class="info-card-link">
+            {{ link_text }}
+        </a>
+    {% endif %}
+
+</div>

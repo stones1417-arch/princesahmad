@@ -1,0 +1,26 @@
+{% load static %}
+
+<header class="legacy-page-header" dir="rtl">
+
+    {% include "components/topbar.html" %}
+
+    {% include "components/main_header.html" %}
+
+    {% if messages %}
+        <section
+            class="messages-container"
+            aria-live="polite"
+            aria-atomic="true"
+        >
+            {% for message in messages %}
+                <div
+                    class="alert alert-{{ message.tags|default:'info' }}"
+                    role="alert"
+                >
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </section>
+    {% endif %}
+
+</header>

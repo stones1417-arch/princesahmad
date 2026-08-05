@@ -1,0 +1,379 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="locations-page" dir="rtl">
+
+    {% if active_shift %}
+        {% include "components/layout/page_title.html" with title="غرفة عمليات المواقع والأبواب" subtitle="متابعة تشغيل الأبواب حسب المناطق والوردية النشطة" %}
+    {% else %}
+        {% include "components/layout/page_title.html" with title="غرفة عمليات المواقع والأبواب" subtitle="لا توجد وردية نشطة حاليًا" %}
+    {% endif %}
+
+    {% if active_shift %}
+        {% include "components/alerts/info.html" with title="الوردية النشطة" message=active_shift.shift_type.name %}
+    {% else %}
+        {% include "components/alerts/danger.html" with title="تنبيه" message="لا توجد وردية نشطة حاليًا" %}
+    {% endif %}
+
+    <div class="stats-grid">
+
+        {% include "components/cards/stat_card.html" with icon="🚪" title="إجمالي الأبواب" value=total_doors %}
+
+        {% include "components/cards/stat_card.html" with icon="✅" title="الأبواب النشطة" value=active_doors %}
+
+        {% include "components/cards/stat_card.html" with icon="⛔" title="الأبواب المعطلة" value=inactive_doors %}
+
+        {% include "components/cards/stat_card.html" with icon="🗺️" title="المناطق" value=zones_count %}
+
+        {% include "components/cards/stat_card.html" with icon="👥" title="بدون موظفين" value=doors_without_staff %}
+
+        {% include "components/cards/stat_card.html" with icon="🛠" title="طلبات الصيانة المفتوحة" value=maintenance_open_total %}
+
+    </div>
+
+  <div class="stats-grid">
+    <div class="stat-card"><span>إجمالي الأبواب</span><strong>{{ total_doors }}</strong></div>
+    <div class="stat-card green"><span>الأبواب النشطة</span><strong>{{ active_doors }}</strong></div>
+    <div class="stat-card red"><span>الأبواب المعطلة</span><strong>{{ inactive_doors }}</strong></div>
+    <div class="stat-card blue"><span>المناطق</span><strong>{{ zones_count }}</strong></div>
+    <div class="stat-card gold"><span>بدون موظفين</span><strong>{{ doors_without_staff }}</strong></div>
+    <div class="stat-card orange"><span>طلبات الصيانة المفتوحة</span><strong>{{ maintenance_open_total }}</strong></div>
+  </div>
+
+  {% if doors_without_staff > 0 or doors_without_supervisor > 0 or doors_without_monitor > 0 or maintenance_doors > 0 or closed_doors > 0 %}
+    <div class="alerts-bar">
+
+      {% if doors_without_staff > 0 %}
+        <div class="alert-item danger">
+          🚨 {{ doors_without_staff }} أبواب بدون موظفين
+        </div>
+      {% endif %}
+
+      {% if doors_without_supervisor > 0 %}
+        <div class="alert-item warning">
+          ⚠ {{ doors_without_supervisor }} أبواب بدون مشرف
+        </div>
+      {% endif %}
+
+      {% if doors_without_monitor > 0 %}
+        <div class="alert-item warning">
+          ⚠ {{ doors_without_monitor }} أبواب بدون مراقبين
+        </div>
+      {% endif %}
+
+      {% if maintenance_doors > 0 %}
+        <div class="alert-item maintenance">
+          🛠 {{ maintenance_doors }} أبواب تحت الصيانة
+        </div>
+      {% endif %}
+
+      {% if closed_doors > 0 %}
+        <div class="alert-item closed">
+          🔒 {{ closed_doors }} أبواب مغلقة
+        </div>
+      {% endif %}
+
+    </div>
+  {% endif %}
+
+  <div class="table-toolbar">
+
+    <div class="table-toolbar-title">
+        <h3>البحث والفلترة</h3>
+        <p>تصفية الأبواب حسب المنطقة أو حالة النظام أو الحالة التشغيلية</p>
+    </div>
+
+</div>
+
+<form method="get" class="filter-bar">
+
+    <input
+        type="text"
+        name="q"
+        value="{{ q }}"
+        placeholder="بحث برقم الباب أو الاسم أو المنطقة"
+    >
+
+    <select name="zone">
+        <option value="">كل المناطق</option>
+
+        {% for zone in zones %}
+            <option value="{{ zone.id }}" {% if selected_zone == zone.id|stringformat:"s" %}selected{% endif %}>
+                {{ zone.name }} - {{ zone.doors_count }} باب
+            </option>
+        {% endfor %}
+    </select>
+
+    <select name="active">
+        <option value="">كل حالات النظام</option>
+        <option value="active" {% if selected_active == "active" %}selected{% endif %}>نشط</option>
+        <option value="inactive" {% if selected_active == "inactive" %}selected{% endif %}>معطل</option>
+    </select>
+
+    <select name="state">
+        <option value="">كل الحالات التشغيلية</option>
+
+        {% for value,label in state_choices %}
+            <option value="{{ value }}" {% if selected_state == value %}selected{% endif %}>
+                {{ label }}
+            </option>
+        {% endfor %}
+    </select>
+
+    <button type="submit" class="btn-filter">
+        تطبيق الفلاتر
+    </button>
+
+    <a href="{% url 'locations:dashboard' %}" class="btn-reset">
+        إعادة ضبط
+    </a>
+
+</form>
+
+  <div class="table-toolbar">
+
+    <div class="table-toolbar-title">
+        <h3>إدارة المناطق</h3>
+        <p>إضافة المناطق الرسمية ومتابعة عدد الأبواب داخل كل منطقة</p>
+    </div>
+
+</div>
+
+<div class="control-card">
+
+    <form method="post" action="{% url 'locations:zone-create' %}">
+        {% csrf_token %}
+
+        <div class="zone-form-grid">
+
+            <input
+                type="text"
+                name="name"
+                placeholder="الغربية / الشمالية / الشرقية / الجنوبية"
+                required
+            >
+
+            <input
+                type="text"
+                name="notes"
+                placeholder="ملاحظات المنطقة"
+            >
+
+            <button type="submit">
+                إضافة منطقة
+            </button>
+
+        </div>
+
+    </form>
+
+    <div class="zones-grid">
+
+        {% for zone in zones %}
+
+            <div class="zone-card">
+
+                <strong>
+                    {{ zone.name }}
+                </strong>
+
+                <span>
+                    {{ zone.doors_count }} باب
+                </span>
+
+            </div>
+
+        {% empty %}
+
+            {% include "components/tables/empty_state.html" with icon="🗺️" title="لا توجد مناطق" message="لم يتم إنشاء أي مناطق بعد." %}
+
+        {% endfor %}
+
+    </div>
+
+</div>
+
+ <div class="table-toolbar">
+
+    <div class="table-toolbar-title">
+        <h3>الخريطة التشغيلية للأبواب</h3>
+        <p>عرض حالة كل باب حسب المنطقة وعدد الموظفين والصيانة والتنبيهات</p>
+    </div>
+
+</div>
+
+<div class="control-card">
+{% include "components/cards/door_card.html" with row=row %}
+      
+
+          <span>{{ zone_doors|length }} باب</span>
+        </button>
+
+        <div id="zone-body-{{ forloop.counter }}" class="doors-grid">
+
+          {% for row in zone_doors %}
+
+            <div
+              class="door-card {% if row.door_shift %}state-{{ row.door_shift.state }}{% else %}state-none{% endif %} {% if row.has_alert %}critical-door{% endif %}"
+              data-assignments="{{ row.assignments_count }}"
+              data-maintenance="{{ row.maintenance_count }}"
+            >
+
+              <div class="door-top">
+                <div>
+                  <div class="door-number">باب {{ row.door.door_number|default:"—" }}</div>
+                  <div class="door-name">{{ row.door.name }}</div>
+                </div>
+
+                {% if row.has_alert %}
+                  <span class="critical-badge">حرج</span>
+                {% endif %}
+              </div>
+
+              <div class="door-status-row">
+                {% if row.door_shift %}
+                  <span class="badge state-{{ row.door_shift.state }}">
+                    {{ row.door_shift.get_state_display }}
+                  </span>
+                {% else %}
+                  <span class="badge gray">لا توجد حالة</span>
+                {% endif %}
+
+                {% if row.door.is_active %}
+                  <span class="system-badge active">نشط</span>
+                {% else %}
+                  <span class="system-badge inactive">معطل</span>
+                {% endif %}
+              </div>
+
+              <div class="door-info">
+
+                <div>
+                  <span>الموظفون</span>
+                  <strong>{{ row.assignments_count }}</strong>
+                </div>
+
+                <div>
+                  <span>المشرفون</span>
+                  <strong>{{ row.supervisors_count }}</strong>
+                </div>
+
+                <div>
+                  <span>المراقبون</span>
+                  <strong>{{ row.monitors_count }}</strong>
+                </div>
+
+                <div>
+                  <span>الفنيون</span>
+                  <strong>{{ row.technicians_count }}</strong>
+                </div>
+
+                <div>
+                  <span>طلبات الصيانة</span>
+                  <strong>{{ row.maintenance_count }}</strong>
+                </div>
+
+              </div>
+
+              {% if row.assignments_count == 0 %}
+                <div class="warning-box">هذا الباب بدون موظفين</div>
+              {% endif %}
+
+              {% if row.supervisors_count == 0 %}
+                <div class="warning-box">هذا الباب بدون مشرف</div>
+              {% endif %}
+
+              {% if row.monitors_count == 0 %}
+                <div class="warning-box">هذا الباب بدون مراقبين</div>
+              {% endif %}
+
+              <div class="door-actions">
+
+                <button
+                  type="button"
+                  class="btn-edit"
+                  onclick="openEditDoorModal(
+                    '{{ row.door.id }}',
+                    '{{ row.door.door_number|default_if_none:"" }}',
+                    '{{ row.door.name|escapejs }}',
+                    '{{ row.door.zone.id }}',
+                    '{{ row.door.notes|default_if_none:""|escapejs }}'
+                  )">
+                  تعديل
+                </button>
+
+                <form method="post" action="{% url 'locations:door-toggle' row.door.id %}">
+                  {% csrf_token %}
+                  {% if row.door.is_active %}
+                    <button class="btn-warning" type="submit">تعطيل</button>
+                  {% else %}
+                    <button class="btn-enable" type="submit">تفعيل</button>
+                  {% endif %}
+                </form>
+
+              </div>
+
+            </div>
+
+          {% empty %}
+            <div class="empty-box">لا توجد أبواب في هذه المنطقة</div>
+          {% endfor %}
+
+        </div>
+
+      </div>
+
+    {% endfor %}
+  </div>
+
+</div>
+
+<div id="editDoorModal" class="modal-backdrop">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>تعديل بيانات الباب</h3>
+      <button type="button" onclick="closeEditDoorModal()">×</button>
+    </div>
+
+    <form id="editDoorForm" method="post">
+      {% csrf_token %}
+
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-field">
+            <label>رقم الباب</label>
+            <input id="editDoorNumber" name="door_number" type="number" min="1">
+          </div>
+
+          <div class="form-field">
+            <label>اسم الباب</label>
+            <input id="editDoorName" name="name" type="text" required>
+          </div>
+
+          <div class="form-field full">
+            <label>المنطقة</label>
+            <select id="editDoorZone" name="zone_id" required>
+              {% for zone in zones %}
+                <option value="{{ zone.id }}">{{ zone.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-field full">
+            <label>ملاحظات</label>
+            <textarea id="editDoorNotes" name="notes" rows="4"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-save" type="submit">حفظ التعديل</button>
+        <button class="btn-cancel" type="button" onclick="closeEditDoorModal()">إلغاء</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% include "components/modals/edit_door.html" %}
+
+{% endblock %}

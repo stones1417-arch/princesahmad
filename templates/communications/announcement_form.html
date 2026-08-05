@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+{{ page_title }}
+{% endblock %}
+
+{% block content %}
+
+{% include "components/layout/page_container_start.html" %}
+
+    {% include "components/layout/page_title.html" with title=page_title subtitle="أدخل بيانات التعميم الإداري واحفظها في النظام" %}
+
+    <section class="announcement-form-card">
+
+        <header class="announcement-form-intro">
+            <div class="intro-icon">📣</div>
+            <div>
+                <span>الاتصالات الإدارية</span>
+                <h2>بيانات التعميم</h2>
+                <p>أدخل المعلومات الأساسية، وحدد مستوى الأولوية وحالة النشر، ثم أرفق المستندات الداعمة عند الحاجة.</p>
+            </div>
+            <div class="form-state-badge">{% if announcement %}وضع التعديل{% else %}تعميم جديد{% endif %}</div>
+        </header>
+
+        <form
+            method="post"
+            enctype="multipart/form-data"
+            class="announcement-enterprise-form"
+            novalidate
+        >
+
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+
+                <div class="alert alert-danger">
+
+                    {% for error in form.non_field_errors %}
+
+                        <div>
+                            {{ error }}
+                        </div>
+
+                    {% endfor %}
+
+                </div>
+
+            {% endif %}
+
+            <div class="form-grid">
+
+                <div class="form-field full">
+
+                    <label for="{{ form.title.id_for_label }}">
+                        عنوان التعميم
+                    </label>
+
+                    {{ form.title }}
+                    <div class="field-meta"><span>عنوان واضح ومباشر يظهر في سجل التعاميم.</span><b data-count="id_title">0 / 200</b></div>
+
+                    {% for error in form.title.errors %}
+
+                        <small class="field-error">
+                            {{ error }}
+                        </small>
+
+                    {% endfor %}
+
+                </div>
+
+                <div class="form-field">
+
+                    <label for="{{ form.priority.id_for_label }}">
+                        الأولوية
+                    </label>
+
+                    {{ form.priority }}
+
+                    {% for error in form.priority.errors %}
+
+                        <small class="field-error">
+                            {{ error }}
+                        </small>
+
+                    {% endfor %}
+
+                </div>
+
+                <div class="form-field">
+
+                    <label for="{{ form.is_active.id_for_label }}">
+                        حالة التعميم
+                    </label>
+
+                    <div class="checkbox-field">
+
+                        {{ form.is_active }}
+
+                        <span>
+                            تعميم نشط ويظهر في النظام
+                        </span>
+
+                    </div>
+
+                    {% for error in form.is_active.errors %}
+
+                        <small class="field-error">
+                            {{ error }}
+                        </small>
+
+                    {% endfor %}
+
+                </div>
+
+                <div class="form-field full">
+
+                    <label for="{{ form.content.id_for_label }}">
+                        محتوى التعميم
+                    </label>
+
+                    {{ form.content }}
+                    <div class="field-meta"><span>الحد الأدنى 10 أحرف، ويمكن استخدام فقرات متعددة.</span><b data-count="id_content">0 حرف</b></div>
+
+                    {% for error in form.content.errors %}
+
+                        <small class="field-error">
+                            {{ error }}
+                        </small>
+
+                    {% endfor %}
+
+                </div>
+
+                <div class="form-field full">
+
+                    <label for="{{ form.attachment.id_for_label }}">
+                        المرفق
+                    </label>
+
+                    <div class="attachment-upload-field">
+
+                        <div class="upload-dropzone" data-upload-zone>
+                            <span class="upload-icon">⇧</span>
+                            <div><strong>إرفاق مستند داعم</strong><small>اسحب الملف هنا أو اضغط لاختياره</small></div>
+                        </div>
+
+                        {{ form.attachment }}
+
+                        <div class="selected-file" data-selected-file hidden></div>
+
+                        <div class="attachment-help">
+                            يسمح برفع ملفات PDF أو Word أو Excel أو الصور،
+                            وبحجم أقصى 10 ميجابايت.
+                        </div>
+
+                        {% if announcement and announcement.attachment %}
+
+                            <div class="current-attachment">
+
+                                <div class="current-attachment-info">
+
+                                    <span class="current-attachment-icon">
+
+                                        {% if announcement.attachment_type == "pdf" %}
+                                            📄
+                                        {% elif announcement.attachment_type == "image" %}
+                                            🖼️
+                                        {% elif announcement.attachment_type == "word" %}
+                                            📝
+                                        {% elif announcement.attachment_type == "excel" %}
+                                            📊
+                                        {% else %}
+                                            📎
+                                        {% endif %}
+
+                                    </span>
+
+                                    <div>
+
+                                        <strong>
+                                            المرفق الحالي
+                                        </strong>
+
+                                        <small>
+                                            {{ announcement.attachment.name }}
+                                        </small>
+
+                                    </div>
+
+                                </div>
+
+                                <a
+                                    href="{{ announcement.attachment.url }}"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="btn-view"
+                                >
+                                    فتح المرفق
+                                </a>
+
+                            </div>
+
+                        {% endif %}
+
+                    </div>
+
+                    {% for error in form.attachment.errors %}
+
+                        <small class="field-error">
+                            {{ error }}
+                        </small>
+
+                    {% endfor %}
+
+                </div>
+
+            </div>
+
+            <div class="form-buttons">
+
+                <div class="save-guidance">
+                    <b>✓</b><span data-form-status>أكمل الحقول المطلوبة لحفظ التعميم.</span>
+                </div>
+
+                <button
+                    type="submit"
+                    class="btn-save"
+                    data-save-button
+                >
+                    {{ submit_text }}
+                </button>
+
+                <a
+                    href="{% url 'communications:list' %}"
+                    class="btn-cancel"
+                >
+                    إلغاء
+                </a>
+
+            </div>
+
+        </form>
+
+    </section>
+
+{% include "components/layout/page_container_end.html" %}
+
+<link rel="stylesheet" href="{% static 'css/communications/announcement_form_enterprise.css' %}?v=20260803-1">
+<script src="{% static 'js/communications/announcement_form.js' %}?v=20260803-1" defer></script>
+
+{% endblock %}

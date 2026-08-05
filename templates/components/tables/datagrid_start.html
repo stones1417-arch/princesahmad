@@ -1,0 +1,27 @@
+<div class="datagrid">
+
+    {% if title or subtitle %}
+        <div class="datagrid-header">
+
+            <div>
+                {% if title %}
+                    <h3>{{ title }}</h3>
+                {% endif %}
+
+                {% if subtitle %}
+                    <p>{{ subtitle }}</p>
+                {% endif %}
+            </div>
+
+            {% if actions %}
+                <div class="datagrid-actions">
+                    {{ actions }}
+                </div>
+            {% endif %}
+
+        </div>
+    {% endif %}
+
+    <div class="datagrid-table-wrap">
+
+        <table class="datagrid-table">

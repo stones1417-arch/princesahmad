@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<link rel="stylesheet" href="{% static 'css/hr/employee_list.css' %}">
+<link rel="stylesheet" href="{% static 'css/hr/employee_delete.css' %}">
+
+<div class="employees-page employee-delete-page" dir="rtl">
+
+    <section class="employees-hero employee-delete-hero">
+        <div class="employees-hero-content">
+
+            <div class="employees-hero-info">
+                <div class="employees-hero-icon danger">
+                    ⛔
+                </div>
+
+                <div>
+                    <span class="employees-hero-eyebrow">
+                        إدارة الموارد البشرية
+                    </span>
+
+                    <h1>
+                        تعطيل الموظف بأمان
+                    </h1>
+
+                    <p>
+                        سيتم إيقاف الموظف عن الاستخدام والتسكين دون حذف بياناته أو سجله السابق.
+                    </p>
+                </div>
+            </div>
+
+            <div class="employees-hero-actions">
+                <a
+                    href="{% url 'hr:list' %}"
+                    class="employees-hero-button secondary"
+                >
+                    ← العودة إلى الموظفين
+                </a>
+            </div>
+
+        </div>
+    </section>
+
+    <section class="employees-panel employee-delete-panel">
+
+        <div class="employees-panel-header">
+            <div class="employees-panel-heading">
+                <div class="employees-panel-icon danger">⚠</div>
+
+                <div>
+                    <span class="employees-panel-eyebrow danger">
+                        إجراء حساس
+                    </span>
+
+                    <h2>
+                        تأكيد تعطيل الموظف
+                    </h2>
+
+                    <p>
+                        راجع بيانات الموظف قبل تنفيذ الإجراء.
+                    </p>
+                </div>
+            </div>
+
+            <span class="employees-panel-badge danger">
+                تعطيل آمن
+            </span>
+        </div>
+
+        <div class="employee-delete-content">
+
+            <div class="employee-delete-profile">
+                <div class="employee-delete-avatar">
+                    {{ employee.full_name|slice:":1" }}
+                </div>
+
+                <div class="employee-delete-profile-info">
+                    <span>الموظف المحدد</span>
+                    <h3>{{ employee.full_name }}</h3>
+                    <strong>{{ employee.employee_number }}</strong>
+                </div>
+
+                <span class="employee-delete-current-status">
+                    {% if employee.is_active %}
+                        نشط حاليًا
+                    {% else %}
+                        معطل حاليًا
+                    {% endif %}
+                </span>
+            </div>
+
+            <div class="employee-delete-warning">
+                <div class="employee-delete-warning-icon">!</div>
+
+                <div>
+                    <strong>ما الذي سيحدث بعد التأكيد؟</strong>
+
+                    <ul>
+                        <li>لن يتم حذف بيانات الموظف من قاعدة البيانات.</li>
+                        <li>سيتم منعه من الظهور ضمن الموظفين النشطين.</li>
+                        <li>لن يكون متاحًا للتسكين على الأبواب أو المهام الجديدة.</li>
+                        <li>ستبقى السجلات السابقة والتقارير المرتبطة به محفوظة.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <form method="post" class="employee-delete-actions">
+                {% csrf_token %}
+
+                <a
+                    href="{% url 'hr:list' %}"
+                    class="employee-delete-button secondary"
+                >
+                    إلغاء والعودة
+                </a>
+
+                <button
+                    class="employee-delete-button danger"
+                    type="submit"
+                >
+                    <span>⛔</span>
+                    تأكيد تعطيل الموظف
+                </button>
+            </form>
+
+        </div>
+
+    </section>
+
+</div>
+
+{% endblock %}

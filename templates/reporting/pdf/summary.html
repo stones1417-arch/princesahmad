@@ -1,0 +1,76 @@
+<section class="section">
+
+    <div class="summary-grid">
+
+        <div class="summary-card">
+
+            <div class="summary-title">
+                الملخص التنفيذي
+            </div>
+
+            <div class="summary-body">
+                {% if report.summary %}
+                    {{ report.summary|linebreaksbr }}
+                {% else %}
+                    لا يوجد ملخص تنفيذي مضاف لهذا التقرير.
+                {% endif %}
+            </div>
+
+        </div>
+
+        <div class="summary-card">
+
+            <div class="summary-title">
+                التوصيات
+            </div>
+
+            <div class="summary-body">
+                {% if report.recommendations %}
+                    {{ report.recommendations|linebreaksbr }}
+                {% else %}
+                    لا توجد توصيات مضافة لهذا التقرير.
+                {% endif %}
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+<style>
+
+.summary-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+}
+
+.summary-card{
+    background:white;
+    border:1px solid #e5e7eb;
+    border-radius:12px;
+    overflow:hidden;
+    box-shadow:0 4px 10px rgba(0,0,0,.04);
+}
+
+.summary-title{
+    background:#0f7b5c;
+    color:white;
+    text-align:center;
+    padding:7px;
+    font-size:12px;
+    font-weight:900;
+}
+
+.summary-body{
+    min-height:58px;
+    max-height:72px;
+    overflow:hidden;
+    padding:8px;
+    color:#374151;
+    font-size:9px;
+    line-height:1.6;
+}
+
+</style>

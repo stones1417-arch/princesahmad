@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<link
+    rel="stylesheet"
+    href="{% static 'css/hr/employee_list.css' %}?v=20260723-final"
+>
+
+<div class="employees-page" dir="rtl">
+
+    <div id="employeeToastContainer" class="employee-toast-container" aria-live="polite"></div>
+
+    {% if messages %}
+        <div class="employees-messages">
+            {% for message in messages %}
+                <div class="employees-message {{ message.tags }}">
+                    <span class="employees-message-icon">
+                        {% if message.tags == "success" %}✓{% elif message.tags == "error" %}×{% elif message.tags == "warning" %}!{% else %}i{% endif %}
+                    </span>
+                    <span class="employees-message-content">{{ message }}</span>
+                    <button type="button" class="employees-message-close" onclick="this.parentElement.remove()" aria-label="إغلاق">×</button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <section class="employees-hero">
+        <div class="employees-hero-pattern"></div>
+        <div class="employees-hero-content">
+            <div class="employees-hero-info">
+                <div class="employees-hero-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </div>
+                <div>
+                    <span class="employees-hero-eyebrow">إدارة الموارد البشرية</span>
+                    <h1>إدارة الموظفين</h1>
+                    <p>مركز موحد لإدارة بيانات الموظفين، حالاتهم الوظيفية، وصلاحياتهم التشغيلية.</p>
+                </div>
+            </div>
+
+            <div class="employees-hero-actions">
+                <a href="{% url 'hr:create' %}" class="employees-hero-button primary">
+                    <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+                    إضافة موظف
+                </a>
+                <a href="{% url 'hr:export-excel' %}" class="employees-hero-button secondary">
+                    <svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+                    تصدير Excel
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <section class="employees-statistics">
+        <article class="employee-stat-card">
+            <div class="employee-stat-icon total"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87"/></svg></div>
+            <div class="employee-stat-content"><span>إجمالي الموظفين</span><strong id="totalEmployeesCount">{{ total_employees }}</strong><small>المسجلون في النظام</small></div>
+        </article>
+        <article class="employee-stat-card">
+            <div class="employee-stat-icon active"><svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg></div>
+            <div class="employee-stat-content"><span>الموظفون النشطون</span><strong id="activeEmployeesCount">{{ active_employees }}</strong><small>متاحون للعمليات</small></div>
+        </article>
+        <article class="employee-stat-card">
+            <div class="employee-stat-icon inactive"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 8 8 8"/></svg></div>
+            <div class="employee-stat-content"><span>الموظفون المعطلون</span><strong id="inactiveEmployeesCount">{{ inactive_employees }}</strong><small>غير متاحين حاليًا</small></div>
+        </article>
+        <article class="employee-stat-card">
+            <div class="employee-stat-icon maintenance"><svg viewBox="0 0 24 24"><path d="m14.7 6.3 3-3a4.2 4.2 0 0 1-5.4 5.4l-7.6 7.6a2.1 2.1 0 0 0 3 3l7.6-7.6a4.2 4.2 0 0 1 5.4-5.4l-3 3"/></svg></div>
+            <div class="employee-stat-content"><span>فريق الصيانة</span><strong>{{ maintenance_members }}</strong><small>مصرح لهم بالصيانة</small></div>
+        </article>
+        <article class="employee-stat-card">
+            <div class="employee-stat-icon doors"><svg viewBox="0 0 24 24"><path d="M5 21h14M7 21V4a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v17M10 12h.01"/></svg></div>
+            <div class="employee-stat-content"><span>القابلون للتسكين</span><strong>{{ door_assignable_members }}</strong><small>متاحون للعمل على الأبواب</small></div>
+        </article>
+    </section>
+
+    <section class="employees-panel">
+        <div class="employees-panel-header">
+            <div class="employees-panel-heading">
+                <div class="employees-panel-icon"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div>
+                <div><span class="employees-panel-eyebrow">توزيع الكادر</span><h2>الموظفون حسب المسمى الوظيفي</h2><p>نظرة تنفيذية على توزيع الكادر داخل الهيكل التشغيلي.</p></div>
+            </div>
+            <span class="employees-panel-badge">{{ job_title_stats|length }} مسمى وظيفي</span>
+        </div>
+
+        {% if job_title_stats %}
+            <div class="job-title-distribution">
+                {% for item in job_title_stats %}
+                    <article class="job-title-card">
+                        <div class="job-title-card-top">
+                            <span class="job-title-card-icon"><svg viewBox="0 0 24 24"><path d="M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10"/></svg></span>
+                            <strong class="job-title-card-count">{{ item.total }}</strong>
+                        </div>
+                        <div class="job-title-card-content">
+                            <span>المسمى الوظيفي</span>
+                            <strong>{% for value, label in job_title_choices %}{% if value == item.job_title %}{{ label }}{% endif %}{% endfor %}</strong>
+                        </div>
+                        <div class="job-title-progress"><span style="width:{% widthratio item.total total_employees 100 %}%"></span></div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="employees-empty-summary">لا توجد بيانات كافية لعرض توزيع المسميات الوظيفية.</div>
+        {% endif %}
+    </section>
+
+    <section class="employees-panel">
+        <div class="employees-panel-header">
+            <div class="employees-panel-heading">
+                <div class="employees-panel-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></div>
+                <div><span class="employees-panel-eyebrow">البحث والتصفية</span><h2>الوصول السريع إلى الموظفين</h2><p>ابحث بالاسم أو الرقم الوظيفي وطبّق الفلاتر المناسبة.</p></div>
+            </div>
+        </div>
+
+        <form method="get" class="employees-filters-grid">
+            <div class="employee-filter-field employee-search-field">
+                <label for="employeeSearch">البحث</label>
+                <div class="employee-search-wrapper">
+                    <input type="text" id="employeeSearch" name="q" value="{{ q }}" placeholder="الاسم، الرقم الوظيفي، الجوال، الهوية أو البريد">
+                    <span class="employee-search-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></span>
+                </div>
+            </div>
+
+            <div class="employee-filter-field">
+                <label for="jobTitleFilter">المسمى الوظيفي</label>
+                <select id="jobTitleFilter" name="job_title">
+                    <option value="">جميع المسميات</option>
+                    {% for value, label in job_title_choices %}
+                        <option value="{{ value }}" {% if selected_job_title == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="employee-filter-field">
+                <label for="workStatusFilter">الحالة الوظيفية</label>
+                <select id="workStatusFilter" name="work_status">
+                    <option value="">جميع الحالات</option>
+                    {% for value, label in work_status_choices %}
+                        <option value="{{ value }}" {% if selected_work_status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="employee-filter-field">
+                <label for="activeFilter">حالة النظام</label>
+                <select id="activeFilter" name="active">
+                    <option value="">الكل</option>
+                    <option value="active" {% if selected_active == "active" %}selected{% endif %}>نشط</option>
+                    <option value="inactive" {% if selected_active == "inactive" %}selected{% endif %}>معطل</option>
+                </select>
+            </div>
+
+            <div class="employee-filter-actions">
+                <button type="submit" class="employee-filter-button primary">تطبيق الفلاتر</button>
+                <a href="{% url 'hr:list' %}" class="employee-filter-button secondary">إعادة ضبط</a>
+            </div>
+        </form>
+    </section>
+
+    <section class="employees-panel" id="employees-list-section">
+        <div class="employees-panel-header">
+            <div class="employees-panel-heading">
+                <div class="employees-panel-icon"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg></div>
+                <div><span class="employees-panel-eyebrow">السجل الوظيفي</span><h2>قائمة الموظفين</h2><p>عرض وإدارة جميع الموظفين المسجلين في النظام.</p></div>
+            </div>
+            <span class="employees-panel-badge">{{ employees|length }} نتيجة</span>
+        </div>
+
+        {% if employees %}
+            <div class="employees-table-wrapper">
+                <table class="employees-table">
+                    <thead><tr><th>#</th><th>الموظف</th><th>التواصل</th><th>المسمى الوظيفي</th><th>الحالة الوظيفية</th><th>النظام</th><th>الصلاحيات</th><th>الإجراءات</th></tr></thead>
+                    <tbody>
+                    {% for emp in employees %}
+                        <tr id="employee-row-{{ emp.id }}" class="{% if not emp.is_active %}inactive-row{% endif %}">
+                            <td><div class="employee-row-number">{{ forloop.counter }}</div></td>
+                            <td>
+                                <div class="employee-card">
+                                    <div class="employee-avatar">{{ emp.full_name|slice:":1" }}</div>
+                                    <div class="employee-info"><strong>{{ emp.full_name }}</strong><span>{{ emp.employee_number }}</span></div>
+                                </div>
+                            </td>
+                            <td><div class="employee-contact"><strong>{{ emp.phone_number|default:"—" }}</strong><small>{{ emp.email|default:"لا يوجد بريد" }}</small></div></td>
+                            <td><span class="employee-job-badge">{{ emp.get_job_title_display }}</span></td>
+                            <td><span class="employee-status-badge">{{ emp.display_status }}</span></td>
+                            <td>
+                                <span id="employee-status-{{ emp.id }}" class="employee-system-badge {% if emp.is_active %}active{% else %}inactive{% endif %}">
+                                    <span class="dot"></span>{% if emp.is_active %}نشط{% else %}معطل{% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="employee-permissions">
+                                    {% if emp.can_work_on_doors %}<span class="permission-badge doors">أبواب</span>{% endif %}
+                                    {% if emp.can_execute_maintenance %}<span class="permission-badge maintenance">صيانة</span>{% endif %}
+                                    {% if not emp.can_work_on_doors and not emp.can_execute_maintenance %}<span class="permission-badge none">—</span>{% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="employee-actions">
+                                    <button type="button" class="employee-action-button details" title="التفاصيل"
+                                        onclick="openEmployeeDetails(
+                                            '{{ emp.full_name|escapejs }}',
+                                            '{{ emp.employee_number }}',
+                                            '{{ emp.phone_number|default:''|escapejs }}',
+                                            '{{ emp.email|default:''|escapejs }}',
+                                            '{{ emp.get_job_title_display|escapejs }}',
+                                            '{{ emp.display_status|escapejs }}',
+                                            '{% if emp.is_active %}نشط{% else %}معطل{% endif %}',
+                                            '{% if emp.can_work_on_doors %}نعم{% else %}لا{% endif %}',
+                                            '{% if emp.can_execute_maintenance %}نعم{% else %}لا{% endif %}',
+                                            '{{ emp.notes|default:''|escapejs }}'
+                                        )">
+                                        <svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+                                    </button>
+                                    <a href="{% url 'hr:update' emp.id %}" class="employee-action-button edit" title="تعديل"><svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></a>
+                                    <button type="button" class="employee-action-button {% if emp.is_active %}disable{% else %}enable{% endif %}"
+                                        data-id="{{ emp.id }}" data-name="{{ emp.full_name }}" data-url="{% url 'hr:toggle-active-ajax' emp.id %}"
+                                        data-active="{% if emp.is_active %}1{% else %}0{% endif %}" onclick="toggleEmployee(this)"
+                                        title="{% if emp.is_active %}تعطيل{% else %}تفعيل{% endif %}">
+                                        {% if emp.is_active %}
+                                            <svg viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></svg>
+                                        {% else %}
+                                            <svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>
+                                        {% endif %}
+                                    </button>
+                                    <button type="button" class="employee-action-button delete"
+                                        data-id="{{ emp.id }}" data-name="{{ emp.full_name }}" data-url="{% url 'hr:delete-ajax' emp.id %}"
+                                        onclick="deleteEmployee(this)" title="تعطيل آمن">
+                                        <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5"/></svg>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="employees-empty">
+                <div class="employees-empty-icon"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8"/></svg></div>
+                <h3>لا يوجد موظفون</h3>
+                <p>لم يتم العثور على موظفين مطابقين لخيارات البحث الحالية.</p>
+            </div>
+        {% endif %}
+    </section>
+
+    <div class="employee-details-modal" id="employeeDetailsModal" aria-hidden="true">
+        <div class="employee-modal-backdrop" onclick="closeEmployeeDetails()"></div>
+        <div class="employee-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="employeeModalTitle">
+            <div class="employee-modal-header">
+                <div><span class="employee-modal-eyebrow">بيانات الموظف</span><h2 id="employeeModalTitle">تفاصيل الموظف</h2></div>
+                <button type="button" class="employee-modal-close" onclick="closeEmployeeDetails()" aria-label="إغلاق">×</button>
+            </div>
+            <div class="employee-modal-body">
+                <div class="employee-modal-profile">
+                    <div class="employee-modal-avatar" id="modalEmployeeAvatar">م</div>
+                    <div class="employee-modal-profile-info"><h3 id="modalEmployeeName">—</h3><span id="modalEmployeeNumber">—</span></div>
+                    <span class="employee-modal-status active" id="modalEmployeeSystemStatus">نشط</span>
+                </div>
+                <div class="employee-modal-grid">
+                    <div class="employee-modal-item"><span>رقم الجوال</span><strong id="modalEmployeePhone">—</strong></div>
+                    <div class="employee-modal-item"><span>البريد الإلكتروني</span><strong id="modalEmployeeEmail">—</strong></div>
+                    <div class="employee-modal-item"><span>المسمى الوظيفي</span><strong id="modalEmployeeJobTitle">—</strong></div>
+                    <div class="employee-modal-item"><span>الحالة الوظيفية</span><strong id="modalEmployeeWorkStatus">—</strong></div>
+                    <div class="employee-modal-item"><span>قابل للتسكين على الأبواب</span><strong id="modalEmployeeDoorsPermission">—</strong></div>
+                    <div class="employee-modal-item"><span>تنفيذ أعمال الصيانة</span><strong id="modalEmployeeMaintenancePermission">—</strong></div>
+                    <div class="employee-modal-item full"><span>الملاحظات</span><strong id="modalEmployeeNotes">لا توجد ملاحظات</strong></div>
+                </div>
+            </div>
+            <div class="employee-modal-footer"><button type="button" class="employee-modal-button" onclick="closeEmployeeDetails()">إغلاق</button></div>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'js/hr/employee_list.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,7 @@
+# أضف هذا المسار داخل urlpatterns في apps/exports_center/urls.py
+
+path(
+    "shift/export/",
+    views.export_shift_bundle,
+    name="shift-export",
+),

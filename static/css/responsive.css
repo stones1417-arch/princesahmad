@@ -1,0 +1,899 @@
+/* =========================================================
+   منصة أبواب — الاستجابة العامة للشاشات
+   الملف: static/css/responsive.css
+   يعتمد على:
+   - design-system.css
+   - components.css
+   - forms.css
+   - tables.css
+   الإصدار: 2026.07.28
+========================================================= */
+
+
+/* =========================================================
+   1) قواعد عامة
+========================================================= */
+
+html,
+body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+.app-shell,
+.app-main-wrapper,
+.main-content,
+.app-main-content,
+.page-container,
+.app-container {
+    min-width: 0;
+}
+
+img,
+video,
+canvas,
+svg {
+    max-width: 100%;
+}
+
+iframe {
+    max-width: 100%;
+}
+
+.app-responsive-scroll {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.desktop-only,
+.tablet-only,
+.mobile-only {
+    display: none !important;
+}
+
+
+/* =========================================================
+   2) الشاشات الكبيرة جدًا
+========================================================= */
+
+@media (min-width: 1600px) {
+    .app-container,
+    .page-container {
+        width: min(
+            calc(100% - 3rem),
+            var(--container-width)
+        );
+    }
+
+    .app-page {
+        padding:
+            var(--space-6)
+            var(--space-8);
+    }
+
+    .app-page-hero {
+        min-height: 230px;
+        padding: var(--space-10);
+    }
+
+    .app-stats-grid {
+        grid-template-columns:
+            repeat(5, minmax(0, 1fr));
+    }
+
+    .desktop-only {
+        display: initial !important;
+    }
+}
+
+
+/* =========================================================
+   3) الشاشات المكتبية
+========================================================= */
+
+@media (min-width: 1201px) and (max-width: 1599px) {
+    .app-container,
+    .page-container {
+        width: min(
+            calc(100% - 2.5rem),
+            var(--container-width)
+        );
+    }
+
+    .desktop-only {
+        display: initial !important;
+    }
+}
+
+
+/* =========================================================
+   4) اللابتوب والشاشات المتوسطة
+========================================================= */
+
+@media (max-width: 1400px) {
+    :root {
+        --container-width: 1380px;
+    }
+
+    .app-page-hero {
+        min-height: 190px;
+        padding: var(--space-6);
+    }
+
+    .app-page-hero::before {
+        top: -260px;
+        left: -180px;
+    }
+
+    .app-stats-grid {
+        grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+    }
+
+    .app-grid-4 {
+        grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+    }
+}
+
+
+/* =========================================================
+   5) التابلت الأفقي
+========================================================= */
+
+@media (max-width: 1200px) {
+    :root {
+        --sidebar-width: 260px;
+    }
+
+    .page-container,
+    .app-container {
+        width: calc(100% - 2rem);
+    }
+
+    .app-page {
+        padding: var(--space-4);
+    }
+
+    .app-page-hero {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .app-page-hero-content,
+    .app-page-hero-actions {
+        width: 100%;
+    }
+
+    .app-page-hero-actions {
+        justify-content: flex-start;
+    }
+
+    .app-grid-4,
+    .app-grid-3 {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+
+    .app-form-grid-4,
+    .app-form-grid-3 {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+
+    .enterprise-profile-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .enterprise-profile-sidebar {
+        position: static;
+    }
+
+    .password-page-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .announcement-meta-grid {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+
+    .abwaab-footer-content {
+        grid-template-columns: 1fr;
+        gap: var(--space-8);
+    }
+}
+
+
+/* =========================================================
+   6) التابلت
+========================================================= */
+
+@media (max-width: 992px) {
+    .tablet-only {
+        display: initial !important;
+    }
+
+    .desktop-only {
+        display: none !important;
+    }
+
+    .app-page-title,
+    .page-title,
+    .section-title,
+    .action-bar,
+    .app-toolbar,
+    .app-table-header,
+    .datagrid-header,
+    .table-toolbar {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .app-page-title-actions,
+    .page-title-actions,
+    .app-toolbar-group,
+    .app-table-actions,
+    .datagrid-actions,
+    .table-toolbar-actions {
+        width: 100%;
+    }
+
+    .app-stats-grid {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+
+    .app-grid-2,
+    .app-grid-3,
+    .app-grid-4,
+    .grid-2,
+    .grid-3,
+    .grid-4 {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+
+    .app-sidebar {
+        position: fixed;
+        inset:
+            0
+            auto
+            0
+            0;
+        z-index: var(--z-modal);
+
+        width: min(
+            var(--sidebar-width),
+            88vw
+        );
+
+        overflow-y: auto;
+
+        background: var(--color-white);
+        box-shadow: var(--shadow-xl);
+
+        transform: translateX(-105%);
+        transition:
+            transform var(--transition-normal);
+    }
+
+    .app-sidebar.open {
+        transform: translateX(0);
+    }
+
+    .app-main-wrapper {
+        width: 100%;
+    }
+
+    .profile-dropdown-menu,
+    .notifications-menu {
+        position: fixed !important;
+        top: 110px !important;
+        right: 14px !important;
+        left: 14px !important;
+
+        width: auto !important;
+        max-width: none !important;
+    }
+
+    .app-modal-dialog,
+    .modal {
+        width: min(
+            700px,
+            calc(100vw - 2rem)
+        );
+    }
+
+    .app-table,
+    .datagrid-table,
+    .table-card table {
+        min-width: 820px;
+    }
+
+    .app-filter-bar,
+    .filter-bar,
+    .datagrid-filters {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .app-filter-search,
+    .app-filter-field,
+    .filter-bar input,
+    .filter-bar select,
+    .datagrid-search,
+    .datagrid-filter-fields,
+    .datagrid-filter-actions {
+        width: 100%;
+        min-width: 0;
+    }
+}
+
+
+/* =========================================================
+   7) التابلت العمودي والجوال الكبير
+========================================================= */
+
+@media (max-width: 768px) {
+    :root {
+        --topbar-height: auto;
+        --header-height: auto;
+    }
+
+    .page-container,
+    .app-container {
+        width: calc(100% - 1.5rem);
+    }
+
+    .app-page {
+        padding:
+            var(--space-3)
+            0
+            var(--space-6);
+    }
+
+    .main-content,
+    .app-main-content {
+        min-height: auto;
+    }
+
+    .app-page-hero {
+        min-height: auto;
+        padding: var(--space-5);
+
+        border-radius: var(--radius-lg);
+
+        background:
+            linear-gradient(
+                180deg,
+                var(--color-white),
+                var(--color-primary-50)
+            );
+    }
+
+    .app-page-hero::before,
+    .app-page-hero::after {
+        display: none;
+    }
+
+    .app-page-hero h1 {
+        font-size: clamp(
+            1.7rem,
+            7vw,
+            2.25rem
+        );
+    }
+
+    .app-page-hero-actions,
+    .page-title-actions,
+    .app-panel-actions,
+    .app-toolbar-group {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .app-page-hero-actions > *,
+    .page-title-actions > *,
+    .app-panel-actions > *,
+    .app-toolbar-group > * {
+        width: 100%;
+    }
+
+    .app-stats-grid,
+    .app-grid-2,
+    .app-grid-3,
+    .app-grid-4,
+    .grid-2,
+    .grid-3,
+    .grid-4,
+    .app-form-grid,
+    .form-grid,
+    .app-form-grid-3,
+    .app-form-grid-4,
+    .app-choice-grid,
+    .enterprise-info-grid,
+    .enterprise-account-grid,
+    .enterprise-permissions-summary,
+    .announcement-meta-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .app-form-field-full,
+    .form-field.full {
+        grid-column: auto;
+    }
+
+    .app-form-row,
+    .app-form-inline,
+    .datagrid-filter-fields,
+    .datagrid-filter-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .app-form-horizontal .app-form-field {
+        grid-template-columns: 1fr;
+        gap: var(--space-2);
+    }
+
+    .app-panel-header,
+    .app-panel-footer,
+    .app-form-header,
+    .form-card-header,
+    .enterprise-card-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .app-card,
+    .app-panel-body,
+    .app-form-card,
+    .form-card,
+    .enterprise-profile-card {
+        padding: var(--space-4);
+    }
+
+    .app-modal {
+        padding: var(--space-2);
+    }
+
+    .app-modal-dialog,
+    .modal {
+        width: calc(100vw - 1rem);
+        max-height: calc(100vh - 1rem);
+
+        border-radius: var(--radius-lg);
+    }
+
+    .app-modal-header,
+    .app-modal-footer,
+    .modal-head,
+    .modal-footer {
+        padding: var(--space-4);
+    }
+
+    .app-modal-footer,
+    .modal-footer {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .app-modal-footer > *,
+    .modal-footer > * {
+        width: 100%;
+    }
+
+    .app-modal-body,
+    .modal-body {
+        max-height: calc(100vh - 190px);
+        padding: var(--space-4);
+    }
+
+    .app-drawer-panel {
+        width: min(
+            390px,
+            94vw
+        );
+    }
+
+    .app-messages-region {
+        top: var(--space-3);
+        right: var(--space-3);
+        left: var(--space-3);
+
+        width: auto;
+    }
+
+    .app-toast-container {
+        right: var(--space-3);
+        bottom: var(--space-3);
+        left: var(--space-3);
+
+        width: auto;
+    }
+
+    .app-alert,
+    .app-toast {
+        grid-template-columns:
+            38px
+            minmax(0, 1fr)
+            30px;
+    }
+
+    .app-table,
+    .datagrid-table,
+    .table-card table {
+        min-width: 760px;
+    }
+
+    .abwaab-footer-brand {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .abwaab-footer-sections {
+        grid-template-columns: 1fr;
+    }
+
+    .abwaab-footer-bottom {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+
+/* =========================================================
+   8) الجوال
+========================================================= */
+
+@media (max-width: 576px) {
+    .mobile-only {
+        display: initial !important;
+    }
+
+    .tablet-only,
+    .desktop-only {
+        display: none !important;
+    }
+
+    .page-container,
+    .app-container {
+        width: calc(100% - 1rem);
+    }
+
+    .app-page {
+        padding-top: var(--space-2);
+    }
+
+    .page-title h1,
+    .app-page-title h1 {
+        font-size: 1.65rem;
+    }
+
+    .app-page-hero {
+        padding: var(--space-4);
+    }
+
+    .app-page-eyebrow {
+        align-items: flex-start;
+    }
+
+    .app-stat-card {
+        min-height: 94px;
+        padding: var(--space-4);
+    }
+
+    .app-stat-icon {
+        width: 48px;
+        height: 48px;
+        flex-basis: 48px;
+    }
+
+    .app-stat-value {
+        font-size: 1.55rem;
+    }
+
+    .app-card,
+    .content-card,
+    .app-panel,
+    .app-form-card,
+    .form-card,
+    .app-table-card,
+    .datagrid,
+    .table-card {
+        border-radius: var(--radius-lg);
+    }
+
+    .app-form-actions,
+    .form-buttons,
+    .password-form-actions,
+    .confirm-actions,
+    .app-empty-actions,
+    .announcement-detail-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .app-form-actions > *,
+    .form-buttons > *,
+    .password-form-actions > *,
+    .confirm-actions > *,
+    .app-empty-actions > *,
+    .announcement-detail-actions > * {
+        width: 100%;
+    }
+
+    .app-btn,
+    .btn,
+    .btn-filter,
+    .btn-save,
+    .btn-add,
+    .btn-export,
+    .btn-reset,
+    .btn-cancel,
+    .btn-danger,
+    .btn-edit,
+    .btn-enable,
+    .btn-disable,
+    .btn-delete,
+    .btn-warning,
+    .btn-view {
+        min-height: 44px;
+    }
+
+    .app-table-header,
+    .datagrid-header,
+    .table-toolbar,
+    .app-table-toolbar {
+        padding: var(--space-3);
+    }
+
+    .app-pagination,
+    .pagination {
+        gap: var(--space-1);
+        padding: var(--space-3);
+    }
+
+    .app-pagination a,
+    .app-pagination button,
+    .app-pagination span,
+    .pagination a,
+    .pagination span {
+        min-width: 34px;
+        min-height: 34px;
+        padding: 0 var(--space-2);
+    }
+
+    .app-modal-heading {
+        align-items: flex-start;
+    }
+
+    .app-modal-heading h2 {
+        font-size: var(--font-size-lg);
+    }
+
+    .app-empty-state,
+    .app-table-empty,
+    .empty-state {
+        min-height: 250px;
+        padding:
+            var(--space-7)
+            var(--space-4);
+    }
+
+    .app-empty-icon,
+    .app-table-empty-icon,
+    .empty-state-icon {
+        width: 80px;
+        height: 80px;
+    }
+
+    .enterprise-profile-avatar {
+        width: 94px;
+        height: 94px;
+        margin-top: -49px;
+
+        font-size: 2rem;
+    }
+
+    .announcement-detail-header,
+    .announcement-meta-grid,
+    .announcement-content-section,
+    .announcement-detail-footer {
+        padding: var(--space-4);
+    }
+
+    .announcement-detail-title h2 {
+        font-size: 1.45rem;
+    }
+
+    .door-info {
+        grid-template-columns: 1fr;
+    }
+
+    .doors-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-dropdown-menu,
+    .notifications-menu,
+    .admin-dropdown-menu {
+        top: 90px !important;
+        right: 8px !important;
+        left: 8px !important;
+
+        max-height: calc(100vh - 110px) !important;
+    }
+
+    .abwaab-footer-content {
+        padding:
+            var(--space-8)
+            var(--space-4)
+            var(--space-6);
+    }
+
+    .abwaab-footer-bottom {
+        width: calc(100% - 2rem);
+    }
+}
+
+
+/* =========================================================
+   9) الجوال الصغير
+========================================================= */
+
+@media (max-width: 390px) {
+    .page-container,
+    .app-container {
+        width: calc(100% - 0.75rem);
+    }
+
+    .app-page-hero,
+    .app-card,
+    .content-card,
+    .app-panel-body,
+    .app-form-card,
+    .form-card {
+        padding: var(--space-3);
+    }
+
+    .app-page-hero h1 {
+        font-size: 1.55rem;
+    }
+
+    .app-stat-card {
+        gap: var(--space-3);
+    }
+
+    .app-alert,
+    .app-toast {
+        padding: var(--space-3);
+
+        grid-template-columns:
+            34px
+            minmax(0, 1fr)
+            28px;
+    }
+
+    .app-alert-icon,
+    .app-toast-icon {
+        width: 34px;
+        height: 34px;
+    }
+
+    .app-pagination-meta {
+        width: 100%;
+        margin: var(--space-2) 0;
+
+        text-align: center;
+    }
+
+    .app-modal-header,
+    .app-modal-footer,
+    .app-modal-body {
+        padding: var(--space-3);
+    }
+}
+
+
+/* =========================================================
+   10) الارتفاعات القصيرة
+========================================================= */
+
+@media (max-height: 700px) {
+    .app-modal-dialog,
+    .modal {
+        max-height: calc(100vh - 1rem);
+    }
+
+    .app-modal-body,
+    .modal-body {
+        max-height: calc(100vh - 165px);
+    }
+
+    .app-drawer-panel {
+        padding-bottom: var(--space-4);
+    }
+
+    .profile-dropdown-menu,
+    .notifications-menu,
+    .admin-dropdown-menu {
+        max-height: calc(100vh - 100px) !important;
+        overflow-y: auto !important;
+    }
+}
+
+
+/* =========================================================
+   11) اتجاه الطباعة
+========================================================= */
+
+@media print {
+    @page {
+        size: A4;
+        margin: 12mm;
+    }
+
+    html,
+    body {
+        overflow: visible !important;
+    }
+
+    .app-page,
+    .page-container,
+    .app-container {
+        width: 100% !important;
+        max-width: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .app-card,
+    .content-card,
+    .app-panel,
+    .app-form-card,
+    .form-card,
+    .app-table-card,
+    .datagrid,
+    .table-card {
+        break-inside: avoid;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    .print-only {
+        display: block !important;
+    }
+}
+
+
+/* =========================================================
+   12) الأجهزة ذات المؤشر اللمسي
+========================================================= */
+
+@media (hover: none) and (pointer: coarse) {
+    .app-btn,
+    .btn,
+    .app-action-button,
+    .app-table-action,
+    .theme-toggle,
+    .notification-bell,
+    .action-toggle {
+        min-height: 44px;
+    }
+
+    .app-dropdown-menu,
+    .dropdown-menu,
+    .action-dropdown-menu {
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+
+    .app-tooltip::after {
+        display: none;
+    }
+}

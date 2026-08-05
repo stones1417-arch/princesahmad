@@ -1,0 +1,86 @@
+<div class="dropdown enterprise-nav-dropdown system-nav-dropdown">
+  <button
+    type="button"
+    class="dropdown-toggle unified-nav-toggle system-nav-toggle"
+    aria-label="فتح قائمة النظام"
+    aria-expanded="false"
+  >
+    <span class="unified-nav-main-icon system-mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" role="img">
+        <path class="system-mark-shield" d="M12 2.5 20 5.6v5.8c0 5.1-3.2 8.6-8 10.1-4.8-1.5-8-5-8-10.1V5.6L12 2.5Z"/>
+        <circle class="system-mark-core" cx="12" cy="11.2" r="3.1"/>
+        <path class="system-mark-nodes" d="M12 6.2v1.9M12 14.3v2M7 11.2h1.9M15.1 11.2H17M8.5 7.7l1.3 1.3M14.2 13.4l1.3 1.3M8.5 14.7l1.3-1.3M14.2 9l1.3-1.3"/>
+      </svg>
+    </span>
+    <span class="unified-nav-title">النظام</span>
+    <span class="system-security-status" aria-hidden="true"></span>
+    <span class="unified-nav-arrow">▾</span>
+  </button>
+
+  <div class="dropdown-menu enterprise-dropdown-menu system-enterprise-menu">
+    <div class="enterprise-menu-heading system-menu-heading">
+      <span aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 2.5 20 5.6v5.8c0 5.1-3.2 8.6-8 10.1-4.8-1.5-8-5-8-10.1V5.6L12 2.5Z"/>
+          <circle cx="12" cy="11.2" r="3.1"/>
+          <path d="M12 6.2v1.9M12 14.3v2M7 11.2h1.9M15.1 11.2H17"/>
+        </svg>
+      </span>
+      <div><strong>إدارة النظام</strong><small>الحوكمة، الصلاحيات، وسلامة التشغيل</small></div>
+    </div>
+    <div class="enterprise-menu-label">التحكم والرقابة</div>
+
+    <a href="{% url 'dashboard:system-center' %}" class="unified-menu-item featured">
+      <span class="unified-menu-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3A1.7 1.7 0 0 0 14 21v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14v-4a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3h4a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1v4a1.7 1.7 0 0 0-1.6 1Z"/></svg>
+      </span>
+      <span class="unified-menu-content"><strong>إعدادات النظام</strong><small>إدارة البيانات والمستخدمين والصلاحيات</small></span><i>‹</i>
+    </a>
+    <a href="{% url 'audit:history-list' %}" class="unified-menu-item">
+      <span class="unified-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"/></svg></span>
+      <span class="unified-menu-content"><strong>سجل المراجعة</strong><small>تتبع التغييرات والإجراءات</small></span><i>‹</i>
+    </a>
+    <a href="{% url 'dashboard:system-logs' %}" class="unified-menu-item">
+      <span class="unified-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 3h14v18H5zM8 8h8M8 12h8M8 16h5"/></svg></span>
+      <span class="unified-menu-content"><strong>نشاط النظام</strong><small>الأحداث التشغيلية وحالة الاستخدام</small></span><i>‹</i>
+    </a>
+  </div>
+</div>
+
+<style>
+.system-nav-dropdown .system-mark {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid rgba(11,107,80,.18);
+  border-radius: 9px;
+  color: #086249;
+  background: linear-gradient(145deg,#f2faf6,#dceee6);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.8),0 3px 9px rgba(6,78,59,.09);
+}
+.system-nav-dropdown .system-mark svg { width: 20px!important; height: 20px!important; }
+.system-mark-shield { fill: rgba(11,107,80,.07); }
+.system-mark-core { fill: #b99b4d!important; stroke: #fff!important; stroke-width: 1.4!important; }
+.system-mark-nodes { stroke-width: 1.55!important; }
+.system-security-status {
+  width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%;
+  background: #27a36f; box-shadow: 0 0 0 3px rgba(39,163,111,.13);
+}
+.system-nav-dropdown .system-nav-toggle:hover .system-mark,
+.system-nav-dropdown .system-nav-toggle[aria-expanded="true"] .system-mark {
+  color: #fff; border-color: #0b6b50;
+  background: linear-gradient(145deg,#138263,#07513d);
+  box-shadow: 0 5px 13px rgba(6,78,59,.22);
+}
+.system-nav-dropdown .system-nav-toggle:hover .system-mark-shield,
+.system-nav-dropdown .system-nav-toggle[aria-expanded="true"] .system-mark-shield { fill: rgba(255,255,255,.09); }
+.system-menu-heading>span { background: linear-gradient(145deg,#0e795b,#064e3b)!important; box-shadow: 0 7px 16px rgba(6,78,59,.2); }
+.system-enterprise-menu { border-top-color: #0b6b50!important; }
+.system-enterprise-menu::before {
+  content: ""; position: absolute; inset: 0 0 auto; height: 3px;
+  background: linear-gradient(90deg,#b99b4d,#0b6b50 55%,#b99b4d); pointer-events: none;
+}
+.system-nav-toggle:focus-visible { outline: 3px solid rgba(185,155,77,.35)!important; outline-offset: 3px; }
+body.dark .system-nav-dropdown .system-mark { color:#d9c36c; border-color:rgba(217,195,108,.24); background:linear-gradient(145deg,#173c31,#102b23); }
+body.dark .system-enterprise-menu { border-color:#2b463d!important; border-top-color:#d4af37!important; }
+@media (prefers-reduced-motion: reduce) { .system-nav-dropdown .system-mark { transition:none!important; } }
+</style>

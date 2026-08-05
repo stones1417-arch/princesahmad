@@ -1,0 +1,2179 @@
+﻿{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+طلبات الصيانة
+{% endblock %}
+
+{% block content %}
+
+<div class="maintenance-center" dir="rtl">
+
+    <!-- ==================================================
+         الإشعارات
+    ================================================== -->
+
+    <div
+        id="maintenanceToastContainer"
+        class="maintenance-toast-container"
+        aria-live="polite"
+    ></div>
+
+
+    <!-- ==================================================
+         رأس الصفحة
+    ================================================== -->
+
+    <section class="maintenance-page-header">
+
+        <div class="maintenance-page-heading">
+
+            <div class="maintenance-page-icon">
+                🛠️
+            </div>
+
+            <div>
+                <h1>مركز إدارة الصيانة</h1>
+
+                <p>
+                    استقبال طلبات الصيانة ومتابعة تنفيذها وإغلاقها
+                    وفق الحالة والأولوية والباب.
+                </p>
+            </div>
+
+        </div>
+
+        <div class="maintenance-header-actions">
+
+            <a
+                href="{% url 'dashboard:index' %}"
+                class="maintenance-secondary-button"
+            >
+                لوحة الأبواب
+            </a>
+
+            <button
+                type="button"
+                class="maintenance-primary-button"
+                onclick="scrollToMaintenanceRequests()"
+            >
+                عرض الطلبات
+            </button>
+
+        </div>
+
+    </section>
+
+
+    <!-- ==================================================
+         حالة الوردية
+    ================================================== -->
+
+    <section class="maintenance-shift-banner">
+
+        <div class="maintenance-shift-indicator">
+            <span></span>
+        </div>
+
+        <div>
+            <strong>الوردية التشغيلية</strong>
+
+            <p>
+                {% if active_shift %}
+                    الوردية النشطة:
+                    {{ active_shift.shift_type.name|default:"وردية حالية" }}
+                {% else %}
+                    لا توجد وردية نشطة حاليًا.
+                {% endif %}
+            </p>
+        </div>
+
+    </section>
+
+
+    <!-- ==================================================
+         الإحصائيات
+    ================================================== -->
+
+    <section class="maintenance-stats-grid">
+
+        <article class="maintenance-stat-card total">
+
+            <div class="maintenance-stat-icon">
+                📋
+            </div>
+
+            <div>
+                <span>إجمالي الطلبات</span>
+
+                <strong id="totalRequestsCount">
+                    {{ total_requests|default:0 }}
+                </strong>
+            </div>
+
+        </article>
+
+
+        <article class="maintenance-stat-card today">
+
+            <div class="maintenance-stat-icon">
+                📅
+            </div>
+
+            <div>
+                <span>طلبات اليوم</span>
+
+                <strong id="todayRequestsCount">
+                    {{ today_requests|default:0 }}
+                </strong>
+            </div>
+
+        </article>
+
+
+        <article class="maintenance-stat-card open">
+
+            <div class="maintenance-stat-icon">
+                ⏳
+            </div>
+
+            <div>
+                <span>الطلبات المفتوحة</span>
+
+                <strong id="openRequestsCount">
+                    {{ open_requests|default:0 }}
+                </strong>
+            </div>
+
+        </article>
+
+
+        <article class="maintenance-stat-card closed">
+
+            <div class="maintenance-stat-icon">
+                ✓
+            </div>
+
+            <div>
+                <span>الطلبات المغلقة</span>
+
+                <strong id="closedRequestsCount">
+                    {{ closed_requests|default:0 }}
+                </strong>
+            </div>
+
+        </article>
+
+
+        <article class="maintenance-stat-card urgent">
+
+            <div class="maintenance-stat-icon">
+                !
+            </div>
+
+            <div>
+                <span>الطلبات العاجلة</span>
+
+                <strong id="urgentRequestsCount">
+                    {{ urgent_requests|default:0 }}
+                </strong>
+            </div>
+
+        </article>
+
+    </section>
+
+
+    <!-- ==================================================
+         البحث والتصفية
+    ================================================== -->
+
+    <section class="maintenance-panel maintenance-filter-panel">
+
+        <div class="maintenance-panel-header">
+
+            <div>
+                <span class="maintenance-panel-eyebrow">أدوات الوصول السريع</span>
+                <h2>البحث والتصفية</h2>
+
+                <p>
+                    ابحث برقم الطلب أو وصف المشكلة أو الباب أو اسم الفني.
+                </p>
+            </div>
+
+            <div class="maintenance-filter-summary" aria-label="ملخص النتائج">
+                <span>النتائج الحالية</span>
+                <strong>{{ requests|length }}</strong>
+            </div>
+
+        </div>
+
+
+        <form
+            id="maintenanceFilterForm"
+            method="get"
+            class="maintenance-filter-form"
+        >
+
+            <div class="maintenance-filter-grid">
+
+                <div class="maintenance-form-field maintenance-search-field">
+
+                    <label for="maintenanceSearch">
+                        البحث
+                    </label>
+
+                    <div class="maintenance-search-control">
+                        <span class="maintenance-search-icon" aria-hidden="true">⌕</span>
+                        <input
+                            id="maintenanceSearch"
+                            type="search"
+                            name="q"
+                            value="{{ q }}"
+                            placeholder="رقم الطلب، الوصف، الباب أو الفني..."
+                            autocomplete="off"
+                        >
+                        <button type="button" id="clearMaintenanceSearch" class="maintenance-clear-search" aria-label="مسح البحث" {% if not q %}hidden{% endif %}>×</button>
+                    </div>
+
+                </div>
+
+
+                <div class="maintenance-form-field">
+
+                    <label for="maintenanceStatusFilter">
+                        الحالة
+                    </label>
+
+                    <select
+                        id="maintenanceStatusFilter"
+                        name="status"
+                    >
+                        <option value="">كل الحالات</option>
+
+                        {% for value, label in status_choices %}
+                            <option
+                                value="{{ value }}"
+                                {% if selected_status == value %}selected{% endif %}
+                            >
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+
+                </div>
+
+
+                <div class="maintenance-form-field">
+
+                    <label for="maintenancePriorityFilter">
+                        الأولوية
+                    </label>
+
+                    <select
+                        id="maintenancePriorityFilter"
+                        name="priority"
+                    >
+                        <option value="">كل الأولويات</option>
+
+                        {% for value, label in priority_choices %}
+                            <option
+                                value="{{ value }}"
+                                {% if selected_priority == value %}selected{% endif %}
+                            >
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+
+                </div>
+
+            </div>
+
+            <div class="maintenance-active-filters" aria-live="polite">
+                <span class="maintenance-active-filters-label">الفلاتر النشطة</span>
+                {% if q %}<span class="maintenance-filter-chip">بحث: {{ q|truncatechars:28 }}</span>{% endif %}
+                {% if selected_status %}<span class="maintenance-filter-chip">الحالة: {% for value, label in status_choices %}{% if selected_status == value %}{{ label }}{% endif %}{% endfor %}</span>{% endif %}
+                {% if selected_priority %}<span class="maintenance-filter-chip">الأولوية: {% for value, label in priority_choices %}{% if selected_priority == value %}{{ label }}{% endif %}{% endfor %}</span>{% endif %}
+                {% if not q and not selected_status and not selected_priority %}<span class="maintenance-no-filter">يتم عرض جميع طلبات الصيانة</span>{% endif %}
+            </div>
+
+
+            <div class="maintenance-filter-actions">
+
+                <a
+                    href="{% url 'ops:maintenance-list' %}"
+                    class="maintenance-reset-button"
+                >
+                    <span aria-hidden="true">↻</span>
+                    إعادة ضبط
+                </a>
+
+                <button
+                    type="submit"
+                    class="maintenance-search-button"
+                >
+                    <span aria-hidden="true">⌕</span>
+                    تطبيق الفلاتر
+                </button>
+
+            </div>
+
+        </form>
+
+    </section>
+
+
+    <!-- ==================================================
+         سجل الطلبات
+    ================================================== -->
+
+    <section
+        id="maintenanceRequestsSection"
+        class="maintenance-panel"
+    >
+
+        <div class="maintenance-panel-header">
+
+            <div>
+                <h2>طلبات الصيانة</h2>
+
+                <p>
+                    متابعة حالة الطلبات وتحديث مسار التنفيذ.
+                </p>
+            </div>
+
+            <span class="maintenance-results-count">
+                {{ requests|length }} طلب
+            </span>
+
+        </div>
+
+
+        <div class="maintenance-requests-grid">
+
+            {% for req in requests %}
+
+                <article
+                    id="maintenanceCard-{{ req.id }}"
+                    class="
+                        maintenance-request-card
+                        priority-{{ req.priority }}
+                    "
+                    data-request-id="{{ req.id }}"
+                    data-request-number="{{ req.request_number|escape }}"
+                    data-door-number="{{ req.door_shift.door_number|default:'' }}"
+                    data-priority="{{ req.priority }}"
+                    data-priority-label="{{ req.get_priority_display|escape }}"
+                    data-status="{{ req.status }}"
+                    data-status-label="{{ req.get_status_display|escape }}"
+                    data-description="{{ req.description|default:''|escapejs }}"
+                    data-technician="{% if req.technician %}{{ req.technician.username|escapejs }}{% else %}{{ req.technician_name|default:''|escapejs }}{% endif %}"
+                    data-created-by="{% if req.created_by %}{{ req.created_by.username|escapejs }}{% endif %}"
+                    data-created-at="{{ req.created_at|date:'Y-m-d H:i' }}"
+                    data-closing-notes="{{ req.closing_notes|default:''|escapejs }}"
+                >
+
+                    <div class="maintenance-card-top">
+
+                        <div>
+
+                            <span class="maintenance-request-label">
+                                رقم الطلب
+                            </span>
+
+                            <strong class="maintenance-request-number">
+                                {{ req.request_number }}
+                            </strong>
+
+                        </div>
+
+                        <span
+                            id="maintenanceStatusBadge-{{ req.id }}"
+                            class="maintenance-badge status-{{ req.status }}"
+                        >
+                            {{ req.get_status_display }}
+                        </span>
+
+                    </div>
+
+
+                    <div class="maintenance-card-door">
+
+                        <div class="maintenance-door-icon">
+                            🚪
+                        </div>
+
+                        <div>
+                            <span>الموقع</span>
+
+                            <strong>
+                                باب {{ req.door_shift.door_number }}
+                            </strong>
+                        </div>
+
+                    </div>
+
+
+                    <div class="maintenance-card-description">
+
+                        <span>وصف المشكلة</span>
+
+                        <p>
+                            {{ req.description|default:"لا يوجد وصف مسجل"|truncatechars:130 }}
+                        </p>
+
+                    </div>
+
+
+                    <div class="maintenance-card-meta">
+
+                        <div>
+                            <span>الأولوية</span>
+
+                            <strong
+                                class="maintenance-priority-text priority-text-{{ req.priority }}"
+                            >
+                                {{ req.get_priority_display }}
+                            </strong>
+                        </div>
+
+                        <div>
+                            <span>الفني</span>
+
+                            <strong>
+                                {% if req.technician %}
+                                    {{ req.technician.username }}
+                                {% elif req.technician_name %}
+                                    {{ req.technician_name }}
+                                {% else %}
+                                    غير محدد
+                                {% endif %}
+                            </strong>
+                        </div>
+
+                        <div>
+                            <span>المنشئ</span>
+
+                            <strong>
+                                {% if req.created_by %}
+                                    {{ req.created_by.username }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </strong>
+                        </div>
+
+                        <div>
+                            <span>التاريخ</span>
+
+                            <strong>
+                                {{ req.created_at|date:"Y-m-d" }}
+                            </strong>
+
+                            <small>
+                                {{ req.created_at|date:"H:i" }}
+                            </small>
+                        </div>
+
+                    </div>
+
+
+                    <div class="maintenance-card-actions">
+
+                        <button
+                            type="button"
+                            class="maintenance-details-button"
+                            onclick="openMaintenanceDetails({{ req.id }})"
+                        >
+                            عرض التفاصيل
+                        </button>
+
+                        <button
+                            type="button"
+                            class="maintenance-update-button"
+                            onclick="openMaintenanceUpdate({{ req.id }})"
+                        >
+                            تحديث الحالة
+                        </button>
+
+                    </div>
+
+                </article>
+
+            {% empty %}
+
+                <div class="maintenance-empty-state">
+
+                    <div class="maintenance-empty-icon">
+                        🧰
+                    </div>
+
+                    <strong>
+                        لا توجد طلبات صيانة
+                    </strong>
+
+                    <p>
+                        لا توجد طلبات مطابقة للبحث أو الفلاتر المحددة.
+                    </p>
+
+                    <a href="{% url 'ops:maintenance-list' %}">
+                        إعادة ضبط الفلاتر
+                    </a>
+
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+    </section>
+
+</div>
+
+
+<!-- ==================================================
+     نافذة تفاصيل الطلب
+================================================== -->
+
+<div
+    id="maintenanceDetailsModal"
+    class="maintenance-modal-backdrop"
+    aria-hidden="true"
+>
+
+    <div class="maintenance-modal-dialog">
+
+        <div class="maintenance-modal-header">
+
+            <div>
+                <span>تفاصيل طلب الصيانة</span>
+
+                <h3 id="detailsRequestNumber">
+                    —
+                </h3>
+            </div>
+
+            <button
+                type="button"
+                class="maintenance-modal-close"
+                onclick="closeMaintenanceDetails()"
+                aria-label="إغلاق"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <div class="maintenance-modal-body">
+
+            <div class="maintenance-details-grid">
+
+                <div class="maintenance-detail-item">
+
+                    <span>الباب</span>
+
+                    <strong id="detailsDoor">
+                        —
+                    </strong>
+
+                </div>
+
+                <div class="maintenance-detail-item">
+
+                    <span>الحالة</span>
+
+                    <strong id="detailsStatus">
+                        —
+                    </strong>
+
+                </div>
+
+                <div class="maintenance-detail-item">
+
+                    <span>الأولوية</span>
+
+                    <strong id="detailsPriority">
+                        —
+                    </strong>
+
+                </div>
+
+                <div class="maintenance-detail-item">
+
+                    <span>الفني</span>
+
+                    <strong id="detailsTechnician">
+                        —
+                    </strong>
+
+                </div>
+
+                <div class="maintenance-detail-item">
+
+                    <span>المنشئ</span>
+
+                    <strong id="detailsCreatedBy">
+                        —
+                    </strong>
+
+                </div>
+
+                <div class="maintenance-detail-item">
+
+                    <span>تاريخ الإنشاء</span>
+
+                    <strong id="detailsCreatedAt">
+                        —
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <div class="maintenance-description-box">
+
+                <span>وصف المشكلة</span>
+
+                <p id="detailsDescription">
+                    —
+                </p>
+
+            </div>
+
+
+            <div
+                id="detailsClosingNotesBox"
+                class="maintenance-description-box"
+                style="display:none;"
+            >
+
+                <span>ملاحظات الإغلاق</span>
+
+                <p id="detailsClosingNotes">
+                    —
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <div class="maintenance-modal-footer">
+
+            <button
+                type="button"
+                class="maintenance-reset-button"
+                onclick="closeMaintenanceDetails()"
+            >
+                إغلاق
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ==================================================
+     نافذة تحديث الحالة
+================================================== -->
+
+<div
+    id="maintenanceUpdateModal"
+    class="maintenance-modal-backdrop"
+    aria-hidden="true"
+>
+
+    <div class="maintenance-modal-dialog maintenance-update-dialog">
+
+        <div class="maintenance-modal-header">
+
+            <div>
+                <span>تحديث طلب الصيانة</span>
+
+                <h3 id="updateRequestNumber">
+                    —
+                </h3>
+            </div>
+
+            <button
+                type="button"
+                class="maintenance-modal-close"
+                onclick="closeMaintenanceUpdate()"
+                aria-label="إغلاق"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <form
+            id="maintenanceUpdateForm"
+            class="maintenance-modal-body"
+        >
+
+            {% csrf_token %}
+
+            <input
+                id="maintenanceUpdateId"
+                type="hidden"
+            >
+
+
+            <div
+                id="maintenanceUpdateMessage"
+                class="maintenance-form-message"
+                style="display:none;"
+            ></div>
+
+
+            <div class="maintenance-form-field">
+
+                <label for="maintenanceNewStatus">
+                    الحالة الجديدة
+                </label>
+
+                <select
+                    id="maintenanceNewStatus"
+                    name="status"
+                    required
+                >
+
+                    {% for value, label in status_choices %}
+                        <option value="{{ value }}">
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+
+                </select>
+
+            </div>
+
+
+            <div class="maintenance-form-field">
+
+                <label for="maintenanceClosingNotes">
+                    ملاحظات التنفيذ أو الإغلاق
+                </label>
+
+                <textarea
+                    id="maintenanceClosingNotes"
+                    name="closing_notes"
+                    rows="5"
+                    placeholder="اكتب تفاصيل التنفيذ أو سبب الإغلاق..."
+                ></textarea>
+
+            </div>
+
+        </form>
+
+
+        <div class="maintenance-modal-footer">
+
+            <button
+                type="button"
+                class="maintenance-reset-button"
+                onclick="closeMaintenanceUpdate()"
+            >
+                إلغاء
+            </button>
+
+            <button
+                id="maintenanceUpdateSubmit"
+                type="button"
+                class="maintenance-primary-button"
+                onclick="submitMaintenanceUpdate()"
+            >
+                <span id="maintenanceUpdateSubmitText">
+                    حفظ التحديث
+                </span>
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<style>
+/* ==================================================
+   الصفحة
+================================================== */
+
+.maintenance-center{
+    width:100%;
+    min-height:100vh;
+    padding:30px 34px 80px;
+    box-sizing:border-box;
+    background:
+        radial-gradient(
+            circle at 8% 5%,
+            rgba(212,175,55,.10),
+            transparent 28%
+        ),
+        radial-gradient(
+            circle at 92% 8%,
+            rgba(15,123,92,.09),
+            transparent 30%
+        ),
+        var(--background);
+}
+
+.maintenance-center *{
+    box-sizing:border-box;
+}
+
+
+/* ==================================================
+   رأس الصفحة
+================================================== */
+
+.maintenance-page-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:20px;
+    margin-bottom:22px;
+}
+
+.maintenance-page-heading{
+    display:flex;
+    align-items:center;
+    gap:16px;
+}
+
+.maintenance-page-icon{
+    width:65px;
+    height:65px;
+    flex:0 0 65px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:20px;
+    background:linear-gradient(135deg,#0f7b5c,#075943);
+    color:#fff;
+    font-size:29px;
+    box-shadow:0 15px 32px rgba(15,123,92,.24);
+}
+
+.maintenance-page-heading h1{
+    margin:0;
+    color:var(--green-dark);
+    font-size:31px;
+    font-weight:950;
+}
+
+.maintenance-page-heading p{
+    margin:7px 0 0;
+    color:var(--muted);
+    font-size:14px;
+    line-height:1.8;
+}
+
+.maintenance-header-actions{
+    display:flex;
+    gap:10px;
+}
+
+
+/* ==================================================
+   الأزرار
+================================================== */
+
+.maintenance-primary-button,
+.maintenance-secondary-button,
+.maintenance-reset-button,
+.maintenance-search-button{
+    min-height:45px;
+    padding:0 17px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:13px;
+    text-decoration:none;
+    border:none;
+    font-size:13px;
+    font-weight:900;
+    cursor:pointer;
+}
+
+.maintenance-primary-button,
+.maintenance-search-button{
+    background:linear-gradient(135deg,#0f7b5c,#075943);
+    color:#fff;
+}
+
+.maintenance-secondary-button{
+    background:#fff;
+    color:#0f7b5c;
+    border:1px solid #bbded4;
+}
+
+.maintenance-reset-button{
+    background:#f3f4f6;
+    color:#374151;
+    border:1px solid var(--border);
+}
+
+
+/* ==================================================
+   الوردية
+================================================== */
+
+.maintenance-shift-banner{
+    margin-bottom:22px;
+    padding:15px 18px;
+    display:flex;
+    align-items:center;
+    gap:13px;
+    background:#ecfdf5;
+    border:1px solid #bbf7d0;
+    border-radius:18px;
+}
+
+.maintenance-shift-indicator{
+    width:42px;
+    height:42px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:14px;
+    background:#dcfce7;
+}
+
+.maintenance-shift-indicator span{
+    width:11px;
+    height:11px;
+    border-radius:50%;
+    background:#16a34a;
+    box-shadow:0 0 0 6px rgba(22,163,74,.12);
+}
+
+.maintenance-shift-banner strong{
+    color:#166534;
+}
+
+.maintenance-shift-banner p{
+    margin:4px 0 0;
+    color:#4b5563;
+    font-size:12px;
+}
+
+
+/* ==================================================
+   الإحصائيات
+================================================== */
+
+.maintenance-stats-grid{
+    display:grid;
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:15px;
+    margin-bottom:25px;
+}
+
+.maintenance-stat-card{
+    min-height:112px;
+    padding:18px;
+    display:flex;
+    align-items:center;
+    gap:13px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:22px;
+    box-shadow:var(--shadow-sm);
+}
+
+.maintenance-stat-icon{
+    width:51px;
+    height:51px;
+    flex:0 0 51px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:16px;
+    font-size:21px;
+    font-weight:950;
+}
+
+.maintenance-stat-card.total .maintenance-stat-icon{
+    background:#dbeafe;
+}
+
+.maintenance-stat-card.today .maintenance-stat-icon{
+    background:#f3e8ff;
+}
+
+.maintenance-stat-card.open .maintenance-stat-icon{
+    background:#fef3c7;
+}
+
+.maintenance-stat-card.closed .maintenance-stat-icon{
+    background:#dcfce7;
+}
+
+.maintenance-stat-card.urgent .maintenance-stat-icon{
+    background:#fee2e2;
+    color:#991b1b;
+}
+
+.maintenance-stat-card span{
+    display:block;
+    color:var(--muted);
+    font-size:12px;
+    font-weight:800;
+}
+
+.maintenance-stat-card strong{
+    display:block;
+    margin-top:7px;
+    color:#0f7b5c;
+    font-size:29px;
+    font-weight:950;
+}
+
+.maintenance-stat-card.urgent strong{
+    color:#dc2626;
+}
+
+
+/* ==================================================
+   اللوحات والنماذج
+================================================== */
+
+.maintenance-panel{
+    margin-bottom:25px;
+    padding:24px 26px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:24px;
+    box-shadow:var(--shadow-md);
+}
+
+.maintenance-panel-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:18px;
+    margin-bottom:20px;
+    padding-bottom:17px;
+    border-bottom:1px solid var(--border);
+}
+
+.maintenance-panel-header h2{
+    margin:0;
+    color:var(--text);
+    font-size:22px;
+    font-weight:950;
+}
+
+.maintenance-panel-header p{
+    margin:6px 0 0;
+    color:var(--muted);
+    font-size:13px;
+}
+
+.maintenance-panel-header-icon{
+    width:47px;
+    height:47px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:15px;
+    background:#ecfdf5;
+    font-size:21px;
+}
+
+.maintenance-filter-grid{
+    display:grid;
+    grid-template-columns:2fr 1fr 1fr;
+    gap:14px;
+}
+
+.maintenance-form-field label{
+    display:block;
+    margin-bottom:8px;
+    color:var(--text);
+    font-size:13px;
+    font-weight:900;
+}
+
+.maintenance-form-field input,
+.maintenance-form-field select,
+.maintenance-form-field textarea{
+    width:100%;
+    box-sizing:border-box;
+    border:1px solid var(--border);
+    border-radius:14px;
+    background:var(--surface);
+    color:var(--text);
+    font-size:14px;
+}
+
+.maintenance-form-field input,
+.maintenance-form-field select{
+    min-height:50px;
+    padding:0 14px;
+}
+
+.maintenance-form-field textarea{
+    padding:13px 14px;
+    resize:vertical;
+    line-height:1.8;
+}
+
+.maintenance-form-field input:focus,
+.maintenance-form-field select:focus,
+.maintenance-form-field textarea:focus{
+    outline:none;
+    border-color:#d4af37;
+    box-shadow:0 0 0 4px rgba(212,175,55,.13);
+}
+
+.maintenance-filter-actions{
+    margin-top:17px;
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+}
+
+
+/* ==================================================
+   بطاقات الطلبات
+================================================== */
+
+.maintenance-results-count{
+    min-height:38px;
+    padding:0 13px;
+    display:inline-flex;
+    align-items:center;
+    border-radius:999px;
+    background:#ecfdf5;
+    color:#166534;
+    font-size:12px;
+    font-weight:900;
+}
+
+.maintenance-requests-grid{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:17px;
+}
+
+.maintenance-request-card{
+    padding:19px;
+    position:relative;
+    overflow:hidden;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:21px;
+    box-shadow:var(--shadow-sm);
+    transition:.18s;
+}
+
+.maintenance-request-card::before{
+    content:"";
+    position:absolute;
+    top:0;
+    right:0;
+    width:6px;
+    height:100%;
+    background:#eab308;
+}
+
+.maintenance-request-card.priority-low::before{
+    background:#22c55e;
+}
+
+.maintenance-request-card.priority-medium::before{
+    background:#eab308;
+}
+
+.maintenance-request-card.priority-high::before{
+    background:#f97316;
+}
+
+.maintenance-request-card.priority-urgent::before{
+    background:#dc2626;
+}
+
+.maintenance-request-card:hover{
+    transform:translateY(-3px);
+    box-shadow:var(--shadow-md);
+}
+
+.maintenance-card-top{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:12px;
+}
+
+.maintenance-request-label{
+    display:block;
+    color:var(--muted);
+    font-size:10px;
+    font-weight:800;
+}
+
+.maintenance-request-number{
+    display:block;
+    margin-top:4px;
+    color:var(--text);
+    font-size:16px;
+    font-weight:950;
+}
+
+.maintenance-badge{
+    min-height:29px;
+    padding:0 10px;
+    display:inline-flex;
+    align-items:center;
+    border-radius:999px;
+    font-size:10px;
+    font-weight:900;
+}
+
+.status-new{
+    background:#dbeafe;
+    color:#1d4ed8;
+}
+
+.status-approved,
+.status-assigned{
+    background:#ede9fe;
+    color:#6d28d9;
+}
+
+.status-in_progress,
+.status-open{
+    background:#fef3c7;
+    color:#92400e;
+}
+
+.status-done,
+.status-closed{
+    background:#dcfce7;
+    color:#166534;
+}
+
+.maintenance-card-door{
+    margin-top:16px;
+    padding:12px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    background:#f8fafc;
+    border-radius:14px;
+}
+
+.maintenance-door-icon{
+    width:39px;
+    height:39px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:12px;
+    background:#dbeafe;
+}
+
+.maintenance-card-door span,
+.maintenance-card-description span,
+.maintenance-card-meta span{
+    display:block;
+    color:var(--muted);
+    font-size:10px;
+    font-weight:800;
+}
+
+.maintenance-card-door strong{
+    display:block;
+    margin-top:3px;
+    color:#1d4ed8;
+    font-size:13px;
+}
+
+.maintenance-card-description{
+    margin-top:15px;
+}
+
+.maintenance-card-description p{
+    min-height:48px;
+    margin:5px 0 0;
+    color:var(--text);
+    font-size:12px;
+    line-height:1.8;
+}
+
+.maintenance-card-meta{
+    margin-top:15px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+}
+
+.maintenance-card-meta > div{
+    padding:10px;
+    background:#f8fafc;
+    border-radius:12px;
+}
+
+.maintenance-card-meta strong{
+    display:block;
+    margin-top:4px;
+    color:var(--text);
+    font-size:11px;
+}
+
+.maintenance-card-meta small{
+    color:var(--muted);
+    font-size:10px;
+}
+
+.priority-text-low{
+    color:#15803d !important;
+}
+
+.priority-text-medium{
+    color:#a16207 !important;
+}
+
+.priority-text-high{
+    color:#c2410c !important;
+}
+
+.priority-text-urgent{
+    color:#dc2626 !important;
+}
+
+.maintenance-card-actions{
+    margin-top:16px;
+    display:flex;
+    gap:9px;
+}
+
+.maintenance-details-button,
+.maintenance-update-button{
+    flex:1;
+    min-height:41px;
+    border:none;
+    border-radius:12px;
+    font-size:11px;
+    font-weight:900;
+    cursor:pointer;
+}
+
+.maintenance-details-button{
+    background:#f3f4f6;
+    color:#374151;
+}
+
+.maintenance-update-button{
+    background:#0f7b5c;
+    color:#fff;
+}
+
+
+/* ==================================================
+   الحالة الفارغة
+================================================== */
+
+.maintenance-empty-state{
+    grid-column:1 / -1;
+    padding:45px 20px;
+    text-align:center;
+}
+
+.maintenance-empty-icon{
+    font-size:42px;
+}
+
+.maintenance-empty-state strong{
+    display:block;
+    margin-top:10px;
+    color:var(--text);
+    font-size:18px;
+}
+
+.maintenance-empty-state p{
+    color:var(--muted);
+}
+
+.maintenance-empty-state a{
+    color:#0f7b5c;
+    font-weight:900;
+}
+
+
+/* ==================================================
+   النوافذ
+================================================== */
+
+.maintenance-modal-backdrop{
+    position:fixed;
+    inset:0;
+    z-index:30000;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    background:rgba(0,0,0,.56);
+}
+
+.maintenance-modal-backdrop.active{
+    display:flex;
+}
+
+.maintenance-modal-dialog{
+    width:680px;
+    max-width:96%;
+    max-height:92vh;
+    overflow:auto;
+    background:var(--surface);
+    border-radius:23px;
+    box-shadow:0 30px 80px rgba(0,0,0,.25);
+}
+
+.maintenance-modal-header{
+    padding:20px 23px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:linear-gradient(135deg,#0f7b5c,#075943);
+    color:#fff;
+}
+
+.maintenance-modal-header span{
+    font-size:11px;
+    opacity:.8;
+}
+
+.maintenance-modal-header h3{
+    margin:5px 0 0;
+    color:#fff;
+}
+
+.maintenance-modal-close{
+    width:40px;
+    height:40px;
+    border:none;
+    border-radius:50%;
+    background:rgba(255,255,255,.16);
+    color:#fff;
+    font-size:24px;
+    cursor:pointer;
+}
+
+.maintenance-modal-body{
+    padding:23px;
+}
+
+.maintenance-details-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+}
+
+.maintenance-detail-item{
+    padding:13px;
+    background:#f8fafc;
+    border:1px solid var(--border);
+    border-radius:14px;
+}
+
+.maintenance-detail-item span{
+    display:block;
+    color:var(--muted);
+    font-size:10px;
+}
+
+.maintenance-detail-item strong{
+    display:block;
+    margin-top:5px;
+    color:var(--text);
+    font-size:13px;
+}
+
+.maintenance-description-box{
+    margin-top:15px;
+    padding:15px;
+    background:#f8fafc;
+    border:1px solid var(--border);
+    border-radius:15px;
+}
+
+.maintenance-description-box span{
+    color:var(--muted);
+    font-size:11px;
+    font-weight:900;
+}
+
+.maintenance-description-box p{
+    margin:8px 0 0;
+    color:var(--text);
+    line-height:1.9;
+    white-space:pre-wrap;
+}
+
+.maintenance-modal-footer{
+    padding:17px 23px 21px;
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+    border-top:1px solid var(--border);
+}
+
+.maintenance-form-message{
+    margin-bottom:15px;
+    padding:13px;
+    border-radius:13px;
+    font-size:12px;
+    font-weight:900;
+}
+
+.maintenance-form-message.success{
+    display:block !important;
+    background:#dcfce7;
+    color:#166534;
+}
+
+.maintenance-form-message.danger{
+    display:block !important;
+    background:#fee2e2;
+    color:#991b1b;
+}
+
+
+/* ==================================================
+   Toast
+================================================== */
+
+.maintenance-toast-container{
+    position:fixed;
+    top:90px;
+    left:22px;
+    z-index:40000;
+    width:min(380px,calc(100vw - 32px));
+}
+
+.maintenance-toast{
+    margin-bottom:10px;
+    padding:15px;
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:15px;
+    box-shadow:0 20px 50px rgba(0,0,0,.17);
+}
+
+.maintenance-toast.success{
+    border-right:5px solid #16a34a;
+}
+
+.maintenance-toast.danger{
+    border-right:5px solid #dc2626;
+}
+
+.maintenance-toast strong{
+    display:block;
+    color:var(--text);
+}
+
+.maintenance-toast span{
+    display:block;
+    margin-top:4px;
+    color:var(--muted);
+    font-size:12px;
+}
+
+
+/* ==================================================
+   الاستجابة
+================================================== */
+
+@media(max-width:1250px){
+
+    .maintenance-stats-grid{
+        grid-template-columns:repeat(3,1fr);
+    }
+
+    .maintenance-requests-grid{
+        grid-template-columns:repeat(2,1fr);
+    }
+}
+
+@media(max-width:800px){
+
+    .maintenance-center{
+        padding:20px 14px 60px;
+    }
+
+    .maintenance-page-header{
+        align-items:flex-start;
+        flex-direction:column;
+    }
+
+    .maintenance-header-actions{
+        width:100%;
+    }
+
+    .maintenance-header-actions a,
+    .maintenance-header-actions button{
+        flex:1;
+    }
+
+    .maintenance-stats-grid,
+    .maintenance-requests-grid,
+    .maintenance-filter-grid{
+        grid-template-columns:1fr;
+    }
+
+    .maintenance-details-grid{
+        grid-template-columns:1fr;
+    }
+}
+</style>
+
+<link rel="stylesheet" href="{% static 'css/ops/maintenance_filters.css' %}?v=20260803-1">
+
+
+<script>
+"use strict";
+
+let activeMaintenanceRequestId = null;
+
+document.addEventListener("DOMContentLoaded", function(){
+    const search = document.getElementById("maintenanceSearch");
+    const clear = document.getElementById("clearMaintenanceSearch");
+    const form = document.getElementById("maintenanceFilterForm");
+
+    if(search && clear){
+        search.addEventListener("input", function(){
+            clear.hidden = !search.value;
+        });
+        clear.addEventListener("click", function(){
+            search.value = "";
+            clear.hidden = true;
+            search.focus();
+        });
+    }
+
+    document.addEventListener("keydown", function(event){
+        if(event.key === "/" && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || "")){
+            event.preventDefault();
+            search?.focus();
+        }
+        if(event.key === "Enter" && event.target === search){
+            form?.requestSubmit();
+        }
+    });
+});
+
+
+function maintenanceGetElement(id){
+    return document.getElementById(id);
+}
+
+
+function maintenanceGetCookie(name){
+    const cookies =
+        document.cookie
+            ? document.cookie.split(";")
+            : [];
+
+    for(const cookieItem of cookies){
+        const cookie = cookieItem.trim();
+
+        if(cookie.startsWith(name + "=")){
+            return decodeURIComponent(
+                cookie.substring(name.length + 1)
+            );
+        }
+    }
+
+    return "";
+}
+
+
+function showMaintenanceToast(type, title, message){
+    const container =
+        maintenanceGetElement(
+            "maintenanceToastContainer"
+        );
+
+    if(!container){
+        return;
+    }
+
+    const toast =
+        document.createElement("div");
+
+    toast.className =
+        "maintenance-toast " + type;
+
+    toast.innerHTML = `
+        <div>
+            <strong>${escapeMaintenanceHtml(title)}</strong>
+            <span>${escapeMaintenanceHtml(message)}</span>
+        </div>
+    `;
+
+    container.appendChild(toast);
+
+    setTimeout(function(){
+        toast.remove();
+    }, 5000);
+}
+
+
+function escapeMaintenanceHtml(value){
+    const element =
+        document.createElement("div");
+
+    element.textContent =
+        String(value ?? "");
+
+    return element.innerHTML;
+}
+
+
+function getMaintenanceCard(id){
+    return maintenanceGetElement(
+        "maintenanceCard-" + id
+    );
+}
+
+
+function openMaintenanceDetails(id){
+    const card =
+        getMaintenanceCard(id);
+
+    const modal =
+        maintenanceGetElement(
+            "maintenanceDetailsModal"
+        );
+
+    if(!card || !modal){
+        return;
+    }
+
+    maintenanceGetElement(
+        "detailsRequestNumber"
+    ).innerText =
+        card.dataset.requestNumber || "—";
+
+    maintenanceGetElement(
+        "detailsDoor"
+    ).innerText =
+        card.dataset.doorNumber
+            ? "باب " + card.dataset.doorNumber
+            : "غير محدد";
+
+    maintenanceGetElement(
+        "detailsStatus"
+    ).innerText =
+        card.dataset.statusLabel || "—";
+
+    maintenanceGetElement(
+        "detailsPriority"
+    ).innerText =
+        card.dataset.priorityLabel || "—";
+
+    maintenanceGetElement(
+        "detailsTechnician"
+    ).innerText =
+        card.dataset.technician || "غير محدد";
+
+    maintenanceGetElement(
+        "detailsCreatedBy"
+    ).innerText =
+        card.dataset.createdBy || "—";
+
+    maintenanceGetElement(
+        "detailsCreatedAt"
+    ).innerText =
+        card.dataset.createdAt || "—";
+
+    maintenanceGetElement(
+        "detailsDescription"
+    ).innerText =
+        card.dataset.description ||
+        "لا يوجد وصف مسجل.";
+
+    const closingNotes =
+        card.dataset.closingNotes || "";
+
+    const closingNotesBox =
+        maintenanceGetElement(
+            "detailsClosingNotesBox"
+        );
+
+    if(closingNotes){
+        maintenanceGetElement(
+            "detailsClosingNotes"
+        ).innerText = closingNotes;
+
+        closingNotesBox.style.display =
+            "block";
+    }else{
+        closingNotesBox.style.display =
+            "none";
+    }
+
+    modal.classList.add("active");
+    modal.setAttribute("aria-hidden", "false");
+
+    document.body.style.overflow =
+        "hidden";
+}
+
+
+function closeMaintenanceDetails(){
+    const modal =
+        maintenanceGetElement(
+            "maintenanceDetailsModal"
+        );
+
+    modal?.classList.remove("active");
+    modal?.setAttribute("aria-hidden", "true");
+
+    document.body.style.overflow = "";
+}
+
+
+function openMaintenanceUpdate(id){
+    const card =
+        getMaintenanceCard(id);
+
+    const modal =
+        maintenanceGetElement(
+            "maintenanceUpdateModal"
+        );
+
+    if(!card || !modal){
+        return;
+    }
+
+    activeMaintenanceRequestId = id;
+
+    maintenanceGetElement(
+        "maintenanceUpdateId"
+    ).value = id;
+
+    maintenanceGetElement(
+        "updateRequestNumber"
+    ).innerText =
+        card.dataset.requestNumber || "—";
+
+    maintenanceGetElement(
+        "maintenanceNewStatus"
+    ).value =
+        card.dataset.status || "";
+
+    maintenanceGetElement(
+        "maintenanceClosingNotes"
+    ).value =
+        card.dataset.closingNotes || "";
+
+    hideMaintenanceUpdateMessage();
+
+    modal.classList.add("active");
+    modal.setAttribute("aria-hidden", "false");
+
+    document.body.style.overflow =
+        "hidden";
+}
+
+
+function closeMaintenanceUpdate(){
+    const modal =
+        maintenanceGetElement(
+            "maintenanceUpdateModal"
+        );
+
+    modal?.classList.remove("active");
+    modal?.setAttribute("aria-hidden", "true");
+
+    activeMaintenanceRequestId = null;
+
+    document.body.style.overflow = "";
+}
+
+
+function showMaintenanceUpdateMessage(type, message){
+    const box =
+        maintenanceGetElement(
+            "maintenanceUpdateMessage"
+        );
+
+    if(!box){
+        return;
+    }
+
+    box.className =
+        "maintenance-form-message " + type;
+
+    box.innerText = message;
+    box.style.display = "block";
+}
+
+
+function hideMaintenanceUpdateMessage(){
+    const box =
+        maintenanceGetElement(
+            "maintenanceUpdateMessage"
+        );
+
+    if(!box){
+        return;
+    }
+
+    box.style.display = "none";
+    box.innerText = "";
+    box.className =
+        "maintenance-form-message";
+}
+
+
+function setMaintenanceUpdateLoading(isLoading){
+    const button =
+        maintenanceGetElement(
+            "maintenanceUpdateSubmit"
+        );
+
+    const text =
+        maintenanceGetElement(
+            "maintenanceUpdateSubmitText"
+        );
+
+    if(button){
+        button.disabled = isLoading;
+    }
+
+    if(text){
+        text.innerText =
+            isLoading
+                ? "جاري حفظ التحديث..."
+                : "حفظ التحديث";
+    }
+}
+
+
+async function submitMaintenanceUpdate(){
+    if(!activeMaintenanceRequestId){
+        showMaintenanceUpdateMessage(
+            "danger",
+            "تعذر تحديد طلب الصيانة."
+        );
+        return;
+    }
+
+    const status =
+        maintenanceGetElement(
+            "maintenanceNewStatus"
+        )?.value || "";
+
+    const closingNotes =
+        maintenanceGetElement(
+            "maintenanceClosingNotes"
+        )?.value.trim() || "";
+
+    if(!status){
+        showMaintenanceUpdateMessage(
+            "danger",
+            "يرجى اختيار الحالة الجديدة."
+        );
+        return;
+    }
+
+    const payload =
+        new URLSearchParams();
+
+    payload.append("status", status);
+    payload.append(
+        "closing_notes",
+        closingNotes
+    );
+
+    setMaintenanceUpdateLoading(true);
+    hideMaintenanceUpdateMessage();
+
+    try{
+        const response = await fetch(
+            `/ops/maintenance/${activeMaintenanceRequestId}/update-status/ajax/`,
+            {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken":
+                        maintenanceGetCookie(
+                            "csrftoken"
+                        ),
+                    "X-Requested-With":
+                        "XMLHttpRequest",
+                    "Content-Type":
+                        "application/x-www-form-urlencoded;charset=UTF-8",
+                },
+                body: payload.toString(),
+            }
+        );
+
+        let data;
+
+        try{
+            data = await response.json();
+        }catch(error){
+            throw new Error(
+                "استجابة الخادم غير صالحة."
+            );
+        }
+
+        if(
+            !response.ok ||
+            data.success === false
+        ){
+            throw new Error(
+                data.error ||
+                "تعذر تحديث طلب الصيانة."
+            );
+        }
+
+        const card =
+            getMaintenanceCard(
+                activeMaintenanceRequestId
+            );
+
+        const badge =
+            maintenanceGetElement(
+                "maintenanceStatusBadge-" +
+                activeMaintenanceRequestId
+            );
+
+        if(card){
+            card.dataset.status =
+                data.maintenance.status;
+
+            card.dataset.statusLabel =
+                data.maintenance.status_label;
+
+            card.dataset.closingNotes =
+                closingNotes;
+        }
+
+        if(badge){
+            badge.className =
+                "maintenance-badge status-" +
+                data.maintenance.status;
+
+            badge.innerText =
+                data.maintenance.status_label;
+        }
+
+        showMaintenanceToast(
+            "success",
+            "تم تحديث الطلب",
+            "تم تغيير حالة " +
+            data.maintenance.request_number +
+            " إلى " +
+            data.maintenance.status_label
+        );
+
+        closeMaintenanceUpdate();
+
+    }catch(error){
+        console.error(error);
+
+        showMaintenanceUpdateMessage(
+            "danger",
+            error.message ||
+            "حدث خطأ أثناء تحديث الطلب."
+        );
+
+    }finally{
+        setMaintenanceUpdateLoading(false);
+    }
+}
+
+
+function scrollToMaintenanceRequests(){
+    maintenanceGetElement(
+        "maintenanceRequestsSection"
+    )?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+    });
+}
+
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function(){
+
+        const detailsModal =
+            maintenanceGetElement(
+                "maintenanceDetailsModal"
+            );
+
+        const updateModal =
+            maintenanceGetElement(
+                "maintenanceUpdateModal"
+            );
+
+        detailsModal?.addEventListener(
+            "click",
+            function(event){
+                if(event.target === detailsModal){
+                    closeMaintenanceDetails();
+                }
+            }
+        );
+
+        updateModal?.addEventListener(
+            "click",
+            function(event){
+                if(event.target === updateModal){
+                    closeMaintenanceUpdate();
+                }
+            }
+        );
+
+    }
+);
+
+
+document.addEventListener(
+    "keydown",
+    function(event){
+
+        if(event.key !== "Escape"){
+            return;
+        }
+
+        if(
+            maintenanceGetElement(
+                "maintenanceUpdateModal"
+            )?.classList.contains("active")
+        ){
+            closeMaintenanceUpdate();
+            return;
+        }
+
+        if(
+            maintenanceGetElement(
+                "maintenanceDetailsModal"
+            )?.classList.contains("active")
+        ){
+            closeMaintenanceDetails();
+        }
+
+    }
+);
+</script>
+
+{% endblock %}

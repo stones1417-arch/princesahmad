@@ -1,0 +1,973 @@
+{% extends "base.html" %}
+{% load static audit_tags %}
+
+{% block title %}
+سجل المراجعة والتدقيق
+{% endblock %}
+
+{% block meta_description %}
+سجل مركزي لمراجعة تغييرات الأبواب والتوزيعات والصيانة والبلاغات والورديات والتقارير.
+{% endblock %}
+
+{% block body_class %}
+app-body audit-page-body
+{% endblock %}
+
+{% block page_name %}
+audit-history-list
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --audit-primary: #0b4a32;
+        --audit-primary-dark: #062f21;
+        --audit-primary-soft: #eaf5f0;
+        --audit-gold: #d7b65d;
+        --audit-gold-soft: #fff8e6;
+        --audit-text: #173229;
+        --audit-muted: #687a72;
+        --audit-border: #dce7e1;
+        --audit-background: #f6f9f7;
+        --audit-white: #ffffff;
+        --audit-danger: #c94a4a;
+        --audit-shadow:
+            0 12px 32px rgba(6, 47, 33, 0.09);
+    }
+
+    .audit-page,
+    .audit-page *,
+    .audit-page *::before,
+    .audit-page *::after {
+        box-sizing: border-box;
+    }
+
+    .audit-page {
+        direction: rtl;
+        min-height: 100vh;
+        padding: 24px;
+        color: var(--audit-text);
+        background:
+            radial-gradient(
+                circle at top right,
+                rgba(215, 182, 93, 0.13),
+                transparent 32%
+            ),
+            var(--audit-background);
+        font-family:
+            "Tajawal",
+            "Noto Kufi Arabic",
+            "Noto Sans Arabic",
+            "Segoe UI",
+            Tahoma,
+            Arial,
+            sans-serif;
+        text-align: right;
+    }
+
+    .audit-hero {
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 22px;
+        padding: 30px;
+        border: 1px solid rgba(215, 182, 93, 0.55);
+        border-radius: 26px;
+        color: var(--audit-white);
+        background:
+            linear-gradient(
+                135deg,
+                var(--audit-primary-dark),
+                var(--audit-primary)
+            );
+        box-shadow: var(--audit-shadow);
+    }
+
+    .audit-hero::before,
+    .audit-hero::after {
+        content: "";
+        position: absolute;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .audit-hero::before {
+        top: -120px;
+        left: -80px;
+        width: 270px;
+        height: 270px;
+    }
+
+    .audit-hero::after {
+        right: -90px;
+        bottom: -150px;
+        width: 330px;
+        height: 330px;
+    }
+
+    .audit-hero-content,
+    .audit-hero-number {
+        position: relative;
+        z-index: 1;
+    }
+
+    .audit-hero-content {
+        min-width: 0;
+    }
+
+    .audit-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+        color: #efd98f;
+        font-size: 14px;
+        font-weight: 800;
+    }
+
+    .audit-title {
+        margin: 0;
+        color: #ffffff;
+        font-size: clamp(27px, 3vw, 40px);
+        font-weight: 900;
+        line-height: 1.35;
+    }
+
+    .audit-subtitle {
+        max-width: 730px;
+        margin: 12px 0 0;
+        color: rgba(255, 255, 255, 0.82);
+        font-size: 15px;
+        font-weight: 600;
+        line-height: 1.9;
+    }
+
+    .audit-hero-number {
+        min-width: 175px;
+        padding: 22px 20px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 20px;
+        text-align: center;
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(8px);
+    }
+
+    .audit-hero-number strong {
+        display: block;
+        margin-bottom: 4px;
+        color: #f2d77e;
+        font-size: 36px;
+        font-weight: 900;
+    }
+
+    .audit-hero-number span {
+        color: rgba(255, 255, 255, 0.76);
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .audit-stats {
+        display: grid;
+        grid-template-columns:
+            repeat(6, minmax(145px, 1fr));
+        gap: 14px;
+        margin-bottom: 22px;
+    }
+
+    .audit-stat-card {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        min-width: 0;
+        min-height: 92px;
+        padding: 18px;
+        border: 1px solid var(--audit-border);
+        border-radius: 20px;
+        background: var(--audit-white);
+        box-shadow:
+            0 7px 22px rgba(6, 47, 33, 0.05);
+        transition:
+            transform 0.2s ease,
+            box-shadow 0.2s ease;
+    }
+
+    .audit-stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow:
+            0 13px 28px rgba(6, 47, 33, 0.09);
+    }
+
+    .audit-stat-icon {
+        display: grid;
+        place-items: center;
+        width: 47px;
+        height: 47px;
+        flex: 0 0 47px;
+        border-radius: 15px;
+        background: var(--audit-primary-soft);
+        font-size: 23px;
+    }
+
+    .audit-stat-card > div:last-child {
+        min-width: 0;
+    }
+
+    .audit-stat-value {
+        display: block;
+        margin-bottom: 2px;
+        color: var(--audit-primary-dark);
+        font-size: 25px;
+        font-weight: 900;
+    }
+
+    .audit-stat-label {
+        display: block;
+        overflow: hidden;
+        color: var(--audit-muted);
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.6;
+        text-overflow: ellipsis;
+    }
+
+    .audit-panel {
+        overflow: hidden;
+        margin-bottom: 22px;
+        border: 1px solid var(--audit-border);
+        border-radius: 24px;
+        background: var(--audit-white);
+        box-shadow: var(--audit-shadow);
+    }
+
+    .audit-filter-form {
+        display: grid;
+        grid-template-columns:
+            minmax(220px, 2fr)
+            repeat(4, minmax(145px, 1fr))
+            auto;
+        gap: 13px;
+        align-items: end;
+        padding: 22px;
+    }
+
+    .audit-field {
+        min-width: 0;
+    }
+
+    .audit-field label {
+        display: block;
+        margin-bottom: 7px;
+        color: #375248;
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .audit-input,
+    .audit-select {
+        width: 100%;
+        height: 47px;
+        padding: 0 14px;
+        border: 1px solid #d5e2dc;
+        border-radius: 14px;
+        outline: none;
+        color: var(--audit-text);
+        background: #fbfdfc;
+        font-family: inherit;
+        font-size: 13px;
+        transition:
+            border-color 0.2s ease,
+            box-shadow 0.2s ease,
+            background 0.2s ease;
+    }
+
+    .audit-input {
+        direction: rtl;
+        text-align: right;
+    }
+
+    .audit-input[type="date"] {
+        direction: ltr;
+        text-align: right;
+    }
+
+    .audit-select {
+        direction: rtl;
+        text-align: right;
+    }
+
+    .audit-input:hover,
+    .audit-select:hover {
+        border-color: #b9cdc3;
+        background: #ffffff;
+    }
+
+    .audit-input:focus,
+    .audit-select:focus {
+        border-color: var(--audit-gold);
+        background: #ffffff;
+        box-shadow:
+            0 0 0 4px rgba(215, 182, 93, 0.14);
+    }
+
+    .audit-filter-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .audit-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        height: 47px;
+        padding: 0 18px;
+        border: 0;
+        border-radius: 14px;
+        cursor: pointer;
+        text-decoration: none;
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 800;
+        white-space: nowrap;
+        transition:
+            transform 0.2s ease,
+            box-shadow 0.2s ease,
+            background 0.2s ease;
+    }
+
+    .audit-btn:hover {
+        transform: translateY(-1px);
+    }
+
+    .audit-btn-primary {
+        color: #ffffff;
+        background: var(--audit-primary);
+        box-shadow:
+            0 7px 16px rgba(11, 74, 50, 0.2);
+    }
+
+    .audit-btn-primary:hover {
+        color: #ffffff;
+        background: var(--audit-primary-dark);
+    }
+
+    .audit-btn-secondary {
+        color: var(--audit-primary);
+        border: 1px solid #cfe0d8;
+        background: #ffffff;
+    }
+
+    .audit-btn-secondary:hover {
+        color: var(--audit-primary-dark);
+        background: var(--audit-primary-soft);
+    }
+
+    .audit-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 20px 22px;
+        border-bottom: 1px solid #edf2ef;
+    }
+
+    .audit-panel-title {
+        margin: 0;
+        color: var(--audit-primary-dark);
+        font-size: 19px;
+        font-weight: 900;
+    }
+
+    .audit-result-count {
+        display: inline-flex;
+        align-items: center;
+        min-height: 32px;
+        padding: 7px 12px;
+        border-radius: 999px;
+        color: var(--audit-primary);
+        background: var(--audit-primary-soft);
+        font-size: 12px;
+        font-weight: 900;
+        white-space: nowrap;
+    }
+
+    .audit-table-wrap {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .audit-table {
+        width: 100%;
+        min-width: 1100px;
+        border-collapse: collapse;
+    }
+
+    .audit-table th {
+        padding: 14px 16px;
+        color: #6a7872;
+        background: #f8fbf9;
+        font-size: 12px;
+        font-weight: 900;
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    .audit-table td {
+        padding: 16px;
+        border-top: 1px solid #edf2ef;
+        vertical-align: middle;
+        font-size: 13px;
+    }
+
+    .audit-table tbody tr {
+        transition: background 0.2s ease;
+    }
+
+    .audit-table tbody tr:hover {
+        background: #fbfdfc;
+    }
+
+    .audit-record-type {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 7px 10px;
+        border-radius: 12px;
+        color: var(--audit-primary);
+        background: var(--audit-primary-soft);
+        font-size: 12px;
+        font-weight: 900;
+        white-space: nowrap;
+    }
+
+    .audit-record-title {
+        max-width: 260px;
+        color: #19372c;
+        font-weight: 900;
+        line-height: 1.6;
+        overflow-wrap: anywhere;
+    }
+
+    .audit-record-action {
+        max-width: 220px;
+        color: #355a4c;
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 1.6;
+        overflow-wrap: anywhere;
+    }
+
+    .audit-user {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+    }
+
+    .audit-user-avatar {
+        display: grid;
+        place-items: center;
+        width: 36px;
+        height: 36px;
+        flex: 0 0 36px;
+        border-radius: 12px;
+        color: #ffffff;
+        background:
+            linear-gradient(
+                135deg,
+                var(--audit-primary),
+                var(--audit-primary-dark)
+            );
+        font-size: 14px;
+        font-weight: 900;
+    }
+
+    .audit-user-name {
+        max-width: 170px;
+        overflow: hidden;
+        color: #27473b;
+        font-size: 13px;
+        font-weight: 800;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .audit-reason {
+        max-width: 290px;
+        color: #66766f;
+        font-size: 13px;
+        line-height: 1.7;
+        overflow-wrap: anywhere;
+    }
+
+    .audit-ip {
+        direction: ltr;
+        display: inline-block;
+        color: #4d6259;
+        font-family:
+            Consolas,
+            "Courier New",
+            monospace;
+        font-size: 12px;
+        unicode-bidi: embed;
+    }
+
+    .audit-date {
+        color: #405b51;
+        font-size: 12px;
+        line-height: 1.7;
+        white-space: nowrap;
+    }
+
+    .audit-date small {
+        color: #819087;
+    }
+
+    .audit-detail-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 39px;
+        height: 39px;
+        border: 1px solid #ead38c;
+        border-radius: 12px;
+        color: var(--audit-primary);
+        background: var(--audit-gold-soft);
+        text-decoration: none;
+        font-size: 17px;
+        font-weight: 900;
+        transition:
+            transform 0.2s ease,
+            background 0.2s ease;
+    }
+
+    .audit-detail-link:hover {
+        transform: translateX(-2px);
+        color: var(--audit-primary-dark);
+        background: #f9eec8;
+    }
+
+    .audit-empty {
+        padding: 70px 24px;
+        text-align: center;
+    }
+
+    .audit-empty-icon {
+        display: block;
+        margin-bottom: 13px;
+        font-size: 50px;
+    }
+
+    .audit-empty h3 {
+        margin: 0 0 8px;
+        color: var(--audit-primary-dark);
+        font-size: 20px;
+    }
+
+    .audit-empty p {
+        margin: 0;
+        color: var(--audit-muted);
+        line-height: 1.8;
+    }
+
+    @media (max-width: 1300px) {
+        .audit-stats {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .audit-filter-form {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .audit-filter-actions {
+            grid-column: span 3;
+        }
+    }
+
+    @media (max-width: 820px) {
+        .audit-page {
+            padding: 14px;
+        }
+
+        .audit-hero {
+            align-items: stretch;
+            flex-direction: column;
+            padding: 23px;
+        }
+
+        .audit-hero-number {
+            width: 100%;
+        }
+
+        .audit-stats {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .audit-filter-form {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .audit-filter-actions {
+            grid-column: span 2;
+        }
+    }
+
+    @media (max-width: 540px) {
+        .audit-stats,
+        .audit-filter-form {
+            grid-template-columns: 1fr;
+        }
+
+        .audit-filter-actions {
+            grid-column: auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .audit-panel-header {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% include "components/system_page_nav.html" %}
+<div
+    class="audit-page"
+    lang="ar"
+    dir="rtl"
+>
+    <section class="audit-hero">
+        <div class="audit-hero-content">
+            <div class="audit-eyebrow">
+                <span aria-hidden="true">🛡️</span>
+
+                <span>
+                    الحوكمة والرقابة التشغيلية
+                </span>
+            </div>
+
+            <h1 class="audit-title">
+                سجل المراجعة والتدقيق
+            </h1>
+
+            <p class="audit-subtitle">
+                متابعة شاملة للتغييرات التشغيلية التي تمت على
+                حالات الأبواب والتوزيعات والصيانة والبلاغات
+                والورديات وإجراءات اعتماد التقارير.
+            </p>
+        </div>
+
+        <div class="audit-hero-number">
+            <strong>
+                {{ total_records|default:0 }}
+            </strong>
+
+            <span>
+                إجمالي سجلات التدقيق
+            </span>
+        </div>
+    </section>
+
+    <section class="audit-stats">
+        {% for audit_type in audit_types %}
+            <article class="audit-stat-card">
+                <div
+                    class="audit-stat-icon"
+                    aria-hidden="true"
+                >
+                    {{ audit_type.icon }}
+                </div>
+
+                <div>
+                    <strong class="audit-stat-value">
+                        {{ type_counts|get_item:audit_type.key|default:0 }}
+                    </strong>
+
+                    <span class="audit-stat-label">
+                        {{ audit_type.label|default:"نوع سجل" }}
+                    </span>
+                </div>
+            </article>
+        {% empty %}
+            <article class="audit-stat-card">
+                <div
+                    class="audit-stat-icon"
+                    aria-hidden="true"
+                >
+                    🗂️
+                </div>
+
+                <div>
+                    <strong class="audit-stat-value">
+                        0
+                    </strong>
+
+                    <span class="audit-stat-label">
+                        لا توجد أنواع مسجلة
+                    </span>
+                </div>
+            </article>
+        {% endfor %}
+    </section>
+
+    <section class="audit-panel">
+        <form
+            method="get"
+            class="audit-filter-form"
+            autocomplete="off"
+        >
+            <div class="audit-field">
+                <label for="auditSearch">
+                    البحث العام
+                </label>
+
+                <input
+                    id="auditSearch"
+                    class="audit-input"
+                    type="search"
+                    name="q"
+                    value="{{ q|default:'' }}"
+                    placeholder="الموظف، الباب، رقم الطلب، السبب..."
+                >
+            </div>
+
+            <div class="audit-field">
+                <label for="auditType">
+                    نوع السجل
+                </label>
+
+                <select
+                    id="auditType"
+                    class="audit-select"
+                    name="type"
+                >
+                    <option value="">
+                        جميع الأنواع
+                    </option>
+
+                    {% for audit_type in audit_types %}
+                        <option
+                            value="{{ audit_type.key }}"
+                            {% if selected_type == audit_type.key %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ audit_type.label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="audit-field">
+                <label for="auditUser">
+                    المستخدم
+                </label>
+
+                <select
+                    id="auditUser"
+                    class="audit-select"
+                    name="user"
+                >
+                    <option value="">
+                        جميع المستخدمين
+                    </option>
+
+                    {% for user_item in users %}
+                        <option
+                            value="{{ user_item.pk }}"
+                            {% if selected_user == user_item.pk|stringformat:"s" %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ user_item|user_display_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="audit-field">
+                <label for="auditDateFrom">
+                    من تاريخ
+                </label>
+
+                <input
+                    id="auditDateFrom"
+                    class="audit-input"
+                    type="date"
+                    name="date_from"
+                    value="{{ date_from|default:'' }}"
+                >
+            </div>
+
+            <div class="audit-field">
+                <label for="auditDateTo">
+                    إلى تاريخ
+                </label>
+
+                <input
+                    id="auditDateTo"
+                    class="audit-input"
+                    type="date"
+                    name="date_to"
+                    value="{{ date_to|default:'' }}"
+                >
+            </div>
+
+            <div class="audit-filter-actions">
+                <button
+                    type="submit"
+                    class="audit-btn audit-btn-primary"
+                >
+                    <span aria-hidden="true">🔍</span>
+                    <span>تطبيق</span>
+                </button>
+
+                <a
+                    href="{% url 'audit:history-list' %}"
+                    class="audit-btn audit-btn-secondary"
+                >
+                    <span aria-hidden="true">↻</span>
+                    <span>مسح</span>
+                </a>
+            </div>
+        </form>
+    </section>
+
+    <section class="audit-panel">
+        <header class="audit-panel-header">
+            <h2 class="audit-panel-title">
+                العمليات المسجلة
+            </h2>
+
+            <span class="audit-result-count">
+                {{ visible_records_count|default:0 }}
+                سجل ظاهر
+            </span>
+        </header>
+
+        {% if records %}
+            <div class="audit-table-wrap">
+                <table class="audit-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">النوع</th>
+                            <th scope="col">السجل</th>
+                            <th scope="col">الإجراء</th>
+                            <th scope="col">تم بواسطة</th>
+                            <th scope="col">السبب</th>
+                            <th scope="col">عنوان IP</th>
+                            <th scope="col">التاريخ</th>
+                            <th scope="col">التفاصيل</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for record in records %}
+                            <tr>
+                                <td>
+                                    <span class="audit-record-type">
+                                        <span aria-hidden="true">
+                                            {{ record.type_icon }}
+                                        </span>
+
+                                        <span>
+                                            {{ record.type_label|default:"سجل تدقيق" }}
+                                        </span>
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <div class="audit-record-title">
+                                        {{ record.title|default:"—" }}
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <div class="audit-record-action">
+                                        {{ record.action|default:"تحديث سجل" }}
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <div class="audit-user">
+                                        <span class="audit-user-avatar">
+                                            {{ record.changed_by_name|initial }}
+                                        </span>
+
+                                        <span class="audit-user-name">
+                                            {{ record.changed_by_name|default:"عملية نظامية" }}
+                                        </span>
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <div class="audit-reason">
+                                        {{ record.reason|default:"لا يوجد سبب مسجل"|truncatechars:95 }}
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <span class="audit-ip">
+                                        {{ record.ip_address|default:"—" }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <div class="audit-date">
+                                        {% if record.changed_at %}
+                                            {{ record.changed_at|date:"Y-m-d" }}
+
+                                            <br>
+
+                                            <small>
+                                                {{ record.changed_at|time:"H:i:s" }}
+                                            </small>
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <a
+                                        class="audit-detail-link"
+                                        href="{% url 'audit:history-detail' record.model_type record.id %}"
+                                        title="عرض التفاصيل"
+                                        aria-label="عرض تفاصيل سجل التدقيق"
+                                    >
+                                        ←
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="audit-empty">
+                <span
+                    class="audit-empty-icon"
+                    aria-hidden="true"
+                >
+                    🗂️
+                </span>
+
+                <h3>
+                    لا توجد سجلات مطابقة
+                </h3>
+
+                <p>
+                    لا توجد عمليات تدقيق مطابقة للفلاتر الحالية.
+                    غيّر خيارات البحث أو امسح الفلاتر.
+                </p>
+            </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

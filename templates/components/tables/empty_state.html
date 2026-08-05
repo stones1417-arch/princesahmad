@@ -1,0 +1,13 @@
+<div class="empty-state">
+
+    <div class="empty-state-icon">
+        {{ icon|default:"📭" }}
+    </div>
+
+    <h3>{{ title|default:"لا توجد بيانات" }}</h3>
+
+    {% if message %}
+        <p>{{ message }}</p>
+    {% endif %}
+
+</div>

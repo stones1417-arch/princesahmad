@@ -1,0 +1,60 @@
+{% if user.is_authenticated %}
+<div class="notifications-dropdown">
+
+    <button type="button" class="notification-bell">
+        🔔
+
+        {% if unread_notifications_count %}
+            <span class="notification-count">
+                {{ unread_notifications_count }}
+            </span>
+        {% endif %}
+    </button>
+
+    <div class="notifications-menu">
+
+        <div class="notifications-title">
+            آخر الإشعارات
+        </div>
+
+        {% for item in latest_notifications %}
+            <a
+                href="{% url 'notifications:read' item.id %}"
+                class="notification-item {% if not item.is_read %}unread{% endif %}"
+            >
+                <strong>
+                    {% if item.level == "success" %}
+                        ✅
+                    {% elif item.level == "warning" %}
+                        ⚠️
+                    {% elif item.level == "danger" %}
+                        🚨
+                    {% else %}
+                        ℹ️
+                    {% endif %}
+
+                    {{ item.title }}
+                </strong>
+
+                <span>
+                    {{ item.message|truncatechars:45 }}
+                </span>
+
+                <small>
+                    {{ item.created_at|date:"Y-m-d H:i" }}
+                </small>
+            </a>
+        {% empty %}
+            <div class="notification-empty">
+                لا توجد إشعارات
+            </div>
+        {% endfor %}
+
+        <a href="{% url 'notifications:list' %}" class="notification-footer">
+            عرض جميع الإشعارات
+        </a>
+
+    </div>
+
+</div>
+{% endif %}

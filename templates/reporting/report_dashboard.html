@@ -1,0 +1,2141 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+    {{ report.report_number|default:"عرض التقرير" }} | منصة أبواب
+{% endblock %}
+
+{% block content %}
+
+<div class="enterprise-report-page" dir="rtl">
+
+    {% comment %}Legacy report navigation removed: the platform header provides navigation.{% endcomment %}
+    {% comment %}
+    <button class="report-mobile-menu" type="button" aria-label="فتح قائمة التقرير" aria-expanded="false" data-report-menu>
+        <span></span><span></span><span></span>
+    </button>
+    <div class="report-sidebar-backdrop" data-report-backdrop></div>
+
+    <!-- ==========================================
+         الشريط الجانبي الأيمن
+    =========================================== -->
+    <aside class="enterprise-report-sidebar">
+
+        <div class="sidebar-brand">
+
+            <div class="sidebar-brand-logo">
+                <svg viewBox="0 0 64 64" aria-hidden="true">
+                    <path d="M18 54V25L32 10l14 15v29"/>
+                    <path d="M24 54V29l8-9 8 9v25"/>
+                    <path d="M29 54V38c0-2 1-4 3-4s3 2 3 4v16"/>
+                    <path d="M14 54h36"/>
+                </svg>
+            </div>
+
+            <h2>إدارة الأبواب</h2>
+            <p>منصة إدارة وتشغيل الأبواب</p>
+
+        </div>
+
+        <nav class="sidebar-navigation">
+
+            <a href="/" class="sidebar-link">
+                <span class="sidebar-link-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M3 11 12 3l9 8"/>
+                        <path d="M5 10v10h14V10"/>
+                        <path d="M9 20v-6h6v6"/>
+                    </svg>
+                </span>
+
+                <span>الرئيسية</span>
+            </a>
+
+            <a href="/ops/doors/" class="sidebar-link">
+                <span class="sidebar-link-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M5 3h14v18H5z"/>
+                        <path d="M12 3v18"/>
+                        <path d="M9 12h.01M15 12h.01"/>
+                    </svg>
+                </span>
+
+                <span>الأبواب</span>
+            </a>
+
+            <a href="/hr/" class="sidebar-link">
+                <span class="sidebar-link-icon">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="9" cy="8" r="4"/>
+                        <path d="M2 21c0-4 3-7 7-7s7 3 7 7"/>
+                        <circle cx="18" cy="9" r="3"/>
+                        <path d="M16 15c3 0 6 2 6 6"/>
+                    </svg>
+                </span>
+
+                <span>الموظفون</span>
+            </a>
+
+            <div class="sidebar-group active">
+
+                <a
+                    href="{% url 'reporting:list' %}"
+                    class="sidebar-link active"
+                >
+                    <span class="sidebar-link-icon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M6 3h9l3 3v15H6z"/>
+                            <path d="M15 3v4h4"/>
+                            <path d="M9 11h6M9 15h6M9 19h4"/>
+                        </svg>
+                    </span>
+
+                    <span>التقارير</span>
+
+                    <span class="sidebar-arrow">⌄</span>
+                </a>
+
+                <div class="sidebar-submenu">
+
+                    <a href="{% url 'reporting:operational' %}">
+                        <span class="submenu-dot"></span>
+                        التقرير التشغيلي
+                    </a>
+
+                    <a href="{% url 'reporting:list' %}">
+                        <span class="submenu-dot"></span>
+                        تقارير الورديات
+                    </a>
+
+                    <a href="{% url 'reporting:executive-monthly' %}">
+                        <span class="submenu-dot"></span>
+                        اللوحة الشهرية
+                    </a>
+
+                </div>
+
+            </div>
+
+            <a href="/ops/maintenance/" class="sidebar-link">
+                <span class="sidebar-link-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="m14 6 4-4 4 4-4 4"/>
+                        <path d="m10 18-4 4-4-4 4-4"/>
+                        <path d="m13 7-6 6"/>
+                        <path d="m17 11-6 6"/>
+                    </svg>
+                </span>
+
+                <span>الصيانة</span>
+            </a>
+
+        </nav>
+
+        <div class="sidebar-decoration"></div>
+
+    </aside>
+    {% endcomment %}
+
+
+    <!-- ==========================================
+         مساحة التقرير
+    =========================================== -->
+    <main class="enterprise-report-main">
+
+        <section class="report-command-bar" aria-label="أوامر التقرير">
+            <div class="report-command-heading">
+                <a href="{% url 'reporting:list' %}" class="report-back-link" aria-label="العودة إلى مركز التقارير">‹</a>
+                <div>
+                    <span>مركز التقارير / عرض التقرير</span>
+                    <h1>{{ report.report_number|default:"تقرير جديد" }}</h1>
+                </div>
+            </div>
+
+            <div class="report-command-actions">
+                <span class="report-status-badge status-{{ report.status|default:'draft' }}">
+                    <i></i>{{ report.get_status_display|default:"مسودة" }}
+                </span>
+                <button type="button" class="command-button command-print" onclick="window.print()">طباعة</button>
+                <a href="{% url 'reporting:export-excel' report.pk %}" class="command-button">Excel</a>
+                <a href="{% url 'reporting:export-pdf' report.pk %}" class="command-button command-primary">تنزيل PDF</a>
+                {% if can_create %}
+                    <a href="{% url 'reporting:regenerate-summary' report.pk %}" class="command-button">تحديث المؤشرات</a>
+                {% endif %}
+                {% if can_approve and report.status != "approved" %}
+                    <a href="{% url 'reporting:approve' report.pk %}" class="command-button command-approve">اعتماد التقرير</a>
+                {% endif %}
+            </div>
+        </section>
+
+        <div class="report-shell">
+
+            <!-- ======================================
+                 رأس الصفحة
+            ======================================= -->
+            <header class="report-top">
+
+                <div class="haramain-brand">
+
+    <div class="haramain-logo-box">
+
+        <img
+            src="/media/abwaab-logo.jpeg"
+            alt="شعار منصة أبواب"
+            class="abwaab-report-logo"
+            onerror="this.style.display='none'"
+        >
+
+  
+
+            </header>
+
+
+            <div class="report-workspace">
+
+                <!-- ==================================
+                     العمود الجانبي الأيسر
+                =================================== -->
+                <aside class="report-information-column">
+
+                    <!-- بيانات التقرير -->
+                    <section class="information-card">
+
+                        <div class="information-card-title">
+
+                            <div class="information-card-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M6 3h9l3 3v15H6z"/>
+                                    <path d="M15 3v4h4"/>
+                                    <path d="M9 11h6M9 15h6M9 19h4"/>
+                                </svg>
+                            </div>
+
+                            <h3>بيانات التقرير</h3>
+
+                        </div>
+
+                        <div class="information-list">
+
+                            <div class="information-row">
+                                <span>رقم التقرير</span>
+
+                                <strong>
+                                    {{ report.report_number|default:"—" }}
+                                </strong>
+                            </div>
+
+                            <div class="information-row">
+                                <span>نوع التقرير</span>
+
+                                <strong>
+                                    {{ report.get_report_type_display|default:"تقرير تشغيلي" }}
+                                </strong>
+                            </div>
+
+                            <div class="information-row">
+                                <span>الحالة</span>
+
+                                <strong>
+                                    {{ report.get_status_display|default:"—" }}
+                                </strong>
+                            </div>
+
+                            <div class="information-row">
+                                <span>تاريخ الإنشاء</span>
+
+                                <strong>
+                                    {{ report.created_at|date:"Y-m-d H:i"|default:"—" }}
+                                </strong>
+                            </div>
+
+                            <div class="information-row">
+                                <span>منشئ التقرير</span>
+
+                                <strong>
+                                    {% if report.created_by %}
+                                        {{ report.created_by.get_full_name|default:report.created_by.username }}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </strong>
+                            </div>
+
+                            {% if report.approved_by %}
+                                <div class="information-row">
+                                    <span>اعتمد بواسطة</span>
+
+                                    <strong>
+                                        {{ report.approved_by.get_full_name|default:report.approved_by.username }}
+                                    </strong>
+                                </div>
+                            {% endif %}
+
+                        </div>
+
+                    </section>
+
+
+                    <!-- بيانات الوردية -->
+                    <section class="information-card">
+
+                        <div class="information-card-title">
+
+                            <div class="information-card-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <circle cx="8" cy="8" r="3"/>
+                                    <circle cx="16" cy="8" r="3"/>
+                                    <path d="M2 20c0-4 3-7 6-7s6 3 6 7"/>
+                                    <path d="M12 20c0-4 2-7 5-7s5 3 5 7"/>
+                                </svg>
+                            </div>
+
+                            <h3>بيانات الوردية</h3>
+
+                        </div>
+
+                        {% if report.shift_plan %}
+
+                            <div class="information-list">
+
+                                <div class="information-row">
+                                    <span>نوع الوردية</span>
+
+                                    <strong>
+                                        {{ report.shift_plan.shift_type.name|default:"—" }}
+                                    </strong>
+                                </div>
+
+                                <div class="information-row">
+                                    <span>التاريخ</span>
+
+                                    <strong>
+                                        {{ report.shift_plan.date|date:"Y-m-d"|default:"—" }}
+                                    </strong>
+                                </div>
+
+                                <div class="information-row">
+                                    <span>الحالة</span>
+
+                                    <strong>
+                                        {{ report.shift_plan.get_status_display|default:"—" }}
+                                    </strong>
+                                </div>
+
+                                <div class="shift-status-row">
+
+                                    {% if report.shift_plan.is_active %}
+                                        <span class="shift-status active">
+                                            <i></i>
+                                            نشطة
+                                        </span>
+                                    {% elif report.shift_plan.is_finished %}
+                                        <span class="shift-status finished">
+                                            <i></i>
+                                            منتهية
+                                        </span>
+                                    {% else %}
+                                        <span class="shift-status pending">
+                                            <i></i>
+                                            مجدولة
+                                        </span>
+                                    {% endif %}
+
+                                </div>
+
+                            </div>
+
+                        {% else %}
+
+                            <div class="information-empty">
+                                هذا التقرير غير مرتبط بخطة وردية.
+                            </div>
+
+                        {% endif %}
+
+                    </section>
+
+
+                    <!-- إجراءات التقرير -->
+                    {% comment %}Actions are consolidated in the command bar to avoid duplication.
+                    <section class="information-card action-information-card">
+
+                        <div class="information-card-title">
+
+                            <div class="information-card-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M4 5h16v14H4z"/>
+                                    <path d="M8 9h8M8 13h5"/>
+                                </svg>
+                            </div>
+
+                            <h3>إجراءات التقرير</h3>
+
+                        </div>
+
+                        <div class="report-side-actions">
+
+                            <a
+                                href="{% url 'reporting:export-pdf' report.pk %}"
+                                class="side-action pdf"
+                            >
+                                تصدير PDF
+                            </a>
+                            <a href="{% url 'reporting:export-excel' report.pk %}" class="side-action approve">
+                                تصدير Excel
+                            </a>
+                            <button type="button" class="side-action refresh" onclick="window.print()">
+                                طباعة التقرير
+                            </button>
+
+                            {% if can_create %}
+                                <a
+                                    href="{% url 'reporting:regenerate-summary' report.pk %}"
+                                    class="side-action refresh"
+                                >
+                                    تحديث المؤشرات والملخص
+                                </a>
+                            {% endif %}
+
+                            {% if can_approve and report.status != "approved" %}
+                                <a
+                                    href="{% url 'reporting:approve' report.pk %}"
+                                    class="side-action approve"
+                                >
+                                    اعتماد التقرير
+                                </a>
+                            {% endif %}
+
+                        </div>
+
+                    </section>
+                    {% endcomment %}
+
+                </aside>
+
+
+                <!-- ==================================
+                     محتوى التقرير
+                =================================== -->
+                <section class="report-content-area">
+
+                    <!-- رأس التقرير -->
+                    <section class="report-hero-card">
+
+                        <div class="report-hero-copy">
+
+                            <h1>
+                                {% if report.report_type == "manual" %}
+                                    تقرير إداري
+                                {% else %}
+                                    تقرير وردية تشغيلية
+                                {% endif %}
+                            </h1>
+
+                            <p>
+                                {% if report.report_type == "manual" %}
+                                    تقرير مخصص للملاحظات والتوصيات الإدارية
+                                {% else %}
+                                    تقرير شامل لمؤشرات أداء الوردية التشغيلية
+                                {% endif %}
+                            </p>
+
+                        </div>
+
+                        {% comment %}Export controls are available once in the command bar.
+                        <div class="report-hero-actions">
+
+                            <a
+                                href="{% url 'reporting:export-pdf' report.pk %}"
+                                class="hero-pdf-button"
+                            >
+                                <span class="hero-pdf-icon">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 2h9l4 4v16H6z"/>
+                                        <path d="M15 2v5h5"/>
+                                        <path d="M8 15h2a2 2 0 0 0 0-4H8v7"/>
+                                        <path d="M14 18v-7h2a3 3 0 0 1 0 6h-2"/>
+                                    </svg>
+                                </span>
+
+                                <strong>تصدير PDF</strong>
+                            </a>
+                            <a href="{% url 'reporting:export-excel' report.pk %}" class="hero-pdf-button">
+                                <strong>تصدير Excel</strong>
+                            </a>
+
+                        </div>
+                        {% endcomment %}
+
+                        <div class="hero-gold-divider">
+                            <span></span>
+                            <i>✥</i>
+                            <span></span>
+                        </div>
+
+                    </section>
+
+
+                    <!-- عنوان محتوى التقرير -->
+                    <section class="report-section-banner">
+
+                        <div class="banner-icon">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M6 3h9l3 3v15H6z"/>
+                                <path d="M15 3v4h4"/>
+                                <path d="M9 11h6M9 15h6M9 19h4"/>
+                            </svg>
+                        </div>
+
+                        <h2>
+                            {% if report.report_type == "manual" %}
+                                محتوى التقرير الإداري
+                            {% else %}
+                                محتوى التقرير التشغيلي
+                            {% endif %}
+                        </h2>
+
+                    </section>
+
+
+                    <!-- الملخص والتوصيات -->
+                    <section class="executive-content-grid">
+
+                        <article class="executive-content-card">
+
+                            <span class="gold-side-line"></span>
+
+                            <div class="executive-card-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M6 3h9l3 3v15H6z"/>
+                                    <path d="M15 3v4h4"/>
+                                    <path d="m9 15 2 2 4-5"/>
+                                </svg>
+                            </div>
+
+                            <div class="executive-card-content">
+
+                                <h3>الملخص التنفيذي</h3>
+
+                                <p>
+                                    {{ report.summary|default:"لا يوجد ملخص تنفيذي مضاف لهذا التقرير."|linebreaksbr }}
+                                </p>
+
+                            </div>
+
+                        </article>
+
+
+                        <article class="executive-content-card">
+
+                            <span class="gold-side-line"></span>
+
+                            <div class="executive-card-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <rect x="5" y="3" width="14" height="18" rx="2"/>
+                                    <path d="M9 3v3h6V3"/>
+                                    <path d="m8 12 2 2 3-4"/>
+                                    <path d="M14 13h2M8 18h8"/>
+                                </svg>
+                            </div>
+
+                            <div class="executive-card-content">
+
+                                <h3>التوصيات</h3>
+
+                                <p>
+                                    {{ report.recommendations|default:"لا توجد توصيات مضافة لهذا التقرير."|linebreaksbr }}
+                                </p>
+
+                            </div>
+
+                        </article>
+
+                    </section>
+
+
+                    <!-- المؤشرات التشغيلية -->
+                    {% if report.report_type != "manual" %}
+
+                        <section class="operational-section">
+
+                            <div class="operational-section-title">
+
+                                <span>
+                                    مؤشرات الوردية التشغيلية
+                                </span>
+
+                                {% if report.shift_plan %}
+                                    <small>
+                                        {{ report.shift_plan.shift_type.name }}
+                                        —
+                                        {{ report.shift_plan.date|date:"Y-m-d" }}
+                                    </small>
+                                {% endif %}
+
+                            </div>
+
+
+                            <div class="report-kpi-grid">
+
+                                <article class="report-kpi-card">
+
+                                    <span>إجمالي الأبواب</span>
+
+                                    <strong>
+                                        {{ report.total_doors|default:0 }}
+                                    </strong>
+
+                                </article>
+
+                                <article class="report-kpi-card">
+
+                                    <span>الأبواب المفتوحة</span>
+
+                                    <strong class="success">
+                                        {{ report.open_doors|default:0 }}
+                                    </strong>
+
+                                </article>
+
+                                <article class="report-kpi-card">
+
+                                    <span>الأبواب المغلقة</span>
+
+                                    <strong class="danger">
+                                        {{ report.closed_doors|default:0 }}
+                                    </strong>
+
+                                </article>
+
+                                <article class="report-kpi-card">
+
+                                    <span>تحت الصيانة</span>
+
+                                    <strong class="warning">
+                                        {{ report.maintenance_doors|default:0 }}
+                                    </strong>
+
+                                </article>
+
+                                <article class="report-kpi-card">
+
+                                    <span>إجمالي الموظفين</span>
+
+                                    <strong>
+                                        {{ report.total_employees|default:0 }}
+                                    </strong>
+
+                                </article>
+
+                                <article class="report-kpi-card">
+
+                                    <span>طلبات الصيانة</span>
+
+                                    <strong>
+                                        {{ report.total_maintenance_requests|default:0 }}
+                                    </strong>
+
+                                </article>
+
+                                <article class="report-kpi-card">
+
+                                    <span>الطلبات المنجزة</span>
+
+                                    <strong class="success">
+                                        {{ report.completed_maintenance_requests|default:0 }}
+                                    </strong>
+
+                                </article>
+
+                                <article class="report-kpi-card">
+
+                                    <span>نسبة الجاهزية</span>
+
+                                    <strong class="success">
+                                        {{ readiness_rate|default:0 }}%
+                                    </strong>
+
+                                </article>
+
+                            </div>
+
+
+                            <div class="rate-cards-grid">
+
+                                <article class="rate-card">
+
+                                    <div class="rate-card-head">
+                                        <span>الجاهزية التشغيلية</span>
+                                        <strong>{{ readiness_rate|default:0 }}%</strong>
+                                    </div>
+
+                                    <div class="rate-progress">
+                                        <span
+                                            style="width:{{ readiness_rate|default:0 }}%"
+                                        ></span>
+                                    </div>
+
+                                </article>
+
+                                <article class="rate-card">
+
+                                    <div class="rate-card-head">
+                                        <span>إنجاز طلبات الصيانة</span>
+                                        <strong>{{ maintenance_rate|default:0 }}%</strong>
+                                    </div>
+
+                                    <div class="rate-progress maintenance">
+                                        <span
+                                            style="width:{{ maintenance_rate|default:0 }}%"
+                                        ></span>
+                                    </div>
+
+                                </article>
+
+                            </div>
+
+                        </section>
+
+
+                        <!-- توزيع الأدوار -->
+                        <section class="operational-section">
+
+                            <div class="operational-section-title">
+                                <span>توزيع الموظفين على الأدوار</span>
+                                <small>إجمالي {{ total_assignments|default:0 }} موظف</small>
+                            </div>
+
+                            <div class="roles-summary-grid">
+
+                                <article>
+                                    <span>المشرفون</span>
+                                    <strong>{{ supervisors_count|default:0 }}</strong>
+                                </article>
+
+                                <article>
+                                    <span>المراقبون</span>
+                                    <strong>{{ monitors_count|default:0 }}</strong>
+                                </article>
+
+                                <article>
+                                    <span>الفنيون</span>
+                                    <strong>{{ technicians_count|default:0 }}</strong>
+                                </article>
+
+                                <article>
+                                    <span>الإجمالي</span>
+                                    <strong>{{ total_assignments|default:0 }}</strong>
+                                </article>
+
+                            </div>
+
+                        </section>
+
+
+                        <!-- الصيانة -->
+                        <section class="operational-section">
+
+                            <div class="operational-section-title">
+                                <span>طلبات الصيانة المرتبطة بالوردية</span>
+                                <small>{{ maintenance_requests|length }} طلب</small>
+                            </div>
+
+                            <div class="maintenance-table-wrap">
+
+                                <table class="maintenance-table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>رقم الطلب</th>
+                                            <th>الباب</th>
+                                            <th>الأولوية</th>
+                                            <th>الحالة</th>
+                                            <th>تاريخ الإنشاء</th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+
+                                        {% for req in maintenance_requests %}
+
+                                            <tr>
+                                                <td>
+                                                    {{ req.request_number|default:"—" }}
+                                                </td>
+
+                                                <td>
+                                                    {% if req.door_shift %}
+                                                        باب {{ req.door_shift.door_number }}
+                                                    {% else %}
+                                                        —
+                                                    {% endif %}
+                                                </td>
+
+                                                <td>
+                                                    {{ req.get_priority_display|default:"—" }}
+                                                </td>
+
+                                                <td>
+                                                    {{ req.get_status_display|default:"—" }}
+                                                </td>
+
+                                                <td>
+                                                    {{ req.created_at|date:"Y-m-d H:i" }}
+                                                </td>
+                                            </tr>
+
+                                        {% empty %}
+
+                                            <tr>
+                                                <td colspan="5" class="empty-table-row">
+                                                    لا توجد طلبات صيانة مرتبطة بهذه الوردية.
+                                                </td>
+                                            </tr>
+
+                                        {% endfor %}
+
+                                    </tbody>
+
+                                </table>
+
+                            </div>
+
+                        </section>
+
+                    {% endif %}
+
+
+                    <!-- التذييل -->
+                    <footer class="report-page-footer">
+
+                        <div class="footer-line"></div>
+
+                        <div class="footer-emblem">◆</div>
+
+                        <div class="footer-line"></div>
+
+                        <p>
+                            جميع الحقوق محفوظة © {% now "Y" %}
+                            منصة إدارة الأبواب
+                        </p>
+
+                    </footer>
+
+                </section>
+
+            </div>
+
+        </div>
+
+    </main>
+
+</div>
+
+
+<style>
+:root {
+    --report-green: #075c45;
+    --report-green-dark: #034432;
+    --report-green-light: #eaf7f1;
+    --report-gold: #d4af37;
+    --report-gold-dark: #b78d13;
+
+    --report-text: #17211e;
+    --report-muted: #6b7682;
+    --report-border: #dfe5e2;
+    --report-surface: #ffffff;
+    --report-background: #f7f8f7;
+
+    --report-shadow:
+        0 15px 38px rgba(17, 31, 25, 0.08);
+}
+
+.enterprise-report-page {
+    min-height: 100vh;
+
+    display: grid;
+    grid-template-columns: 270px minmax(0, 1fr);
+
+    background: var(--report-background);
+
+    color: var(--report-text);
+}
+
+
+/* =========================================
+   الشريط الجانبي
+========================================= */
+
+.enterprise-report-sidebar {
+    position: sticky;
+    top: 0;
+
+    height: 100vh;
+
+    display: flex;
+    flex-direction: column;
+
+    overflow: hidden;
+
+    padding: 26px 18px;
+
+    background:
+        linear-gradient(
+            180deg,
+            #064e3b 0%,
+            #075c45 48%,
+            #064936 100%
+        );
+
+    color: #ffffff;
+
+    box-shadow:
+        -12px 0 36px rgba(3, 46, 34, 0.14);
+}
+
+.sidebar-brand {
+    padding: 8px 12px 27px;
+
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+
+    text-align: center;
+}
+
+.sidebar-brand-logo {
+    width: 68px;
+    height: 68px;
+
+    margin: 0 auto 13px;
+
+    padding: 10px;
+
+    color: var(--report-gold);
+}
+
+.sidebar-brand-logo svg,
+.sidebar-link-icon svg,
+.banner-icon svg,
+.information-card-icon svg,
+.executive-card-icon svg,
+.hero-pdf-icon svg {
+    width: 100%;
+    height: 100%;
+
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.sidebar-brand h2 {
+    margin: 0;
+
+    color: #ffffff;
+
+    font-size: 23px;
+    font-weight: 950;
+}
+
+.sidebar-brand p {
+    margin: 6px 0 0;
+
+    color: #e1c46e;
+
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.sidebar-navigation {
+    margin-top: 20px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.sidebar-link {
+    min-height: 54px;
+
+    padding: 10px 14px;
+
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) 16px;
+    align-items: center;
+    gap: 10px;
+
+    border: 1px solid transparent;
+    border-radius: 14px;
+
+    color: #f6fbf8;
+    text-decoration: none;
+
+    font-size: 13px;
+    font-weight: 900;
+
+    transition:
+        background 0.18s ease,
+        border-color 0.18s ease,
+        transform 0.18s ease;
+}
+
+.sidebar-link:hover,
+.sidebar-link.active {
+    border-color: rgba(255, 255, 255, 0.1);
+
+    background: rgba(255, 255, 255, 0.13);
+
+    transform: translateX(-2px);
+}
+
+.sidebar-link-icon {
+    width: 25px;
+    height: 25px;
+
+    color: #f1d06b;
+}
+
+.sidebar-arrow {
+    color: #ffffff;
+
+    font-size: 15px;
+    text-align: left;
+}
+
+.sidebar-group.active {
+    padding: 7px;
+
+    border-radius: 18px;
+
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-submenu {
+    padding: 4px 16px 10px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.sidebar-submenu a {
+    min-height: 42px;
+
+    padding: 9px 11px;
+
+    display: flex;
+    align-items: center;
+    gap: 9px;
+
+    border-radius: 11px;
+
+    color: #ecf7f2;
+    text-decoration: none;
+
+    font-size: 11px;
+    font-weight: 850;
+}
+
+.sidebar-submenu a:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.submenu-dot {
+    width: 6px;
+    height: 6px;
+
+    flex: 0 0 6px;
+
+    border-radius: 50%;
+
+    background: var(--report-gold);
+}
+
+.sidebar-decoration {
+    position: absolute;
+
+    right: -45px;
+    bottom: -55px;
+
+    width: 220px;
+    height: 220px;
+
+    opacity: 0.12;
+
+    border: 1px solid #ffffff;
+    border-radius: 45% 55% 60% 40%;
+}
+
+
+/* =========================================
+   مساحة التقرير
+========================================= */
+
+.enterprise-report-main {
+    min-width: 0;
+
+    padding: 14px;
+}
+
+.report-shell {
+    min-height: calc(100vh - 28px);
+
+    overflow: visible;
+
+    border: 1px solid #e6dfca;
+    border-radius: 18px;
+
+    background: var(--report-surface);
+
+    box-shadow: var(--report-shadow);
+}
+
+.report-top {
+    position: relative;
+    z-index: 1;
+    min-height: 94px;
+
+
+    padding: 16px 26px;
+
+    display: flex;
+    align-items: center;
+
+    border-bottom: 1px solid #eee7d4;
+}
+
+.haramain-brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.haramain-logo-box {
+    width: 72px;
+    height: 55px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.haramain-logo-box img {
+    max-width: 100%;
+    max-height: 100%;
+
+    object-fit: contain;
+}
+
+.haramain-brand strong {
+    color: var(--report-green-dark);
+
+    font-size: 14px;
+    font-weight: 950;
+}
+
+.gold-dots {
+    margin-right: 45px;
+
+    width: 32px;
+
+    display: grid;
+    grid-template-columns: repeat(3, 5px);
+    gap: 5px;
+}
+
+.gold-dots i {
+    width: 4px;
+    height: 4px;
+
+    border-radius: 50%;
+
+    background: var(--report-gold);
+}
+
+.report-workspace {
+    padding: 22px 20px;
+
+    display: grid;
+    grid-template-columns: 330px minmax(0, 1fr);
+    gap: 24px;
+}
+
+
+/* =========================================
+   بطاقات المعلومات
+========================================= */
+
+.report-information-column {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.information-card {
+    overflow: hidden;
+
+    padding: 20px;
+
+    border: 1px solid var(--report-border);
+    border-radius: 19px;
+
+    background: #ffffff;
+
+    box-shadow:
+        0 10px 27px rgba(24, 40, 34, 0.06);
+}
+
+.information-card-title {
+    margin-bottom: 15px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.information-card-title h3 {
+    margin: 0;
+
+    color: var(--report-green);
+
+    font-size: 17px;
+    font-weight: 950;
+}
+
+.information-card-icon {
+    width: 44px;
+    height: 44px;
+
+    padding: 10px;
+
+    border-radius: 50%;
+
+    background:
+        linear-gradient(
+            145deg,
+            var(--report-gold),
+            #bc8e11
+        );
+
+    color: #ffffff;
+
+    box-shadow:
+        0 9px 20px rgba(212, 175, 55, 0.24);
+}
+
+.information-row {
+    min-height: 55px;
+
+    padding: 11px 0;
+
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 12px;
+
+    border-bottom: 1px solid #e9ecea;
+}
+
+.information-row:last-child {
+    border-bottom: none;
+}
+
+.information-row span {
+    color: var(--report-muted);
+
+    font-size: 11px;
+    font-weight: 750;
+}
+
+.information-row strong {
+    max-width: 180px;
+
+    overflow-wrap: anywhere;
+
+    color: var(--report-text);
+
+    font-size: 11px;
+    font-weight: 950;
+
+    text-align: left;
+}
+
+.shift-status-row {
+    padding-top: 12px;
+}
+
+.shift-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+
+    padding: 7px 13px;
+
+    border-radius: 999px;
+
+    font-size: 10px;
+    font-weight: 950;
+}
+
+.shift-status i {
+    width: 7px;
+    height: 7px;
+
+    border-radius: 50%;
+
+    background: currentColor;
+}
+
+.shift-status.active {
+    background: #e6f8ed;
+    color: #087443;
+}
+
+.shift-status.finished {
+    background: #eef2f0;
+    color: #58645f;
+}
+
+.shift-status.pending {
+    background: #fff7dd;
+    color: #8e6800;
+}
+
+.information-empty {
+    padding: 20px 10px;
+
+    color: var(--report-muted);
+
+    text-align: center;
+
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.report-side-actions {
+    display: grid;
+    gap: 9px;
+}
+
+.side-action {
+    min-height: 42px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 11px;
+
+    text-decoration: none;
+
+    font-size: 11px;
+    font-weight: 950;
+}
+
+.side-action.pdf {
+    background: #b42318;
+    color: #ffffff;
+}
+
+.side-action.refresh {
+    border: 1px solid var(--report-border);
+
+    background: #f5f8f6;
+    color: var(--report-green);
+}
+
+.side-action.approve {
+    background: var(--report-green);
+    color: #ffffff;
+}
+
+
+/* =========================================
+   المحتوى الرئيسي
+========================================= */
+
+.report-content-area {
+    min-width: 0;
+}
+
+.report-hero-card {
+    position: relative;
+
+    min-height: 240px;
+
+    padding: 42px 44px 50px;
+
+    display: grid;
+    grid-template-columns: 1fr 170px;
+    align-items: center;
+    gap: 35px;
+
+    overflow: hidden;
+
+    border: 1px solid #e6e8e7;
+    border-radius: 20px;
+
+    background:
+        linear-gradient(
+            180deg,
+            #ffffff,
+            #fbfcfb
+        );
+
+    box-shadow:
+        0 11px 28px rgba(19, 36, 29, 0.05);
+}
+
+.report-hero-copy h1 {
+    margin: 0;
+
+    color: var(--report-green);
+
+    font-size: clamp(40px, 4vw, 66px);
+    font-weight: 950;
+    line-height: 1.15;
+}
+
+.report-hero-copy p {
+    margin: 14px 0 0;
+
+    color: #59616f;
+
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.8;
+}
+
+.report-hero-actions {
+    padding-right: 28px;
+
+    border-right: 2px solid var(--report-gold);
+}
+
+.hero-pdf-button {
+    min-height: 145px;
+
+    padding: 18px 12px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+
+    border: 1px solid #e0e4e2;
+    border-radius: 16px;
+
+    background: #ffffff;
+
+    color: var(--report-text);
+    text-decoration: none;
+
+    box-shadow:
+        0 10px 24px rgba(17, 24, 39, 0.07);
+
+    transition:
+        transform 0.18s ease,
+        box-shadow 0.18s ease;
+}
+
+.hero-pdf-button:hover {
+    transform: translateY(-3px);
+
+    box-shadow:
+        0 17px 32px rgba(17, 24, 39, 0.12);
+}
+
+.hero-pdf-icon {
+    width: 56px;
+    height: 66px;
+
+    color: #df2017;
+}
+
+.hero-pdf-button strong {
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.hero-gold-divider {
+    position: absolute;
+
+    right: 45px;
+    bottom: 20px;
+    left: 45px;
+
+    display: grid;
+    grid-template-columns: 1fr 34px 1fr;
+    align-items: center;
+    gap: 10px;
+}
+
+.hero-gold-divider span {
+    height: 1px;
+
+    background: var(--report-gold);
+}
+
+.hero-gold-divider i {
+    color: var(--report-gold);
+
+    font-style: normal;
+    text-align: center;
+}
+
+
+/* =========================================
+   شريط عنوان التقرير
+========================================= */
+
+.report-section-banner {
+    margin-top: 24px;
+
+    min-height: 83px;
+
+    padding: 16px 28px;
+
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 14px;
+
+    overflow: hidden;
+
+    border-radius: 17px;
+
+    background:
+        linear-gradient(
+            90deg,
+            #075c45,
+            #064e3b
+        );
+
+    color: #ffffff;
+
+    box-shadow:
+        0 12px 25px rgba(4, 79, 57, 0.14);
+}
+
+.banner-icon {
+    width: 43px;
+    height: 43px;
+
+    color: var(--report-gold);
+}
+
+.report-section-banner h2 {
+    margin: 0;
+
+    font-size: 24px;
+    font-weight: 950;
+}
+
+
+/* =========================================
+   الملخص والتوصيات
+========================================= */
+
+.executive-content-grid {
+    margin-top: 20px;
+
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.executive-content-card {
+    position: relative;
+
+    min-height: 230px;
+
+    padding: 30px 32px;
+
+    display: grid;
+    grid-template-columns: 65px minmax(0, 1fr);
+    gap: 20px;
+
+    overflow: hidden;
+
+    border: 1px solid #e3e7e5;
+    border-radius: 18px;
+
+    background: #ffffff;
+
+    box-shadow:
+        0 11px 25px rgba(22, 40, 33, 0.06);
+}
+
+.gold-side-line {
+    position: absolute;
+
+    top: 24px;
+    right: 0;
+    bottom: 24px;
+
+    width: 3px;
+
+    background: var(--report-gold);
+}
+
+.executive-card-icon {
+    width: 58px;
+    height: 58px;
+
+    padding: 14px;
+
+    border-radius: 50%;
+
+    background: var(--report-green-light);
+    color: var(--report-green);
+}
+
+.executive-card-content h3 {
+    margin: 0;
+
+    color: var(--report-green);
+
+    font-size: 22px;
+    font-weight: 950;
+}
+
+.executive-card-content p {
+    margin: 18px 0 0;
+
+    color: #606b76;
+
+    font-size: 14px;
+    line-height: 2;
+}
+
+
+/* =========================================
+   الأقسام التشغيلية
+========================================= */
+
+.operational-section {
+    margin-top: 22px;
+
+    padding: 22px;
+
+    border: 1px solid #e3e7e5;
+    border-radius: 18px;
+
+    background: #ffffff;
+
+    box-shadow:
+        0 10px 25px rgba(21, 40, 32, 0.05);
+}
+
+.operational-section-title {
+    margin-bottom: 17px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.operational-section-title span {
+    color: var(--report-green);
+
+    font-size: 18px;
+    font-weight: 950;
+}
+
+.operational-section-title small {
+    color: var(--report-muted);
+
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.report-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.report-kpi-card {
+    padding: 16px;
+
+    border: 1px solid #e3e8e5;
+    border-radius: 14px;
+
+    background: #f9fbfa;
+
+    text-align: center;
+}
+
+.report-kpi-card span {
+    display: block;
+
+    color: var(--report-muted);
+
+    font-size: 10px;
+    font-weight: 850;
+}
+
+.report-kpi-card strong {
+    display: block;
+
+    margin-top: 8px;
+
+    color: var(--report-green);
+
+    font-size: 24px;
+    font-weight: 950;
+}
+
+.report-kpi-card strong.success {
+    color: #087443;
+}
+
+.report-kpi-card strong.danger {
+    color: #b42318;
+}
+
+.report-kpi-card strong.warning {
+    color: #a46600;
+}
+
+.rate-cards-grid {
+    margin-top: 14px;
+
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.rate-card {
+    padding: 15px;
+
+    border: 1px solid #e2e7e4;
+    border-radius: 13px;
+
+    background: #fbfcfb;
+}
+
+.rate-card-head {
+    margin-bottom: 10px;
+
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.rate-card-head span {
+    color: var(--report-muted);
+
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.rate-card-head strong {
+    color: var(--report-green);
+
+    font-size: 13px;
+    font-weight: 950;
+}
+
+.rate-progress {
+    height: 8px;
+
+    overflow: hidden;
+
+    border-radius: 999px;
+
+    background: #e4ebe7;
+}
+
+.rate-progress span {
+    display: block;
+
+    height: 100%;
+
+    border-radius: inherit;
+
+    background:
+        linear-gradient(
+            90deg,
+            var(--report-green),
+            #32a87d
+        );
+}
+
+.rate-progress.maintenance span {
+    background:
+        linear-gradient(
+            90deg,
+            var(--report-gold-dark),
+            var(--report-gold)
+        );
+}
+
+.roles-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.roles-summary-grid article {
+    padding: 17px;
+
+    border: 1px solid #e2e7e4;
+    border-radius: 14px;
+
+    background: #f8fbf9;
+
+    text-align: center;
+}
+
+.roles-summary-grid span {
+    display: block;
+
+    color: var(--report-muted);
+
+    font-size: 10px;
+}
+
+.roles-summary-grid strong {
+    display: block;
+
+    margin-top: 7px;
+
+    color: var(--report-green);
+
+    font-size: 22px;
+    font-weight: 950;
+}
+
+
+/* =========================================
+   جدول الصيانة
+========================================= */
+
+.maintenance-table-wrap {
+    overflow-x: auto;
+
+    border: 1px solid #e2e7e4;
+    border-radius: 14px;
+}
+
+.maintenance-table {
+    width: 100%;
+    min-width: 720px;
+
+    border-collapse: collapse;
+}
+
+.maintenance-table th {
+    padding: 12px;
+
+    background: var(--report-green);
+
+    color: #ffffff;
+
+    font-size: 10px;
+    font-weight: 950;
+
+    text-align: center;
+}
+
+.maintenance-table td {
+    padding: 12px;
+
+    border-bottom: 1px solid #e6ebe8;
+
+    color: var(--report-text);
+
+    font-size: 10px;
+
+    text-align: center;
+}
+
+.maintenance-table tbody tr:nth-child(even) {
+    background: #f8faf9;
+}
+
+.empty-table-row {
+    padding: 25px !important;
+
+    color: var(--report-muted) !important;
+
+    font-weight: 850;
+}
+
+
+/* =========================================
+   تذييل التقرير
+========================================= */
+
+.report-page-footer {
+    margin-top: 38px;
+
+    display: grid;
+    grid-template-columns: 1fr 46px 1fr;
+    align-items: center;
+    gap: 13px;
+}
+
+.footer-line {
+    height: 1px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            var(--report-gold)
+        );
+}
+
+.footer-line:nth-child(3) {
+    background:
+        linear-gradient(
+            90deg,
+            var(--report-gold),
+            transparent
+        );
+}
+
+.footer-emblem {
+    color: var(--report-gold);
+
+    text-align: center;
+}
+
+.report-page-footer p {
+    grid-column: 1 / -1;
+
+    margin: 3px 0 0;
+
+    color: #838c88;
+
+    font-size: 9px;
+}
+
+
+/* =========================================
+   الوضع الداكن
+========================================= */
+
+body.dark .enterprise-report-page {
+    --report-text: #eef3f0;
+    --report-muted: #a6b1ac;
+    --report-border: #31403a;
+    --report-surface: #151d1a;
+    --report-background: #0e1412;
+}
+
+body.dark .report-shell,
+body.dark .information-card,
+body.dark .report-hero-card,
+body.dark .executive-content-card,
+body.dark .operational-section {
+    background: var(--report-surface);
+}
+
+body.dark .report-kpi-card,
+body.dark .rate-card,
+body.dark .roles-summary-grid article {
+    border-color: #34443e;
+
+    background: #1a2521;
+}
+
+body.dark .maintenance-table tbody tr:nth-child(even) {
+    background: #19231f;
+}
+
+
+/* =========================================
+   الاستجابة
+========================================= */
+
+@media (max-width: 1250px) {
+
+    .enterprise-report-page {
+        grid-template-columns: 225px minmax(0, 1fr);
+    }
+
+    .report-workspace {
+        grid-template-columns: 280px minmax(0, 1fr);
+    }
+
+    .report-kpi-grid,
+    .roles-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+}
+
+@media (max-width: 980px) {
+
+    .enterprise-report-page {
+        display: block;
+    }
+
+    .enterprise-report-sidebar {
+        display: none;
+    }
+
+    .report-workspace {
+        grid-template-columns: 1fr;
+    }
+
+    .report-information-column {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .action-information-card {
+        grid-column: 1 / -1;
+    }
+
+}
+
+@media (max-width: 700px) {
+
+    .enterprise-report-main {
+        padding: 8px;
+    }
+
+    .report-top {
+        min-height: 75px;
+
+        padding: 12px 16px;
+    }
+
+    .report-workspace {
+        padding: 14px;
+    }
+
+    .report-information-column,
+    .executive-content-grid,
+    .rate-cards-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .report-hero-card {
+        padding: 28px 22px 48px;
+
+        grid-template-columns: 1fr;
+    }
+
+    .report-hero-copy {
+        text-align: center;
+    }
+
+    .report-hero-copy h1 {
+        font-size: 39px;
+    }
+
+    .report-hero-copy p {
+        font-size: 14px;
+    }
+
+    .report-hero-actions {
+        padding: 0;
+
+        border-right: none;
+    }
+
+    .hero-pdf-button {
+        min-height: 95px;
+
+        flex-direction: row;
+    }
+
+    .report-kpi-grid,
+    .roles-summary-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .operational-section-title {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+.haramain-brand {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.haramain-logo-box {
+    width: 82px;
+    height: 66px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 5px;
+
+    overflow: hidden;
+
+    border: 1px solid #e7dfc5;
+    border-radius: 14px;
+
+    background: #ffffff;
+
+    box-shadow: 0 8px 20px rgba(17, 24, 39, 0.06);
+}
+
+.abwaab-report-logo {
+    width: 100%;
+    height: 100%;
+
+    display: block;
+
+    object-fit: contain;
+}
+
+.report-brand-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    text-align: right;
+}
+
+.report-brand-copy strong {
+    color: #075c45;
+
+    font-size: 17px;
+    font-weight: 950;
+}
+
+.report-brand-copy small {
+    color: #6b7682;
+
+    font-size: 10px;
+    font-weight: 750;
+    line-height: 1.6;
+}
+
+.gold-dots {
+    margin-right: 34px;
+
+    width: 32px;
+
+    display: grid;
+    grid-template-columns: repeat(3, 5px);
+    gap: 5px;
+}
+
+.gold-dots i {
+    width: 4px;
+    height: 4px;
+
+    border-radius: 50%;
+
+    background: #d4af37;
+}
+}
+</style>
+
+<link rel="stylesheet" href="{% static 'css/reporting/report_dashboard_enterprise.css' %}?v=20260803-2">
+
+{% endblock %}

@@ -1,0 +1,131 @@
+<div
+    class="door-card {% if row.door_shift %}state-{{ row.door_shift.state }}{% else %}state-none{% endif %} {% if row.has_alert %}critical-door{% endif %}"
+    data-assignments="{{ row.assignments_count }}"
+    data-maintenance="{{ row.maintenance_count }}"
+>
+
+    <div class="door-top">
+
+        <div>
+            <div class="door-number">
+                باب {{ row.door.door_number|default:"—" }}
+            </div>
+
+            <div class="door-name">
+                {{ row.door.name }}
+            </div>
+        </div>
+
+        {% if row.has_alert %}
+            <span class="critical-badge">
+                حرج
+            </span>
+        {% endif %}
+
+    </div>
+
+    <div class="door-status-row">
+
+        {% if row.door_shift %}
+            <span class="badge state-{{ row.door_shift.state }}">
+                {{ row.door_shift.get_state_display }}
+            </span>
+        {% else %}
+            <span class="badge gray">
+                لا توجد حالة
+            </span>
+        {% endif %}
+
+        {% if row.door.is_active %}
+            <span class="system-badge active">
+                نشط
+            </span>
+        {% else %}
+            <span class="system-badge inactive">
+                معطل
+            </span>
+        {% endif %}
+
+    </div>
+
+    <div class="door-info">
+
+        <div>
+            <span>الموظفون</span>
+            <strong>{{ row.assignments_count }}</strong>
+        </div>
+
+        <div>
+            <span>المشرفون</span>
+            <strong>{{ row.supervisors_count }}</strong>
+        </div>
+
+        <div>
+            <span>المراقبون</span>
+            <strong>{{ row.monitors_count }}</strong>
+        </div>
+
+        <div>
+            <span>الفنيون</span>
+            <strong>{{ row.technicians_count }}</strong>
+        </div>
+
+        <div>
+            <span>طلبات الصيانة</span>
+            <strong>{{ row.maintenance_count }}</strong>
+        </div>
+
+    </div>
+
+    {% if row.assignments_count == 0 %}
+        <div class="warning-box">
+            هذا الباب بدون موظفين
+        </div>
+    {% endif %}
+
+    {% if row.supervisors_count == 0 %}
+        <div class="warning-box">
+            هذا الباب بدون مشرف
+        </div>
+    {% endif %}
+
+    {% if row.monitors_count == 0 %}
+        <div class="warning-box">
+            هذا الباب بدون مراقبين
+        </div>
+    {% endif %}
+
+    <div class="door-actions">
+
+        <button
+            type="button"
+            class="btn-edit"
+            onclick="openEditDoorModal(
+                '{{ row.door.id }}',
+                '{{ row.door.door_number|default_if_none:"" }}',
+                '{{ row.door.name|escapejs }}',
+                '{{ row.door.zone.id }}',
+                '{{ row.door.notes|default_if_none:""|escapejs }}'
+            )"
+        >
+            تعديل
+        </button>
+
+        <form method="post" action="{% url 'locations:door-toggle' row.door.id %}">
+            {% csrf_token %}
+
+            {% if row.door.is_active %}
+                <button class="btn-warning" type="submit">
+                    تعطيل
+                </button>
+            {% else %}
+                <button class="btn-enable" type="submit">
+                    تفعيل
+                </button>
+            {% endif %}
+
+        </form>
+
+    </div>
+
+</div>

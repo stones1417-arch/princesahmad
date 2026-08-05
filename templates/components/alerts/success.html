@@ -1,0 +1,7 @@
+<div class="alert-box alert-success-box">
+    <strong>✅ {{ title|default:"تمت العملية بنجاح" }}</strong>
+
+    {% if message %}
+        <p>{{ message }}</p>
+    {% endif %}
+</div>

@@ -1,0 +1,1727 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+    معاينة {{ report.title|default:"التقرير" }}
+{% endblock %}
+
+{% block extra_css %}
+<link
+    rel="stylesheet"
+    href="{% static 'css/exports_center/exports-center.css' %}?v=20260726-17"
+>
+
+<style>
+    /* =========================================================
+       صفحة معاينة التقرير
+    ========================================================= */
+
+    .xep-page,
+    .xep-page * {
+        box-sizing: border-box;
+    }
+
+    .xep-page {
+        --xep-green: #087457;
+        --xep-green-dark: #05503f;
+        --xep-green-deep: #043c31;
+        --xep-green-soft: #eaf7f2;
+        --xep-green-pale: #f6fcf9;
+        --xep-gold: #d4aa45;
+        --xep-gold-soft: #fff8e7;
+        --xep-red: #df3e3e;
+        --xep-red-soft: #fff1f1;
+        --xep-purple: #7043ce;
+        --xep-purple-soft: #f4f0ff;
+        --xep-blue: #397bd5;
+        --xep-blue-soft: #edf4ff;
+        --xep-text: #14261f;
+        --xep-muted: #78847f;
+        --xep-border: #dce7e2;
+        --xep-white: #ffffff;
+        --xep-background: #f6f9f8;
+
+        min-height: calc(100vh - 80px);
+        padding: 16px;
+
+        direction: rtl;
+        color: var(--xep-text);
+
+        background:
+            radial-gradient(
+                circle at 8% 10%,
+                rgba(8, 116, 87, 0.055),
+                transparent 27%
+            ),
+            linear-gradient(
+                180deg,
+                #ffffff 0%,
+                var(--xep-background) 100%
+            );
+    }
+
+
+    /* =========================================================
+       رأس الصفحة
+    ========================================================= */
+
+    .xep-hero {
+        position: relative;
+
+        min-height: 215px;
+        margin-bottom: 16px;
+        padding: 31px 39px;
+
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 30px;
+
+        overflow: hidden;
+
+        border: 1px solid var(--xep-border);
+        border-radius: 21px;
+
+        background:
+            linear-gradient(
+                105deg,
+                #ffffff 0%,
+                #ffffff 59%,
+                #f1f9f5 59.2%,
+                #e7f4ee 100%
+            );
+
+        box-shadow:
+            0 16px 38px
+            rgba(18, 52, 41, 0.075);
+    }
+
+    .xep-hero::before {
+        content: "";
+
+        position: absolute;
+        top: -200px;
+        left: -115px;
+
+        width: 520px;
+        height: 520px;
+
+        border: 4px solid
+            rgba(212, 170, 69, 0.78);
+
+        border-radius: 50%;
+
+        background:
+            linear-gradient(
+                145deg,
+                var(--xep-green),
+                var(--xep-green-dark)
+            );
+    }
+
+    .xep-hero::after {
+        content: "";
+
+        position: absolute;
+        inset: 0;
+
+        opacity: 0.18;
+
+        background-image:
+            radial-gradient(
+                circle,
+                var(--xep-green) 1px,
+                transparent 1.5px
+            );
+
+        background-size: 18px 18px;
+
+        mask-image:
+            linear-gradient(
+                90deg,
+                #000 0%,
+                transparent 46%
+            );
+
+        pointer-events: none;
+    }
+
+    .xep-hero-content {
+        position: relative;
+        z-index: 3;
+
+        flex: 1;
+        max-width: 780px;
+    }
+
+    .xep-eyebrow {
+        margin-bottom: 9px;
+
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+
+        color: var(--xep-green);
+
+        font-size: 11px;
+        font-weight: 900;
+    }
+
+    .xep-eyebrow-icon {
+        width: 30px;
+        height: 30px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 9px;
+
+        color: var(--xep-green);
+        background: var(--xep-green-soft);
+    }
+
+    .xep-eyebrow-icon svg {
+        width: 17px;
+        height: 17px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .xep-hero h1 {
+        margin: 0;
+
+        color: var(--xep-text);
+
+        font-size: clamp(
+            32px,
+            3.6vw,
+            48px
+        );
+
+        line-height: 1.2;
+    }
+
+    .xep-report-name {
+        color: var(--xep-green);
+    }
+
+    .xep-hero p {
+        max-width: 690px;
+        margin: 10px 0 0;
+
+        color: var(--xep-muted);
+
+        font-size: 13px;
+        line-height: 1.9;
+    }
+
+    .xep-hero-actions {
+        position: relative;
+        z-index: 3;
+
+        flex: 0 0 auto;
+
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 9px;
+    }
+
+    .xep-back-button,
+    .xep-filters-button,
+    .xep-dashboard-button {
+        min-height: 43px;
+        padding: 0 17px;
+
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+
+        border-radius: 11px;
+
+        font-size: 10px;
+        font-weight: 900;
+
+        text-decoration: none;
+
+        transition:
+            transform 0.18s ease,
+            box-shadow 0.18s ease;
+    }
+
+    .xep-back-button {
+        color: #64716c;
+
+        border: 1px solid var(--xep-border);
+        background: var(--xep-white);
+    }
+
+    .xep-filters-button {
+        color: var(--xep-green);
+
+        border: 1px solid #b9dccf;
+        background: var(--xep-white);
+    }
+
+    .xep-dashboard-button {
+        color: var(--xep-white);
+
+        border: 1px solid var(--xep-green);
+
+        background:
+            linear-gradient(
+                135deg,
+                var(--xep-green),
+                var(--xep-green-dark)
+            );
+
+        box-shadow:
+            0 8px 19px
+            rgba(8, 116, 87, 0.18);
+    }
+
+    .xep-back-button:hover,
+    .xep-filters-button:hover,
+    .xep-dashboard-button:hover {
+        transform: translateY(-2px);
+    }
+
+    .xep-back-button svg,
+    .xep-filters-button svg,
+    .xep-dashboard-button svg {
+        width: 16px;
+        height: 16px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+
+    /* =========================================================
+       مؤشرات المعاينة
+    ========================================================= */
+
+    .xep-stats {
+        margin-bottom: 16px;
+
+        display: grid;
+        grid-template-columns:
+            repeat(4, minmax(0, 1fr));
+
+        gap: 12px;
+    }
+
+    .xep-stat {
+        min-width: 0;
+        min-height: 96px;
+        padding: 17px;
+
+        display: flex;
+        align-items: center;
+        gap: 13px;
+
+        border: 1px solid var(--xep-border);
+        border-radius: 15px;
+
+        background: var(--xep-white);
+
+        box-shadow:
+            0 8px 24px
+            rgba(18, 52, 41, 0.055);
+    }
+
+    .xep-stat.featured {
+        color: #ffffff;
+
+        border-color: var(--xep-green);
+
+        background:
+            radial-gradient(
+                circle at 15% 20%,
+                rgba(255, 255, 255, 0.1),
+                transparent 30%
+            ),
+            linear-gradient(
+                145deg,
+                var(--xep-green),
+                var(--xep-green-dark)
+            );
+    }
+
+    .xep-stat-icon {
+        flex: 0 0 49px;
+
+        width: 49px;
+        height: 49px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 14px;
+
+        color: var(--xep-green);
+        background: var(--xep-green-soft);
+    }
+
+    .xep-stat-icon.preview {
+        color: var(--xep-blue);
+        background: var(--xep-blue-soft);
+    }
+
+    .xep-stat-icon.filters {
+        color: #9a7427;
+        background: var(--xep-gold-soft);
+    }
+
+    .xep-stat-icon.ready {
+        color: var(--xep-green);
+        background: var(--xep-green-soft);
+    }
+
+    .xep-stat.featured .xep-stat-icon {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.14);
+    }
+
+    .xep-stat-icon svg {
+        width: 24px;
+        height: 24px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .xep-stat-content {
+        min-width: 0;
+    }
+
+    .xep-stat-content small,
+    .xep-stat-content strong,
+    .xep-stat-content span {
+        display: block;
+    }
+
+    .xep-stat-content small {
+        color: var(--xep-muted);
+
+        font-size: 9px;
+        font-weight: 900;
+    }
+
+    .xep-stat.featured .xep-stat-content small {
+        color: rgba(255, 255, 255, 0.77);
+    }
+
+    .xep-stat-content strong {
+        margin-top: 5px;
+
+        color: var(--xep-text);
+
+        font-size: 25px;
+        line-height: 1;
+    }
+
+    .xep-stat.featured .xep-stat-content strong {
+        color: #ffffff;
+    }
+
+    .xep-stat-content span {
+        margin-top: 4px;
+
+        color: var(--xep-muted);
+
+        font-size: 7px;
+    }
+
+    .xep-stat.featured .xep-stat-content span {
+        color: rgba(255, 255, 255, 0.72);
+    }
+
+
+    /* =========================================================
+       تخطيط المحتوى
+    ========================================================= */
+
+    .xep-layout {
+        display: grid;
+        grid-template-columns:
+            minmax(0, 1fr)
+            330px;
+
+        gap: 16px;
+        align-items: start;
+    }
+
+
+    /* =========================================================
+       بطاقة الجدول
+    ========================================================= */
+
+    .xep-table-card {
+        min-width: 0;
+        overflow: hidden;
+
+        border: 1px solid var(--xep-border);
+        border-radius: 18px;
+
+        background: var(--xep-white);
+
+        box-shadow:
+            0 10px 30px
+            rgba(18, 52, 41, 0.065);
+    }
+
+    .xep-table-heading {
+        min-height: 74px;
+        padding: 16px 20px;
+
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+
+        border-bottom: 1px solid var(--xep-border);
+
+        background:
+            linear-gradient(
+                180deg,
+                #ffffff,
+                #fbfdfc
+            );
+    }
+
+    .xep-table-heading-copy {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .xep-table-heading-icon {
+        flex: 0 0 45px;
+
+        width: 45px;
+        height: 45px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 12px;
+
+        color: var(--xep-green);
+        background: var(--xep-green-soft);
+    }
+
+    .xep-table-heading-icon svg {
+        width: 23px;
+        height: 23px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .xep-table-heading h2 {
+        margin: 0;
+
+        font-size: 18px;
+    }
+
+    .xep-table-heading p {
+        margin: 4px 0 0;
+
+        color: var(--xep-muted);
+
+        font-size: 9px;
+    }
+
+    .xep-table-meta {
+        padding: 6px 11px;
+
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+
+        border-radius: 999px;
+
+        color: var(--xep-green);
+        background: var(--xep-green-soft);
+
+        font-size: 8px;
+        font-weight: 900;
+    }
+
+    .xep-table-meta::before {
+        content: "";
+
+        width: 7px;
+        height: 7px;
+
+        border-radius: 50%;
+
+        background: currentColor;
+    }
+
+    .xep-table-wrap {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .xep-table {
+        width: 100%;
+        min-width: 900px;
+
+        border-collapse: collapse;
+        border-spacing: 0;
+    }
+
+    .xep-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+
+        padding: 14px 15px;
+
+        color: var(--xep-green-dark);
+        background: #f4faf7;
+
+        border-bottom: 1px solid var(--xep-border);
+
+        text-align: right;
+
+        font-size: 9px;
+        font-weight: 900;
+
+        white-space: nowrap;
+    }
+
+    .xep-table thead th:first-child {
+        width: 58px;
+        text-align: center;
+    }
+
+    .xep-table tbody td {
+        padding: 13px 15px;
+
+        border-bottom: 1px solid #edf2ef;
+
+        color: #4f5c57;
+
+        font-size: 9px;
+        line-height: 1.7;
+
+        vertical-align: middle;
+    }
+
+    .xep-table tbody tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .xep-table tbody tr {
+        transition:
+            background 0.17s ease;
+    }
+
+    .xep-table tbody tr:hover {
+        background: #fbfefc;
+    }
+
+    .xep-row-number {
+        text-align: center !important;
+    }
+
+    .xep-row-number span {
+        width: 28px;
+        height: 28px;
+
+        margin: auto;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 8px;
+
+        color: var(--xep-green);
+        background: var(--xep-green-soft);
+
+        font-size: 8px;
+        font-weight: 900;
+    }
+
+    .xep-cell-empty {
+        color: #a0aaa5;
+    }
+
+
+    /* =========================================================
+       الحالة الفارغة
+    ========================================================= */
+
+    .xep-empty {
+        min-height: 380px;
+        padding: 48px 20px;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        text-align: center;
+    }
+
+    .xep-empty-content {
+        max-width: 430px;
+    }
+
+    .xep-empty-illustration {
+        position: relative;
+
+        width: 118px;
+        height: 118px;
+        margin: 0 auto 18px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 33px;
+
+        color: var(--xep-green);
+
+        background:
+            linear-gradient(
+                145deg,
+                #eff9f5,
+                #e4f4ed
+            );
+    }
+
+    .xep-empty-illustration::before,
+    .xep-empty-illustration::after {
+        content: "";
+
+        position: absolute;
+
+        border-radius: 50%;
+
+        background: var(--xep-gold);
+    }
+
+    .xep-empty-illustration::before {
+        top: -6px;
+        right: 16px;
+
+        width: 12px;
+        height: 12px;
+    }
+
+    .xep-empty-illustration::after {
+        bottom: 5px;
+        left: -7px;
+
+        width: 8px;
+        height: 8px;
+
+        opacity: 0.65;
+    }
+
+    .xep-empty-illustration svg {
+        width: 58px;
+        height: 58px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.6;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .xep-empty h3 {
+        margin: 0;
+
+        color: var(--xep-text);
+
+        font-size: 20px;
+    }
+
+    .xep-empty p {
+        margin: 8px auto 18px;
+
+        color: var(--xep-muted);
+
+        font-size: 10px;
+        line-height: 1.8;
+    }
+
+    .xep-empty-button {
+        min-height: 42px;
+        padding: 0 17px;
+
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+
+        border-radius: 10px;
+
+        color: #ffffff;
+
+        background:
+            linear-gradient(
+                135deg,
+                var(--xep-green),
+                var(--xep-green-dark)
+            );
+
+        font-size: 10px;
+        font-weight: 900;
+
+        text-decoration: none;
+
+        box-shadow:
+            0 8px 18px
+            rgba(8, 116, 87, 0.18);
+    }
+
+    .xep-empty-button svg {
+        width: 16px;
+        height: 16px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+
+    /* =========================================================
+       الشريط الجانبي
+    ========================================================= */
+
+    .xep-sidebar {
+        display: grid;
+        gap: 14px;
+    }
+
+    .xep-sidebar-card {
+        padding: 19px;
+
+        border: 1px solid var(--xep-border);
+        border-radius: 17px;
+
+        background: var(--xep-white);
+
+        box-shadow:
+            0 9px 25px
+            rgba(18, 52, 41, 0.055);
+    }
+
+    .xep-sidebar-card.highlight {
+        color: #ffffff;
+
+        border-color: var(--xep-green);
+
+        background:
+            radial-gradient(
+                circle at 15% 15%,
+                rgba(255, 255, 255, 0.11),
+                transparent 28%
+            ),
+            linear-gradient(
+                145deg,
+                var(--xep-green),
+                var(--xep-green-dark)
+            );
+    }
+
+    .xep-sidebar-heading {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .xep-sidebar-heading-icon {
+        flex: 0 0 41px;
+
+        width: 41px;
+        height: 41px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 11px;
+
+        color: var(--xep-green);
+        background: var(--xep-green-soft);
+    }
+
+    .highlight .xep-sidebar-heading-icon {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.14);
+    }
+
+    .xep-sidebar-heading-icon svg {
+        width: 20px;
+        height: 20px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .xep-sidebar-heading h3 {
+        margin: 0;
+
+        font-size: 14px;
+    }
+
+    .xep-sidebar-heading small {
+        display: block;
+        margin-top: 3px;
+
+        color: var(--xep-muted);
+
+        font-size: 8px;
+    }
+
+    .highlight .xep-sidebar-heading small {
+        color: rgba(255, 255, 255, 0.74);
+    }
+
+    .xep-sidebar-description {
+        margin: 14px 0;
+
+        color: var(--xep-muted);
+
+        font-size: 9px;
+        line-height: 1.8;
+    }
+
+    .highlight .xep-sidebar-description {
+        color: rgba(255, 255, 255, 0.8);
+    }
+
+
+    /* =========================================================
+       أزرار التصدير
+    ========================================================= */
+
+    .xep-export-list {
+        display: grid;
+        gap: 8px;
+    }
+
+    .xep-export-button {
+        min-height: 45px;
+        padding: 0 13px;
+
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 9px;
+
+        border: 1px solid transparent;
+        border-radius: 10px;
+
+        font-size: 10px;
+        font-weight: 900;
+
+        text-decoration: none;
+
+        transition:
+            transform 0.18s ease,
+            box-shadow 0.18s ease;
+    }
+
+    .xep-export-button:hover {
+        transform: translateY(-2px);
+
+        box-shadow:
+            0 8px 18px
+            rgba(18, 52, 41, 0.08);
+    }
+
+    .xep-export-button > span {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .xep-export-button svg {
+        width: 16px;
+        height: 16px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .xep-format-icon {
+        min-width: 29px;
+        height: 30px;
+        padding: 0 5px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 6px;
+
+        color: #ffffff;
+
+        font-family: Arial, sans-serif;
+        font-size: 8px;
+        font-weight: 900;
+    }
+
+    .xep-export-button.excel {
+        color: var(--xep-green);
+
+        border-color: #b9ddcf;
+        background: #edf8f4;
+    }
+
+    .xep-export-button.excel .xep-format-icon {
+        background: var(--xep-green);
+    }
+
+    .xep-export-button.pdf {
+        color: var(--xep-red);
+
+        border-color: #f1c7c7;
+        background: var(--xep-red-soft);
+    }
+
+    .xep-export-button.pdf .xep-format-icon {
+        background: var(--xep-red);
+    }
+
+    .xep-export-button.csv {
+        color: var(--xep-purple);
+
+        border-color: #d9cef3;
+        background: var(--xep-purple-soft);
+    }
+
+    .xep-export-button.csv .xep-format-icon {
+        background: var(--xep-purple);
+    }
+
+
+    /* =========================================================
+       الفلاتر المطبقة
+    ========================================================= */
+
+    .xep-filter-list {
+        margin: 14px 0 0;
+        padding: 0;
+
+        display: grid;
+        gap: 8px;
+
+        list-style: none;
+    }
+
+    .xep-filter-item {
+        padding: 9px 10px;
+
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+
+        border: 1px solid var(--xep-border);
+        border-radius: 9px;
+
+        background: #fbfdfc;
+    }
+
+    .xep-filter-item strong {
+        color: var(--xep-green-dark);
+
+        font-size: 8px;
+    }
+
+    .xep-filter-item span {
+        max-width: 160px;
+
+        overflow: hidden;
+
+        color: var(--xep-muted);
+
+        font-size: 8px;
+
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .xep-no-filters {
+        margin-top: 14px;
+        padding: 12px;
+
+        border-radius: 10px;
+
+        color: var(--xep-muted);
+        background: #f8faf9;
+
+        font-size: 8px;
+        line-height: 1.7;
+        text-align: center;
+    }
+
+
+    /* =========================================================
+       التجاوب
+    ========================================================= */
+
+    @media (max-width: 1200px) {
+        .xep-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .xep-sidebar {
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+        }
+
+        .xep-stats {
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 760px) {
+        .xep-page {
+            padding: 9px;
+        }
+
+        .xep-hero {
+            min-height: 280px;
+            padding: 24px;
+
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .xep-hero::before {
+            width: 310px;
+            height: 310px;
+
+            top: -220px;
+            left: -135px;
+        }
+
+        .xep-hero-actions {
+            width: 100%;
+        }
+
+        .xep-back-button,
+        .xep-filters-button,
+        .xep-dashboard-button {
+            flex: 1;
+        }
+
+        .xep-stats,
+        .xep-sidebar {
+            grid-template-columns: 1fr;
+        }
+
+        .xep-table-heading {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="xep-page">
+
+    <!-- ==================================================
+         رأس صفحة المعاينة
+    ================================================== -->
+    <section class="xep-hero">
+
+        <div class="xep-hero-content">
+
+            <div class="xep-eyebrow">
+
+                <span class="xep-eyebrow-icon">
+                    <svg
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                    >
+                        <path
+                            d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"
+                        ></path>
+
+                        <circle
+                            cx="12"
+                            cy="12"
+                            r="2.5"
+                        ></circle>
+                    </svg>
+                </span>
+
+                <span>
+                    معاينة التقرير
+                </span>
+            </div>
+
+            <h1>
+                معاينة
+                <span class="xep-report-name">
+                    {{ report.title|default:"التقرير" }}
+                </span>
+            </h1>
+
+            <p>
+                راجع البيانات المعروضة والفلاتر المطبقة، ثم نزّل التقرير
+                بالصيغة المناسبة بعد التأكد من صحة النتائج.
+            </p>
+        </div>
+
+        <div class="xep-hero-actions">
+
+            <a
+                href="javascript:history.back()"
+                class="xep-back-button"
+            >
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <path d="m9 6 6 6-6 6"></path>
+                </svg>
+
+                <span>العودة</span>
+            </a>
+
+            <a
+                href="{% url 'exports_center:filters' report_key=report_key %}{% if query_string %}?{{ query_string }}{% endif %}"
+                class="xep-filters-button"
+            >
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <path d="M4 5h16"></path>
+                    <path d="M7 12h10"></path>
+                    <path d="M10 19h4"></path>
+                </svg>
+
+                <span>تعديل الفلاتر</span>
+            </a>
+
+            <a
+                href="{% url 'exports_center:dashboard' %}"
+                class="xep-dashboard-button"
+            >
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <rect
+                        x="4"
+                        y="4"
+                        width="6"
+                        height="6"
+                    ></rect>
+
+                    <rect
+                        x="14"
+                        y="4"
+                        width="6"
+                        height="6"
+                    ></rect>
+
+                    <rect
+                        x="4"
+                        y="14"
+                        width="6"
+                        height="6"
+                    ></rect>
+
+                    <rect
+                        x="14"
+                        y="14"
+                        width="6"
+                        height="6"
+                    ></rect>
+                </svg>
+
+                <span>مركز التصدير</span>
+            </a>
+        </div>
+    </section>
+
+    <!-- ==================================================
+         مؤشرات المعاينة
+    ================================================== -->
+    <section class="xep-stats">
+
+        <article class="xep-stat featured">
+
+            <span class="xep-stat-icon">
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <path d="M4 6h16"></path>
+                    <path d="M4 12h16"></path>
+                    <path d="M4 18h10"></path>
+                </svg>
+            </span>
+
+            <div class="xep-stat-content">
+                <small>
+                    إجمالي السجلات
+                </small>
+
+                <strong>
+                    {{ records_count|default:0 }}
+                </strong>
+
+                <span>
+                    جميع السجلات المطابقة للفلاتر
+                </span>
+            </div>
+        </article>
+
+        <article class="xep-stat">
+
+            <span class="xep-stat-icon preview">
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <path
+                        d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"
+                    ></path>
+
+                    <circle
+                        cx="12"
+                        cy="12"
+                        r="2.5"
+                    ></circle>
+                </svg>
+            </span>
+
+            <div class="xep-stat-content">
+                <small>
+                    السجلات المعروضة
+                </small>
+
+                <strong>
+                    {{ preview_count|default:0 }}
+                </strong>
+
+                <span>
+                    ضمن المعاينة الحالية
+                </span>
+            </div>
+        </article>
+
+        <article class="xep-stat">
+
+            <span class="xep-stat-icon filters">
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <path d="M4 5h16"></path>
+                    <path d="M7 12h10"></path>
+                    <path d="M10 19h4"></path>
+                </svg>
+            </span>
+
+            <div class="xep-stat-content">
+                <small>
+                    الفلاتر المطبقة
+                </small>
+
+                <strong>
+                    {{ filters|length|default:0 }}
+                </strong>
+
+                <span>
+                    معايير تصفية نشطة
+                </span>
+            </div>
+        </article>
+
+        <article class="xep-stat">
+
+            <span class="xep-stat-icon ready">
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <circle
+                        cx="12"
+                        cy="12"
+                        r="9"
+                    ></circle>
+
+                    <path d="m8.5 12 2.2 2.2 4.8-5"></path>
+                </svg>
+            </span>
+
+            <div class="xep-stat-content">
+                <small>
+                    حالة التقرير
+                </small>
+
+                <strong>
+                    جاهز
+                </strong>
+
+                <span>
+                    متاح للمعاينة والتصدير
+                </span>
+            </div>
+        </article>
+    </section>
+
+    <div class="xep-layout">
+
+        <!-- ==================================================
+             جدول المعاينة
+        ================================================== -->
+        <section class="xep-table-card">
+
+            <header class="xep-table-heading">
+
+                <div class="xep-table-heading-copy">
+
+                    <span class="xep-table-heading-icon">
+                        <svg
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <path d="M4 5h16v15H4z"></path>
+                            <path d="M4 10h16"></path>
+                            <path d="M9 10v10"></path>
+                        </svg>
+                    </span>
+
+                    <div>
+                        <h2>
+                            بيانات التقرير
+                        </h2>
+
+                        <p>
+                            يتم عرض أول
+                            {{ preview_limit|default:50 }}
+                            سجل كحد أقصى.
+                        </p>
+                    </div>
+                </div>
+
+                <span class="xep-table-meta">
+                    المعاينة جاهزة
+                </span>
+            </header>
+
+            {% if preview_rows %}
+
+                <div class="xep-table-wrap">
+
+                    <table class="xep-table">
+
+                        <thead>
+                            <tr>
+                                <th>
+                                    #
+                                </th>
+
+                                {% for column in columns %}
+                                    <th>
+                                        {{ column.label|default:column }}
+                                    </th>
+                                {% empty %}
+                                    <th>
+                                        البيانات
+                                    </th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for row in preview_rows %}
+
+                                <tr>
+                                    <td class="xep-row-number">
+                                        <span>
+                                            {{ row.number }}
+                                        </span>
+                                    </td>
+
+                                    {% for item in row.values %}
+
+                                        <td>
+                                            {% if item.value is not None and item.value != "" %}
+                                                {{ item.value }}
+                                            {% else %}
+                                                <span class="xep-cell-empty">
+                                                    —
+                                                </span>
+                                            {% endif %}
+                                        </td>
+
+                                    {% empty %}
+
+                                        <td>
+                                            <span class="xep-cell-empty">
+                                                لا توجد بيانات
+                                            </span>
+                                        </td>
+
+                                    {% endfor %}
+                                </tr>
+
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+            {% else %}
+
+                <div class="xep-empty">
+
+                    <div class="xep-empty-content">
+
+                        <div class="xep-empty-illustration">
+                            <svg
+                                viewBox="0 0 64 64"
+                                aria-hidden="true"
+                            >
+                                <path d="M13 9h38v46H13z"></path>
+                                <path d="M20 20h24"></path>
+                                <path d="M20 29h24"></path>
+                                <path d="M20 38h16"></path>
+
+                                <circle
+                                    cx="45"
+                                    cy="46"
+                                    r="10"
+                                ></circle>
+
+                                <path d="m52 53 6 6"></path>
+                            </svg>
+                        </div>
+
+                        <h3>
+                            لا توجد بيانات مطابقة
+                        </h3>
+
+                        <p>
+                            لم يتم العثور على سجلات مطابقة للفلاتر
+                            المحددة. عدّل خيارات التصفية ثم أعد المعاينة.
+                        </p>
+
+                        <a
+                            href="{% url 'exports_center:filters' report_key=report_key %}"
+                            class="xep-empty-button"
+                        >
+                            <svg
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                            >
+                                <path d="M4 5h16"></path>
+                                <path d="M7 12h10"></path>
+                                <path d="M10 19h4"></path>
+                            </svg>
+
+                            <span>
+                                تعديل الفلاتر
+                            </span>
+                        </a>
+                    </div>
+                </div>
+
+            {% endif %}
+        </section>
+
+        <!-- ==================================================
+             الشريط الجانبي
+        ================================================== -->
+        <aside class="xep-sidebar">
+
+            <section class="xep-sidebar-card highlight">
+
+                <div class="xep-sidebar-heading">
+
+                    <span class="xep-sidebar-heading-icon">
+                        <svg
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <path d="M12 3v12"></path>
+                            <path d="m7 10 5 5 5-5"></path>
+                            <path d="M5 21h14"></path>
+                        </svg>
+                    </span>
+
+                    <div>
+                        <h3>
+                            تصدير التقرير
+                        </h3>
+
+                        <small>
+                            اختر صيغة الملف المطلوبة
+                        </small>
+                    </div>
+                </div>
+
+                <p class="xep-sidebar-description">
+                    سيتم تصدير جميع السجلات المطابقة للفلاتر الحالية،
+                    وليس فقط السجلات الظاهرة في المعاينة.
+                </p>
+
+                <div class="xep-export-list">
+
+                    {% if export_urls.excel %}
+                        <a
+                            href="{{ export_urls.excel }}"
+                            class="xep-export-button excel"
+                        >
+                            <span>
+                                <span class="xep-format-icon">
+                                    X
+                                </span>
+
+                                Excel
+                            </span>
+
+                            <svg
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                            >
+                                <path d="M12 3v12"></path>
+                                <path d="m7 10 5 5 5-5"></path>
+                            </svg>
+                        </a>
+                    {% endif %}
+
+                    {% if export_urls.pdf %}
+                        <a
+                            href="{{ export_urls.pdf }}"
+                            class="xep-export-button pdf"
+                        >
+                            <span>
+                                <span class="xep-format-icon">
+                                    PDF
+                                </span>
+
+                                PDF
+                            </span>
+
+                            <svg
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                            >
+                                <path d="M12 3v12"></path>
+                                <path d="m7 10 5 5 5-5"></path>
+                            </svg>
+                        </a>
+                    {% endif %}
+
+                    {% if export_urls.csv %}
+                        <a
+                            href="{{ export_urls.csv }}"
+                            class="xep-export-button csv"
+                        >
+                            <span>
+                                <span class="xep-format-icon">
+                                    CSV
+                                </span>
+
+                                CSV
+                            </span>
+
+                            <svg
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                            >
+                                <path d="M12 3v12"></path>
+                                <path d="m7 10 5 5 5-5"></path>
+                            </svg>
+                        </a>
+                    {% endif %}
+                </div>
+            </section>
+
+            <section class="xep-sidebar-card">
+
+                <div class="xep-sidebar-heading">
+
+                    <span class="xep-sidebar-heading-icon">
+                        <svg
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <path d="M4 5h16"></path>
+                            <path d="M7 12h10"></path>
+                            <path d="M10 19h4"></path>
+                        </svg>
+                    </span>
+
+                    <div>
+                        <h3>
+                            الفلاتر المطبقة
+                        </h3>
+
+                        <small>
+                            معايير المعاينة الحالية
+                        </small>
+                    </div>
+                </div>
+
+                {% if filters %}
+
+                    <ul class="xep-filter-list">
+
+                        {% for key, value in filters.items %}
+
+                            <li class="xep-filter-item">
+
+                                <strong>
+                                    {{ key }}
+                                </strong>
+
+                                <span title="{{ value }}">
+                                    {{ value }}
+                                </span>
+                            </li>
+
+                        {% endfor %}
+                    </ul>
+
+                {% else %}
+
+                    <div class="xep-no-filters">
+                        لا توجد فلاتر مطبقة، ويتم عرض جميع البيانات
+                        المتاحة في التقرير.
+                    </div>
+
+                {% endif %}
+            </section>
+        </aside>
+    </div>
+</main>
+{% endblock %}

@@ -1,0 +1,39 @@
+<div class="action-menu">
+
+    <a href="{{ edit_url }}" class="action-btn edit">
+
+        ✏️ تعديل
+
+    </a>
+
+    <div class="action-dropdown">
+
+        <button class="action-toggle">
+
+            ⋮
+
+        </button>
+
+        <div class="action-dropdown-menu">
+
+            {% if view_url %}
+            <a href="{{ view_url }}">
+                👁 عرض
+            </a>
+            {% endif %}
+
+            <a href="{{ edit_url }}">
+                ✏️ تعديل
+            </a>
+
+            {{ extra_actions }}
+
+            <a href="{{ delete_url }}">
+                🗑 حذف آمن
+            </a>
+
+        </div>
+
+    </div>
+
+</div>

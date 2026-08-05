@@ -1,0 +1,1476 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+    فلاتر {{ report.title|default:"التقرير" }}
+{% endblock %}
+
+{% block extra_css %}
+<link
+    rel="stylesheet"
+    href="{% static 'css/exports_center/exports-center.css' %}?v=20260726-15"
+>
+
+<style>
+    /* =========================================================
+       صفحة فلاتر مركز التصدير
+    ========================================================= */
+
+    .xef-page,
+    .xef-page * {
+        box-sizing: border-box;
+    }
+
+    .xef-page {
+        --xef-green: #087457;
+        --xef-green-dark: #05503f;
+        --xef-green-deep: #043c31;
+        --xef-green-soft: #eaf7f2;
+        --xef-green-pale: #f6fcf9;
+        --xef-gold: #d4aa45;
+        --xef-gold-soft: #fff8e7;
+        --xef-red: #df3e3e;
+        --xef-purple: #7043ce;
+        --xef-text: #14261f;
+        --xef-muted: #78847f;
+        --xef-border: #dce7e2;
+        --xef-white: #ffffff;
+        --xef-background: #f6f9f8;
+
+        min-height: calc(100vh - 80px);
+        padding: 16px;
+
+        direction: rtl;
+        color: var(--xef-text);
+
+        background:
+            radial-gradient(
+                circle at 10% 12%,
+                rgba(8, 116, 87, 0.055),
+                transparent 26%
+            ),
+            linear-gradient(
+                180deg,
+                #ffffff 0%,
+                var(--xef-background) 100%
+            );
+    }
+
+
+    /* =========================================================
+       رأس الصفحة
+    ========================================================= */
+
+    .xef-hero {
+        position: relative;
+        min-height: 205px;
+        padding: 30px 38px;
+        margin-bottom: 16px;
+
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 30px;
+
+        overflow: hidden;
+
+        border: 1px solid var(--xef-border);
+        border-radius: 21px;
+
+        background:
+            linear-gradient(
+                105deg,
+                #ffffff 0%,
+                #ffffff 58%,
+                #f4faf7 58.2%,
+                #eaf6f1 100%
+            );
+
+        box-shadow:
+            0 16px 38px
+            rgba(18, 52, 41, 0.075);
+    }
+
+    .xef-hero::before {
+        content: "";
+
+        position: absolute;
+        top: -180px;
+        left: -100px;
+
+        width: 480px;
+        height: 480px;
+
+        border: 4px solid
+            rgba(212, 170, 69, 0.75);
+
+        border-radius: 50%;
+
+        background:
+            linear-gradient(
+                145deg,
+                var(--xef-green),
+                var(--xef-green-dark)
+            );
+    }
+
+    .xef-hero::after {
+        content: "";
+
+        position: absolute;
+        inset: 0;
+
+        opacity: 0.18;
+
+        background-image:
+            radial-gradient(
+                circle,
+                var(--xef-green) 1px,
+                transparent 1.5px
+            );
+
+        background-size: 18px 18px;
+
+        mask-image:
+            linear-gradient(
+                90deg,
+                #000 0%,
+                transparent 46%
+            );
+
+        pointer-events: none;
+    }
+
+    .xef-hero-content {
+        position: relative;
+        z-index: 3;
+
+        flex: 1;
+        max-width: 760px;
+    }
+
+    .xef-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+
+        margin-bottom: 9px;
+
+        color: var(--xef-green);
+
+        font-size: 11px;
+        font-weight: 900;
+    }
+
+    .xef-eyebrow-icon {
+        width: 28px;
+        height: 28px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 8px;
+
+        color: var(--xef-green);
+        background: var(--xef-green-soft);
+    }
+
+    .xef-eyebrow-icon svg {
+        width: 16px;
+        height: 16px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .xef-hero h1 {
+        margin: 0;
+
+        color: var(--xef-text);
+
+        font-size: clamp(
+            31px,
+            3.5vw,
+            45px
+        );
+
+        line-height: 1.25;
+    }
+
+    .xef-hero p {
+        max-width: 680px;
+        margin: 10px 0 0;
+
+        color: var(--xef-muted);
+
+        font-size: 13px;
+        line-height: 1.9;
+    }
+
+    .xef-report-name {
+        color: var(--xef-green);
+        font-weight: 900;
+    }
+
+    .xef-hero-actions {
+        position: relative;
+        z-index: 3;
+
+        flex: 0 0 auto;
+
+        display: flex;
+        align-items: center;
+        gap: 9px;
+    }
+
+    .xef-back-button,
+    .xef-dashboard-button {
+        min-height: 43px;
+        padding: 0 17px;
+
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+
+        border-radius: 11px;
+
+        font-size: 10px;
+        font-weight: 900;
+
+        text-decoration: none;
+
+        transition:
+            transform 0.18s ease,
+            box-shadow 0.18s ease;
+    }
+
+    .xef-back-button {
+        color: var(--xef-green);
+
+        border: 1px solid #b9dccf;
+        background: var(--xef-white);
+    }
+
+    .xef-dashboard-button {
+        color: var(--xef-white);
+
+        border: 1px solid var(--xef-green);
+
+        background:
+            linear-gradient(
+                135deg,
+                var(--xef-green),
+                var(--xef-green-dark)
+            );
+
+        box-shadow:
+            0 8px 19px
+            rgba(8, 116, 87, 0.18);
+    }
+
+    .xef-back-button:hover,
+    .xef-dashboard-button:hover {
+        transform: translateY(-2px);
+    }
+
+    .xef-back-button svg,
+    .xef-dashboard-button svg {
+        width: 16px;
+        height: 16px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+
+    /* =========================================================
+       محتوى الصفحة
+    ========================================================= */
+
+    .xef-layout {
+        display: grid;
+        grid-template-columns:
+            minmax(0, 1fr)
+            330px;
+
+        gap: 16px;
+        align-items: start;
+    }
+
+
+    /* =========================================================
+       بطاقة الفلاتر
+    ========================================================= */
+
+    .xef-filter-card {
+        padding: 23px;
+
+        border: 1px solid var(--xef-border);
+        border-radius: 18px;
+
+        background: var(--xef-white);
+
+        box-shadow:
+            0 10px 28px
+            rgba(18, 52, 41, 0.06);
+    }
+
+    .xef-card-heading {
+        padding-bottom: 17px;
+        margin-bottom: 20px;
+
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+
+        border-bottom: 1px solid var(--xef-border);
+    }
+
+    .xef-card-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .xef-card-title-icon {
+        flex: 0 0 47px;
+
+        width: 47px;
+        height: 47px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 13px;
+
+        color: var(--xef-green);
+
+        background:
+            linear-gradient(
+                145deg,
+                #edf9f4,
+                #e3f4ed
+            );
+    }
+
+    .xef-card-title-icon svg {
+        width: 24px;
+        height: 24px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .xef-card-title h2 {
+        margin: 0;
+
+        font-size: 19px;
+    }
+
+    .xef-card-title p {
+        margin: 4px 0 0;
+
+        color: var(--xef-muted);
+
+        font-size: 9px;
+    }
+
+    .xef-filter-status {
+        padding: 6px 11px;
+
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+
+        border-radius: 999px;
+
+        color: var(--xef-green);
+        background: var(--xef-green-soft);
+
+        font-size: 8px;
+        font-weight: 900;
+    }
+
+    .xef-filter-status::before {
+        content: "";
+
+        width: 7px;
+        height: 7px;
+
+        border-radius: 50%;
+
+        background: var(--xef-green);
+    }
+
+
+    /* =========================================================
+       الحقول
+    ========================================================= */
+
+    .xef-fields-grid {
+        display: grid;
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+
+        gap: 17px;
+    }
+
+    .xef-field {
+        min-width: 0;
+    }
+
+    .xef-field.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .xef-field label {
+        margin-bottom: 7px;
+
+        display: flex;
+        align-items: center;
+        gap: 6px;
+
+        color: var(--xef-text);
+
+        font-size: 10px;
+        font-weight: 900;
+    }
+
+    .xef-label-required {
+        color: var(--xef-red);
+    }
+
+    .xef-field input,
+    .xef-field select,
+    .xef-field textarea {
+        width: 100%;
+        min-height: 47px;
+        padding: 0 14px;
+
+        outline: none;
+
+        border: 1px solid var(--xef-border);
+        border-radius: 11px;
+
+        color: var(--xef-text);
+        background: #ffffff;
+
+        font-family: inherit;
+        font-size: 11px;
+
+        transition:
+            border-color 0.18s ease,
+            box-shadow 0.18s ease,
+            background 0.18s ease;
+    }
+
+    .xef-field textarea {
+        min-height: 110px;
+        padding-top: 12px;
+
+        resize: vertical;
+    }
+
+    .xef-field input:hover,
+    .xef-field select:hover,
+    .xef-field textarea:hover {
+        border-color: #b8d9cd;
+    }
+
+    .xef-field input:focus,
+    .xef-field select:focus,
+    .xef-field textarea:focus {
+        border-color: var(--xef-green);
+
+        background: #ffffff;
+
+        box-shadow:
+            0 0 0 4px
+            rgba(8, 116, 87, 0.085);
+    }
+
+    .xef-field input::placeholder,
+    .xef-field textarea::placeholder {
+        color: #a1aaa6;
+    }
+
+    .xef-field small {
+        display: block;
+        margin-top: 6px;
+
+        color: var(--xef-muted);
+
+        font-size: 8px;
+        line-height: 1.6;
+    }
+
+    .xef-field-error {
+        display: block;
+        margin-top: 6px;
+
+        color: var(--xef-red);
+
+        font-size: 8px;
+        font-weight: 900;
+    }
+
+    .xef-field.has-error input,
+    .xef-field.has-error select,
+    .xef-field.has-error textarea {
+        border-color: #ec9d9d;
+        background: #fff8f8;
+    }
+
+
+    /* =========================================================
+       تنسيق حقول Django تلقائيًا
+    ========================================================= */
+
+    .xef-fields-grid p {
+        margin: 0;
+    }
+
+    .xef-fields-grid ul.errorlist {
+        margin: 6px 0 0;
+        padding: 0;
+
+        list-style: none;
+
+        color: var(--xef-red);
+
+        font-size: 8px;
+        font-weight: 900;
+    }
+
+
+    /* =========================================================
+       أزرار النموذج
+    ========================================================= */
+
+    .xef-form-footer {
+        padding-top: 20px;
+        margin-top: 22px;
+
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+
+        border-top: 1px solid var(--xef-border);
+    }
+
+    .xef-form-main-actions {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+    }
+
+    .xef-apply-button,
+    .xef-reset-button {
+        min-height: 44px;
+        padding: 0 19px;
+
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+
+        border-radius: 10px;
+
+        font-family: inherit;
+        font-size: 10px;
+        font-weight: 900;
+
+        text-decoration: none;
+
+        cursor: pointer;
+    }
+
+    .xef-apply-button {
+        color: #ffffff;
+
+        border: 1px solid var(--xef-green);
+
+        background:
+            linear-gradient(
+                135deg,
+                var(--xef-green),
+                var(--xef-green-dark)
+            );
+
+        box-shadow:
+            0 8px 18px
+            rgba(8, 116, 87, 0.18);
+    }
+
+    .xef-reset-button {
+        color: #68756f;
+
+        border: 1px solid var(--xef-border);
+        background: #ffffff;
+    }
+
+    .xef-apply-button svg,
+    .xef-reset-button svg {
+        width: 16px;
+        height: 16px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .xef-form-note {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+
+        color: var(--xef-muted);
+
+        font-size: 8px;
+    }
+
+    .xef-form-note svg {
+        width: 16px;
+        height: 16px;
+
+        fill: none;
+        stroke: var(--xef-gold);
+        stroke-width: 1.9;
+    }
+
+
+    /* =========================================================
+       الشريط الجانبي
+    ========================================================= */
+
+    .xef-sidebar {
+        display: grid;
+        gap: 14px;
+    }
+
+    .xef-sidebar-card {
+        padding: 19px;
+
+        border: 1px solid var(--xef-border);
+        border-radius: 17px;
+
+        background: var(--xef-white);
+
+        box-shadow:
+            0 9px 25px
+            rgba(18, 52, 41, 0.055);
+    }
+
+    .xef-sidebar-card.highlight {
+        color: #ffffff;
+
+        border-color: var(--xef-green);
+
+        background:
+            radial-gradient(
+                circle at 15% 15%,
+                rgba(255, 255, 255, 0.11),
+                transparent 28%
+            ),
+            linear-gradient(
+                145deg,
+                var(--xef-green),
+                var(--xef-green-dark)
+            );
+    }
+
+    .xef-sidebar-heading {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .xef-sidebar-heading-icon {
+        flex: 0 0 40px;
+
+        width: 40px;
+        height: 40px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 11px;
+
+        color: var(--xef-green);
+        background: var(--xef-green-soft);
+    }
+
+    .highlight .xef-sidebar-heading-icon {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.14);
+    }
+
+    .xef-sidebar-heading-icon svg {
+        width: 20px;
+        height: 20px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .xef-sidebar-heading h3 {
+        margin: 0;
+
+        font-size: 14px;
+    }
+
+    .xef-sidebar-heading small {
+        display: block;
+        margin-top: 3px;
+
+        color: var(--xef-muted);
+
+        font-size: 8px;
+    }
+
+    .highlight .xef-sidebar-heading small {
+        color: rgba(255, 255, 255, 0.75);
+    }
+
+    .xef-sidebar-description {
+        margin: 14px 0;
+
+        color: var(--xef-muted);
+
+        font-size: 9px;
+        line-height: 1.8;
+    }
+
+    .highlight .xef-sidebar-description {
+        color: rgba(255, 255, 255, 0.8);
+    }
+
+
+    /* =========================================================
+       أزرار المعاينة والتصدير
+    ========================================================= */
+
+    .xef-action-list {
+        display: grid;
+        gap: 8px;
+    }
+
+    .xef-preview-button,
+    .xef-export-button {
+        min-height: 43px;
+        padding: 0 13px;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+
+        border-radius: 10px;
+
+        font-size: 10px;
+        font-weight: 900;
+
+        text-decoration: none;
+    }
+
+    .xef-preview-button {
+        color: var(--xef-green);
+
+        border: 1px solid #b6dacd;
+        background: #ffffff;
+    }
+
+    .xef-export-button {
+        justify-content: space-between;
+
+        border: 1px solid transparent;
+    }
+
+    .xef-export-button span {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .xef-export-button svg,
+    .xef-preview-button svg {
+        width: 16px;
+        height: 16px;
+
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .xef-export-button.excel {
+        color: #087457;
+
+        border-color: #b9ddcf;
+        background: #edf8f4;
+    }
+
+    .xef-export-button.pdf {
+        color: var(--xef-red);
+
+        border-color: #f1c7c7;
+        background: #fff2f2;
+    }
+
+    .xef-export-button.csv {
+        color: var(--xef-purple);
+
+        border-color: #d9cef3;
+        background: #f5f1ff;
+    }
+
+    .xef-format-icon {
+        min-width: 28px;
+        height: 29px;
+        padding: 0 5px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 6px;
+
+        color: #ffffff;
+
+        font-family: Arial, sans-serif;
+        font-size: 8px;
+        font-weight: 900;
+    }
+
+    .xef-export-button.excel .xef-format-icon {
+        background: var(--xef-green);
+    }
+
+    .xef-export-button.pdf .xef-format-icon {
+        background: var(--xef-red);
+    }
+
+    .xef-export-button.csv .xef-format-icon {
+        background: var(--xef-purple);
+    }
+
+
+    /* =========================================================
+       نصائح
+    ========================================================= */
+
+    .xef-tips {
+        margin: 14px 0 0;
+        padding: 0;
+
+        list-style: none;
+    }
+
+    .xef-tips li {
+        position: relative;
+
+        padding-right: 16px;
+        margin-top: 9px;
+
+        color: var(--xef-muted);
+
+        font-size: 8px;
+        line-height: 1.7;
+    }
+
+    .xef-tips li::before {
+        content: "";
+
+        position: absolute;
+        top: 6px;
+        right: 0;
+
+        width: 6px;
+        height: 6px;
+
+        border-radius: 50%;
+
+        background: var(--xef-gold);
+    }
+
+
+    /* =========================================================
+       التجاوب
+    ========================================================= */
+
+    @media (max-width: 1100px) {
+        .xef-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .xef-sidebar {
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 760px) {
+        .xef-page {
+            padding: 9px;
+        }
+
+        .xef-hero {
+            min-height: 260px;
+            padding: 24px;
+
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .xef-hero::before {
+            width: 300px;
+            height: 300px;
+
+            top: -210px;
+            left: -130px;
+        }
+
+        .xef-hero-actions {
+            width: 100%;
+
+            flex-wrap: wrap;
+        }
+
+        .xef-back-button,
+        .xef-dashboard-button {
+            flex: 1;
+        }
+
+        .xef-fields-grid,
+        .xef-sidebar {
+            grid-template-columns: 1fr;
+        }
+
+        .xef-form-footer {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .xef-form-main-actions {
+            display: grid;
+            grid-template-columns: 1fr;
+        }
+
+        .xef-form-note {
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="xef-page">
+
+    <!-- ==================================================
+         رأس صفحة الفلاتر
+    ================================================== -->
+    <section class="xef-hero">
+
+        <div class="xef-hero-content">
+
+            <div class="xef-eyebrow">
+
+                <span class="xef-eyebrow-icon">
+                    <svg
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                    >
+                        <path d="M4 5h16"></path>
+                        <path d="M7 12h10"></path>
+                        <path d="M10 19h4"></path>
+                    </svg>
+                </span>
+
+                <span>
+                    مركز التصدير
+                </span>
+            </div>
+
+            <h1>
+                فلاتر
+                <span class="xef-report-name">
+                    {{ report.title|default:"التقرير" }}
+                </span>
+            </h1>
+
+            <p>
+                حدّد البيانات المطلوبة باستخدام خيارات البحث والتاريخ،
+                ثم عاين النتائج أو صدّر التقرير بالصيغة المناسبة.
+            </p>
+        </div>
+
+        <div class="xef-hero-actions">
+
+            <a
+                href="javascript:history.back()"
+                class="xef-back-button"
+            >
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <path d="m9 6 6 6-6 6"></path>
+                </svg>
+
+                <span>العودة</span>
+            </a>
+
+            <a
+                href="{% url 'exports_center:dashboard' %}"
+                class="xef-dashboard-button"
+            >
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <rect
+                        x="4"
+                        y="4"
+                        width="6"
+                        height="6"
+                    ></rect>
+
+                    <rect
+                        x="14"
+                        y="4"
+                        width="6"
+                        height="6"
+                    ></rect>
+
+                    <rect
+                        x="4"
+                        y="14"
+                        width="6"
+                        height="6"
+                    ></rect>
+
+                    <rect
+                        x="14"
+                        y="14"
+                        width="6"
+                        height="6"
+                    ></rect>
+                </svg>
+
+                <span>مركز التصدير</span>
+            </a>
+        </div>
+    </section>
+
+    <div class="xef-layout">
+
+        <!-- ==================================================
+             نموذج الفلاتر
+        ================================================== -->
+        <form
+            method="get"
+            action=""
+            class="xef-filter-card"
+        >
+
+            <header class="xef-card-heading">
+
+                <div class="xef-card-title">
+
+                    <span class="xef-card-title-icon">
+                        <svg
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <path d="M4 5h16"></path>
+                            <path d="M7 12h10"></path>
+                            <path d="M10 19h4"></path>
+                        </svg>
+                    </span>
+
+                    <div>
+                        <h2>
+                            خيارات تصفية البيانات
+                        </h2>
+
+                        <p>
+                            اترك الحقول فارغة لعرض جميع السجلات.
+                        </p>
+                    </div>
+                </div>
+
+                <span class="xef-filter-status">
+                    جاهز للتصفية
+                </span>
+            </header>
+
+            <div class="xef-fields-grid">
+
+                {% if filter_form %}
+
+                    {% for field in filter_form %}
+
+                        <div
+                            class="
+                                xef-field
+                                {% if field.errors %}
+                                    has-error
+                                {% endif %}
+                                {% if field.field.widget.input_type == 'textarea' %}
+                                    full-width
+                                {% endif %}
+                            "
+                        >
+                            <label for="{{ field.id_for_label }}">
+
+                                <span>
+                                    {{ field.label }}
+                                </span>
+
+                                {% if field.field.required %}
+                                    <span class="xef-label-required">
+                                        *
+                                    </span>
+                                {% endif %}
+                            </label>
+
+                            {{ field }}
+
+                            {% if field.help_text %}
+                                <small>
+                                    {{ field.help_text }}
+                                </small>
+                            {% endif %}
+
+                            {% for error in field.errors %}
+                                <span class="xef-field-error">
+                                    {{ error }}
+                                </span>
+                            {% endfor %}
+                        </div>
+
+                    {% endfor %}
+
+                {% else %}
+
+                    <div class="xef-field full-width">
+
+                        <label for="id_q">
+                            البحث
+                        </label>
+
+                        <input
+                            type="search"
+                            id="id_q"
+                            name="q"
+                            value="{{ request.GET.q|default:'' }}"
+                            placeholder="ابحث باسم الموظف أو الرقم أو أي بيانات أخرى..."
+                            autocomplete="off"
+                        >
+
+                        <small>
+                            يمكنك البحث باستخدام كلمة أو جزء من الكلمة.
+                        </small>
+                    </div>
+
+                    <div class="xef-field">
+
+                        <label for="id_date_from">
+                            من تاريخ
+                        </label>
+
+                        <input
+                            type="date"
+                            id="id_date_from"
+                            name="date_from"
+                            value="{{ request.GET.date_from|default:'' }}"
+                        >
+                    </div>
+
+                    <div class="xef-field">
+
+                        <label for="id_date_to">
+                            إلى تاريخ
+                        </label>
+
+                        <input
+                            type="date"
+                            id="id_date_to"
+                            name="date_to"
+                            value="{{ request.GET.date_to|default:'' }}"
+                        >
+                    </div>
+
+                {% endif %}
+            </div>
+
+            <footer class="xef-form-footer">
+
+                <div class="xef-form-main-actions">
+
+                    <button
+                        type="submit"
+                        class="xef-apply-button"
+                    >
+                        <svg
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <path d="M4 5h16"></path>
+                            <path d="M7 12h10"></path>
+                            <path d="M10 19h4"></path>
+                        </svg>
+
+                        <span>
+                            تطبيق الفلاتر
+                        </span>
+                    </button>
+
+                    <a
+                        href="{% url 'exports_center:filters' report_key=report_key %}"
+                        class="xef-reset-button"
+                    >
+                        <svg
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <path d="M4 12a8 8 0 1 0 2-5.3"></path>
+                            <path d="M4 4v6h6"></path>
+                        </svg>
+
+                        <span>
+                            إعادة التعيين
+                        </span>
+                    </a>
+                </div>
+
+                <div class="xef-form-note">
+
+                    <svg
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                    >
+                        <circle
+                            cx="12"
+                            cy="12"
+                            r="9"
+                        ></circle>
+
+                        <path d="M12 8v5"></path>
+                        <circle
+                            cx="12"
+                            cy="17"
+                            r="1"
+                        ></circle>
+                    </svg>
+
+                    <span>
+                        سيتم تطبيق الفلاتر على المعاينة وملفات التصدير.
+                    </span>
+                </div>
+            </footer>
+        </form>
+
+        <!-- ==================================================
+             الأدوات الجانبية
+        ================================================== -->
+        <aside class="xef-sidebar">
+
+            <section class="xef-sidebar-card highlight">
+
+                <div class="xef-sidebar-heading">
+
+                    <span class="xef-sidebar-heading-icon">
+                        <svg
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <path d="M12 3v12"></path>
+                            <path d="m7 10 5 5 5-5"></path>
+                            <path d="M5 21h14"></path>
+                        </svg>
+                    </span>
+
+                    <div>
+                        <h3>
+                            الإجراءات السريعة
+                        </h3>
+
+                        <small>
+                            معاينة أو تصدير التقرير
+                        </small>
+                    </div>
+                </div>
+
+                <p class="xef-sidebar-description">
+                    ستُحفظ خيارات الفلاتر الحالية داخل روابط المعاينة
+                    والتصدير.
+                </p>
+
+                <div class="xef-action-list">
+
+                    <a
+                        href="{% url 'exports_center:preview' report_key=report_key %}?{{ request.GET.urlencode }}"
+                        class="xef-preview-button"
+                    >
+                        <svg
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <path
+                                d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"
+                            ></path>
+
+                            <circle
+                                cx="12"
+                                cy="12"
+                                r="2.5"
+                            ></circle>
+                        </svg>
+
+                        <span>
+                            معاينة النتائج
+                        </span>
+                    </a>
+
+                    <a
+                        href="{% url 'exports_center:export' report_key=report_key export_format='excel' %}?{{ request.GET.urlencode }}"
+                        class="xef-export-button excel"
+                    >
+                        <span>
+                            <span class="xef-format-icon">
+                                X
+                            </span>
+
+                            Excel
+                        </span>
+
+                        <svg
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <path d="M12 3v12"></path>
+                            <path d="m7 10 5 5 5-5"></path>
+                        </svg>
+                    </a>
+
+                    <a
+                        href="{% url 'exports_center:export' report_key=report_key export_format='pdf' %}?{{ request.GET.urlencode }}"
+                        class="xef-export-button pdf"
+                    >
+                        <span>
+                            <span class="xef-format-icon">
+                                PDF
+                            </span>
+
+                            PDF
+                        </span>
+
+                        <svg
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <path d="M12 3v12"></path>
+                            <path d="m7 10 5 5 5-5"></path>
+                        </svg>
+                    </a>
+
+                    <a
+                        href="{% url 'exports_center:export' report_key=report_key export_format='csv' %}?{{ request.GET.urlencode }}"
+                        class="xef-export-button csv"
+                    >
+                        <span>
+                            <span class="xef-format-icon">
+                                CSV
+                            </span>
+
+                            CSV
+                        </span>
+
+                        <svg
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <path d="M12 3v12"></path>
+                            <path d="m7 10 5 5 5-5"></path>
+                        </svg>
+                    </a>
+                </div>
+            </section>
+
+            <section class="xef-sidebar-card">
+
+                <div class="xef-sidebar-heading">
+
+                    <span class="xef-sidebar-heading-icon">
+                        <svg
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <circle
+                                cx="12"
+                                cy="12"
+                                r="9"
+                            ></circle>
+
+                            <path d="M12 8v5"></path>
+
+                            <circle
+                                cx="12"
+                                cy="17"
+                                r="1"
+                            ></circle>
+                        </svg>
+                    </span>
+
+                    <div>
+                        <h3>
+                            إرشادات الاستخدام
+                        </h3>
+
+                        <small>
+                            للحصول على نتائج دقيقة
+                        </small>
+                    </div>
+                </div>
+
+                <ul class="xef-tips">
+                    <li>
+                        اترك جميع الحقول فارغة لعرض التقرير كاملًا.
+                    </li>
+
+                    <li>
+                        يمكنك تحديد نطاق زمني باستخدام تاريخ البداية
+                        والنهاية.
+                    </li>
+
+                    <li>
+                        استخدم المعاينة للتأكد من النتائج قبل التصدير.
+                    </li>
+
+                    <li>
+                        الصيغ المتاحة هي Excel وPDF وCSV.
+                    </li>
+                </ul>
+            </section>
+        </aside>
+    </div>
+</main>
+{% endblock %}

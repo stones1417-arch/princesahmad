@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>تقرير الوردية</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Tahoma,Arial,sans-serif;color:#17211e;font-size:9px}
+.header{text-align:center;border-bottom:3px solid #d4af37;padding-bottom:12px;margin-bottom:14px}
+.header h1{margin:0;color:#064e3b;font-size:17px}
+.header h2{margin:6px 0;color:#0f7b5c;font-size:22px}
+.meta{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:15px}
+.meta div{padding:9px;border:1px solid #dde6e2;border-radius:7px;background:#f7faf8;text-align:center}
+.section{margin-bottom:18px;page-break-inside:avoid}
+.section h3{margin:0 0 8px;padding:8px;border-radius:7px;background:#0f7b5c;color:#fff;text-align:center;font-size:12px}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+thead{display:table-header-group}
+tr{page-break-inside:avoid}
+th{background:#064e3b;color:#fff;border:1px solid #0b6c52;padding:6px}
+td{border:1px solid #dde6e2;padding:5px;text-align:center;overflow-wrap:anywhere}
+tbody tr:nth-child(even){background:#f7faf8}
+.empty{padding:18px;color:#68746f;font-weight:bold}
+</style>
+</head>
+<body>
+<header class="header">
+  <h1>الهيئة العامة للعناية بشؤون المسجد الحرام والمسجد النبوي</h1>
+  <h2>منصة أبواب - تقرير الوردية</h2>
+</header>
+
+<div class="meta">
+  <div><b>الوردية</b><br>{{ shift_plan.shift_type.name }}</div>
+  <div><b>التاريخ</b><br>{{ shift_plan.date }}</div>
+  <div><b>الحالة</b><br>{{ shift_plan.get_status_display }}</div>
+</div>
+
+{% if section == "all" or section == "distribution" %}
+<section class="section">
+  <h3>توزيع الموظفين على الأبواب</h3>
+  <table>
+    <thead><tr><th>الباب</th><th>الموظف</th><th>الرقم الوظيفي</th><th>الدور</th><th>مشرف</th><th>ملاحظات</th></tr></thead>
+    <tbody>
+      {% for item in distribution %}
+      <tr>
+        <td>{{ item.door }}</td>
+        <td>{{ item.employee.full_name }}</td>
+        <td>{{ item.employee.employee_number }}</td>
+        <td>{{ item.get_role_display }}</td>
+        <td>{% if item.is_supervisor %}نعم{% else %}لا{% endif %}</td>
+        <td>{{ item.notes|default:"—" }}</td>
+      </tr>
+      {% empty %}<tr><td colspan="6" class="empty">لا توجد بيانات توزيع لهذه الوردية.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if section == "all" or section == "maintenance" %}
+<section class="section">
+  <h3>طلبات الصيانة</h3>
+  <table>
+    <thead><tr><th>رقم الطلب</th><th>الباب</th><th>الوصف</th><th>الأولوية</th><th>الحالة</th><th>الفني</th><th>التاريخ</th></tr></thead>
+    <tbody>
+      {% for item in maintenance %}
+      <tr>
+        <td>{{ item.request_number }}</td>
+        <td>{{ item.door_shift.door_number|default:"—" }}</td>
+        <td>{{ item.description }}</td>
+        <td>{{ item.get_priority_display }}</td>
+        <td>{{ item.get_status_display }}</td>
+        <td>{{ item.technician_name|default:"—" }}</td>
+        <td>{{ item.created_at|date:"Y-m-d H:i" }}</td>
+      </tr>
+      {% empty %}<tr><td colspan="7" class="empty">لا توجد طلبات صيانة لهذه الوردية.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if section == "all" or section == "incidents" %}
+<section class="section">
+  <h3>البلاغات التشغيلية</h3>
+  <table>
+    <thead><tr><th>رقم البلاغ</th><th>الباب</th><th>النوع</th><th>الأولوية</th><th>الحالة</th><th>الوصف</th><th>التاريخ</th></tr></thead>
+    <tbody>
+      {% for item in incidents %}
+      <tr>
+        <td>{{ item.incident_number }}</td>
+        <td>{{ item.door_shift.door_number|default:"—" }}</td>
+        <td>{{ item.get_incident_type_display }}</td>
+        <td>{{ item.get_priority_display }}</td>
+        <td>{{ item.get_status_display }}</td>
+        <td>{{ item.description }}</td>
+        <td>{{ item.created_at|date:"Y-m-d H:i" }}</td>
+      </tr>
+      {% empty %}<tr><td colspan="7" class="empty">لا توجد بلاغات لهذه الوردية.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+</body>
+</html>

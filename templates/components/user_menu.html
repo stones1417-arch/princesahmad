@@ -1,0 +1,181 @@
+{% if user.is_authenticated %}
+
+< </div><div class="profile-dropdown">
+
+    <a
+        href="{% url 'accounts:profile' %}"
+        class="profile-trigger"
+    >
+
+        <span class="profile-trigger-avatar">
+
+            {% if user.first_name %}
+                {{ user.first_name|slice:":1"|upper }}
+            {% else %}
+                {{ user.username|slice:":1"|upper }}
+            {% endif %}
+
+        </span>
+
+        <span class="profile-trigger-info">
+
+            <strong>
+                {{ user.get_full_name|default:user.username }}
+            </strong>
+
+            <small>
+                الحساب الشخصي
+            </small>
+
+        </span>
+
+    </a>
+
+    <button
+        type="button"
+        class="profile-arrow"
+    >
+        ▾
+    </button>
+
+    <div class="profile-dropdown-menu">
+
+        <a href="{% url 'accounts:profile' %}">
+            👤 الملف الشخصي
+        </a>
+
+        <a href="{% url 'accounts:password-change' %}">
+            🔐 تغيير كلمة المرور
+        </a>
+
+        <a href="{% url 'dashboard:system-logs' %}">
+            📋 سجل النشاط
+        </a>
+
+        <hr>
+
+        <form
+            method="post"
+            action="{% url 'logout' %}"
+        >
+            {% csrf_token %}
+
+            <button
+                type="submit"
+                class="profile-logout-button"
+            >
+                🚪 تسجيل الخروج
+            </button>
+
+        </form>
+
+    </div>
+
+</div>
+
+        <div class="profile-menu-status">
+
+            <span class="profile-online-dot"></span>
+
+            <span>
+                الحساب نشط
+            </span>
+
+        </div>
+
+        <div class="profile-menu-links">
+
+            <a href="{% url 'accounts:profile' %}">
+                <span class="profile-menu-link-icon">👤</span>
+
+                <span>
+                    الملف الشخصي
+                </span>
+            </a>
+
+            <a href="#">
+                <span class="profile-menu-link-icon">🔐</span>
+
+                <span>
+                    تغيير كلمة المرور
+                </span>
+            </a>
+
+            <a href="{% url 'notifications:list' %}">
+
+                <span class="profile-menu-link-icon">🔔</span>
+
+                <span>
+                    الإشعارات
+                </span>
+
+                {% if unread_notifications_count %}
+                    <span class="profile-menu-count">
+                        {{ unread_notifications_count }}
+                    </span>
+                {% endif %}
+
+            </a>
+
+            {% if user.is_staff %}
+
+                <a href="{% url 'dashboard:system-logs' %}">
+                    <span class="profile-menu-link-icon">📋</span>
+
+                    <span>
+                        سجل النشاط
+                    </span>
+                </a>
+
+            {% endif %}
+
+        </div>
+
+        <div class="profile-menu-footer">
+
+            <form
+                method="post"
+                action="{% url 'logout' %}"
+            >
+                {% csrf_token %}
+
+                <button
+                    type="submit"
+                    class="profile-logout-button"
+                >
+                    <span>🚪</span>
+
+                    <span>
+                        تسجيل الخروج
+                    </span>
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% else %}
+
+<div class="user-menu">
+
+    <a
+        href="{% url 'accounts:login' %}"
+        class="btn btn-login"
+    >
+        تسجيل الدخول
+    </a>
+
+    <a
+        href="{% url 'accounts:register' %}"
+        class="btn btn-register"
+    >
+        إنشاء حساب
+    </a>
+
+</div>
+
+{% endif %}

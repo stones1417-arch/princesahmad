@@ -1,0 +1,924 @@
+{% include "header.html" %}
+
+<main>
+<style>
+/* =========================
+   THEME / BASE
+========================= */
+:root{
+  --bg: #f7f7f7;
+  --card: #ffffff;
+  --muted: rgba(17,17,17,.58);
+  --border: rgba(15, 23, 42, .08);
+  --shadow: 0 22px 55px rgba(0,0,0,.08);
+  --shadow-soft: 0 16px 32px rgba(0,0,0,.08);
+  --glass: rgba(255,255,255,.72);
+  --glass-border: rgba(255,255,255,.55);
+
+  --ok: #22c55e;
+  --bad: #ef4444;
+  --warn: #facc15;
+  --info: #3b82f6;
+
+  --ok-bg: #dcfce7;
+  --bad-bg:#fee2e2;
+  --warn-bg:#fef9c3;
+  --info-bg:#dbeafe;
+}
+/* =========================
+   MODAL
+========================= */
+.modal-backdrop{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.55);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:9999;
+}
+
+.modal-backdrop.active{ display:flex; }
+
+.modal{
+  width:420px;
+  background:rgba(255,255,255,.9);
+  border-radius:24px;
+  border:1px solid rgba(0,0,0,.1);
+  box-shadow:0 30px 80px rgba(0,0,0,.25);
+  backdrop-filter: blur(12px);
+}
+
+.modal-header{
+  padding:18px 22px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  border-bottom:1px solid rgba(0,0,0,.08);
+}
+
+.modal-header h3{
+  margin:0;
+  font-size:16px;
+  font-weight:900;
+}
+
+.modal-close{
+  background:none;
+  border:none;
+  font-size:20px;
+  cursor:pointer;
+}
+
+.modal-body{
+  padding:22px;
+}
+
+.modal-footer{
+  padding:16px 22px;
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  border-top:1px solid rgba(0,0,0,.08);
+}
+
+.form-group{
+  margin-bottom:14px;
+}
+
+.form-group label{
+  font-size:13px;
+  font-weight:900;
+  display:block;
+  margin-bottom:6px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea{
+  width:100%;
+  padding:10px 12px;
+  border-radius:12px;
+  border:1px solid rgba(0,0,0,.15);
+  font-size:13px;
+}
+
+.form-group textarea{
+  resize:none;
+  height:90px;
+}
+
+.btn{
+  padding:10px 16px;
+  border-radius:12px;
+  font-size:13px;
+  font-weight:900;
+  cursor:pointer;
+  border:none;
+}
+
+.btn.primary{
+  background:var(--gold);
+}
+
+.btn.ghost{
+  background:transparent;
+  border:1px solid rgba(0,0,0,.2);
+}
+
+body{
+  background:
+    radial-gradient(circle at 10% 10%, rgba(212,175,55,.10), transparent 35%),
+    radial-gradient(circle at 80% 15%, rgba(15,123,92,.10), transparent 40%),
+    radial-gradient(circle at 60% 90%, rgba(59,130,246,.08), transparent 45%),
+    var(--bg);
+}
+
+/* =========================
+   DASHBOARD ROOT
+========================= */
+.dashboard{
+  padding: 28px 26px 90px;
+  max-width: 1720px;
+  margin: auto;
+}
+
+/* =========================
+   TOP OP BAR
+========================= */
+.op-bar{
+  display:grid;
+  grid-template-columns: 2.2fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.op-card{
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(10px);
+  border-radius: 22px;
+  padding: 20px 22px;
+  position: relative;
+  overflow:hidden;
+  box-shadow: 0 10px 30px rgba(0,0,0,.06);
+}
+
+.op-card::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(212,175,55,.22), transparent 50%),
+    radial-gradient(circle at 90% 30%, rgba(15,123,92,.18), transparent 52%);
+  opacity:.55;
+  pointer-events:none;
+}
+
+.op-card::after{
+  content:"";
+  position:absolute;
+  right:0; top:0;
+  width: 6px; height:100%;
+  background: var(--gold);
+  opacity:.9;
+}
+
+.op-title{
+  position:relative;
+  z-index:1;
+  font-size: 12px;
+  color: rgba(17,17,17,.65);
+  letter-spacing:.3px;
+}
+
+.op-value{
+  position:relative;
+  z-index:1;
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--green-dark);
+  margin: 6px 0 4px;
+}
+
+.op-sub{
+  position:relative;
+  z-index:1;
+  font-size: 12px;
+  color: rgba(17,17,17,.55);
+}
+
+/* =========================
+   KPI PANEL
+========================= */
+.panel{
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(10px);
+  border-radius: 26px;
+  padding: 22px;
+  box-shadow: var(--shadow);
+}
+
+.panel-head{
+  display:flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.panel h3{
+  margin:0;
+  font-size: 18px;
+  color: var(--green-dark);
+  letter-spacing:.2px;
+}
+
+.panel-desc{
+  font-size:12px;
+  color: rgba(17,17,17,.55);
+  margin-top:6px;
+}
+
+.kpis{
+  display:grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px,1fr));
+  gap: 14px;
+  margin-top: 12px;
+  margin-bottom: 8px;
+}
+
+.kpi{
+  background: rgba(255,255,255,.78);
+  border: 1px solid rgba(17,17,17,.06);
+  border-radius: 18px;
+  padding: 14px 14px 12px;
+  position:relative;
+  overflow:hidden;
+}
+
+.kpi::before{
+  content:"";
+  position:absolute;
+  inset:auto 0 0 0;
+  height: 4px;
+  background: var(--gold);
+  opacity:.55;
+}
+
+.kpi .label{
+  font-size: 12px;
+  color: rgba(17,17,17,.60);
+}
+
+.kpi .value{
+  font-size: 28px;
+  font-weight: 950;
+  margin-top: 6px;
+}
+
+.kpi.open   .value{ color: var(--ok); }
+.kpi.closed .value{ color: var(--bad); }
+.kpi.maintenance .value{ color: #a16207; }
+.kpi.secured .value{ color: var(--info); }
+.kpi.total .value{ color: var(--green-dark); }
+
+.kpi-badge{
+  position:absolute;
+  top: 12px;
+  left: 12px;
+  font-size: 10px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-weight: 800;
+  border: 1px solid rgba(17,17,17,.06);
+  background: rgba(255,255,255,.78);
+}
+
+.kpi.open .kpi-badge{ background: var(--ok-bg); color:#14532d; }
+.kpi.closed .kpi-badge{ background: var(--bad-bg); color:#7f1d1d; }
+.kpi.maintenance .kpi-badge{ background: var(--warn-bg); color:#78350f; }
+.kpi.secured .kpi-badge{ background: var(--info-bg); color:#1e3a8a; }
+.kpi.total .kpi-badge{ background: rgba(212,175,55,.18); color:#854d0e; }
+
+/* =========================
+   DOOR SECTIONS
+========================= */
+.door-section{
+  margin-top: 18px;
+  margin-bottom: 22px;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(17,17,17,.06);
+  background: rgba(255,255,255,.62);
+}
+
+.section-head{
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.section-title{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 950;
+  margin:0;
+}
+
+.section-chip{
+  font-size: 11px;
+  font-weight: 900;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(17,17,17,.08);
+  background: rgba(255,255,255,.78);
+  color: rgba(17,17,17,.75);
+}
+
+.south .section-title{ color:#92400e; }
+.west  .section-title{ color:#6b21a8; }
+.north .section-title{ color:#1e3a8a; }
+.east  .section-title{ color:#065f46; }
+.southeast .section-title{ color:#854d0e; }
+.unknown .section-title{ color:#6b7280; }
+
+/* Counters pills */
+.counters{
+  display:flex;
+  gap: 8px;
+  flex-wrap:wrap;
+}
+
+.counter{
+  font-size: 11px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 900;
+  border: 1px solid rgba(17,17,17,.06);
+  background: rgba(255,255,255,.75);
+}
+
+.counter.open{ background: var(--ok-bg); color:#14532d; }
+.counter.closed{ background: var(--bad-bg); color:#7f1d1d; }
+.counter.maintenance{ background: var(--warn-bg); color:#78350f; }
+.counter.secured{ background: var(--info-bg); color:#1e3a8a; }
+
+/* =========================
+   DOORS GRID / CARD
+========================= */
+.doors-grid{
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px,1fr));
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.door-card{
+  background: rgba(255,255,255,.86);
+  border: 1px solid rgba(17,17,17,.08);
+  border-radius: 18px;
+  padding: 14px 14px 12px;
+  position:relative;
+  transition: transform .25s ease, box-shadow .25s ease;
+  overflow:hidden;
+}
+
+.door-card:hover{
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-soft);
+}
+
+.door-card::before{
+  content:"";
+  position:absolute;
+  right:0; top:0;
+  width: 6px;
+  height: 100%;
+  opacity:.95;
+}
+
+.door-num{
+  font-size: 18px;
+  font-weight: 950;
+  display:flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.door-meta{
+  font-size: 12px;
+  color: rgba(17,17,17,.62);
+  margin-top: 6px;
+  display:flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.door-status{
+  position:absolute;
+  top: 12px;
+  left: 12px;
+  font-size: 10px;
+  font-weight: 950;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(17,17,17,.06);
+  background: rgba(255,255,255,.78);
+}
+
+/* states */
+.door-card.open::before{ background: var(--ok); }
+.door-card.closed::before{ background: var(--bad); }
+.door-card.maintenance::before{ background: var(--warn); }
+.door-card.secured::before{ background: var(--info); }
+
+.door-card.open .door-status{ background: var(--ok-bg); color:#14532d; }
+.door-card.closed .door-status{ background: var(--bad-bg); color:#7f1d1d; }
+.door-card.maintenance .door-status{ background: var(--warn-bg); color:#78350f; }
+.door-card.secured .door-status{ background: var(--info-bg); color:#1e3a8a; }
+
+.door-hint{
+  margin-top: 10px;
+  font-size: 11px;
+  color: rgba(17,17,17,.55);
+  opacity: .9;
+}
+
+/* Responsive */
+@media (max-width: 1200px){
+  .op-bar{ grid-template-columns: 1fr; }
+}
+
+/* Dark mode friendly (if you already have body.dark-mode) */
+body.dark-mode .op-card,
+body.dark-mode .panel{
+  background: rgba(15,15,15,.72);
+  border-color: rgba(255,255,255,.08);
+}
+
+body.dark-mode .panel h3,
+body.dark-mode .op-value{ color:#f6e27a; }
+
+body.dark-mode .kpi,
+body.dark-mode .door-section,
+body.dark-mode .door-card{
+  background: rgba(17,17,17,.72);
+  border-color: rgba(255,255,255,.08);
+}
+
+body.dark-mode .op-title,
+body.dark-mode .op-sub,
+body.dark-mode .panel-desc,
+body.dark-mode .door-meta,
+body.dark-mode .door-hint{
+  color: rgba(255,255,255,.68);
+}
+</style>
+
+<section class="dashboard">
+
+  <!-- =========================
+       OP BAR
+  ========================= -->
+  <div class="op-bar">
+    <div class="op-card">
+      <div class="op-title">الحالة التشغيلية</div>
+      <div class="op-value">مستقرة</div>
+      <div class="op-sub">لا توجد أعطال حرجة</div>
+    </div>
+    <div class="op-card">
+      <div class="op-title">الوردية الحالية</div>
+      <div class="op-value">مسائية</div>
+      <div class="op-sub">16:00 – 22:00</div>
+    </div>
+    <div class="op-card">
+      <div class="op-title">التغطية الإشرافية</div>
+      <div class="op-value">كاملة</div>
+      <div class="op-sub">6 مشرفين</div>
+    </div>
+  </div>
+
+  <!-- =========================
+       GLOBAL KPIS
+  ========================= -->
+  <div class="panel">
+    <div class="panel-head">
+      <div>
+        <h3>إدارة الأبواب (41 باب)</h3>
+        <div class="panel-desc">هلا وهم هلا فيك زميلنا الكريم </div>
+      </div>
+      <span class="section-chip">يتم تحديث العدادات تلقائياً</span>
+    </div>
+<div style="
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+">
+
+  <input
+    id="searchInput"
+    type="text"
+    placeholder="بحث برقم الباب..."
+    onkeyup="applyFilters()"
+    style="
+      padding:10px 14px;
+      border-radius:12px;
+      border:1px solid rgba(0,0,0,.15);
+      font-size:13px;
+      min-width:200px;
+    "
+  >
+
+  <select id="statusFilter" onchange="applyFilters()"
+    style="padding:10px;border-radius:12px;font-size:13px;">
+    <option value="all">كل الحالات</option>
+    <option value="open">مفتوح</option>
+    <option value="closed">مغلق</option>
+    <option value="maintenance">صيانة</option>
+    <option value="secured">مؤمّن</option>
+  </select>
+
+  <select id="directionFilter" onchange="applyFilters()"
+    style="padding:10px;border-radius:12px;font-size:13px;">
+    <option value="all">كل الجهات</option>
+    <option value="south">جنوبية</option>
+    <option value="west">غربية</option>
+    <option value="north">شمالية</option>
+    <option value="east">شرقية</option>
+    <option value="southeast">جنوب شرقي</option>
+    <option value="unknown">غير محدد</option>
+  </select>
+
+  <button onclick="resetFilters()"
+    style="
+      padding:10px 16px;
+      border-radius:12px;
+      border:none;
+      font-size:13px;
+      font-weight:800;
+      cursor:pointer;
+      background:var(--gold);
+      color:#000;
+    ">
+    إعادة تعيين
+  </button>
+
+</div>
+
+    <div class="kpis">
+      <div class="kpi open">
+        <span class="kpi-badge">LIVE</span>
+        <div class="label">مفتوح</div>
+        <div class="value" id="g-open">0</div>
+      </div>
+      <div class="kpi closed">
+        <span class="kpi-badge">LIVE</span>
+        <div class="label">مغلق</div>
+        <div class="value" id="g-closed">0</div>
+      </div>
+      <div class="kpi maintenance">
+        <span class="kpi-badge">LIVE</span>
+        <div class="label">صيانة</div>
+        <div class="value" id="g-maintenance">0</div>
+      </div>
+      <div class="kpi secured">
+        <span class="kpi-badge">LIVE</span>
+        <div class="label">مؤمّن</div>
+        <div class="value" id="g-secured">0</div>
+      </div>
+      <div class="kpi total">
+        <span class="kpi-badge">TOTAL</span>
+        <div class="label">الإجمالي</div>
+        <div class="value" id="g-total">41</div>
+      </div>
+    </div>
+
+    <!-- =========================
+         SOUTH (1-5) with 5 = Quba
+    ========================= -->
+    <div class="door-section south">
+      <div class="section-head">
+        <h4 class="section-title">الجهة الجنوبية</h4>
+        <div class="counters"></div>
+      </div>
+      <div class="doors-grid">
+        {% for n in "12345"|make_list %}
+        <div class="door-card {% cycle 'open' 'closed' 'maintenance' 'secured' %}">
+          <div class="door-num">
+            باب {{ forloop.counter }}
+            {% if forloop.counter == 5 %}
+              <span style="font-size:11px;color:#b45309;font-weight:900;">(قباء)</span>
+            {% endif %}
+          </div>
+          <div class="door-meta">
+            <span>جهة: جنوبية</span>
+            <span>جاهزية</span>
+          </div>
+          <div class="door-status">{% cycle 'مفتوح' 'مغلق' 'صيانة' 'مؤمّن' %}</div>
+          <div class="door-hint">اضغط للتفاصيل لاحقاً</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- =========================
+         WEST (6-13) -> 8 doors
+    ========================= -->
+    <div class="door-section west">
+      <div class="section-head">
+        <h4 class="section-title">الجهة الغربية</h4>
+        <div class="counters"></div>
+      </div>
+      <div class="doors-grid">
+        {% for n in "12345678"|make_list %}
+        <div class="door-card {% cycle 'open' 'closed' 'maintenance' 'secured' %}">
+          <div class="door-num">باب {{ forloop.counter|add:5 }}</div>
+          <div class="door-meta"><span>جهة: غربية</span><span>جاهزية</span></div>
+          <div class="door-status">{% cycle 'مفتوح' 'مغلق' 'صيانة' 'مؤمّن' %}</div>
+          <div class="door-hint">اضغط للتفاصيل لاحقاً</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- =========================
+         NORTH (14-26) -> 13 doors
+    ========================= -->
+    <div class="door-section north">
+      <div class="section-head">
+        <h4 class="section-title">الجهة الشمالية</h4>
+        <div class="counters"></div>
+      </div>
+      <div class="doors-grid">
+        {% for n in "1234567890123"|make_list %}
+        <div class="door-card {% cycle 'open' 'closed' 'maintenance' 'secured' %}">
+          <div class="door-num">باب {{ forloop.counter|add:13 }}</div>
+          <div class="door-meta"><span>جهة: شمالية</span><span>جاهزية</span></div>
+          <div class="door-status">{% cycle 'مفتوح' 'مغلق' 'صيانة' 'مؤمّن' %}</div>
+          <div class="door-hint">اضغط للتفاصيل لاحقاً</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- =========================
+         EAST (27-35) -> 9 doors
+    ========================= -->
+    <div class="door-section east">
+      <div class="section-head">
+        <h4 class="section-title">الجهة الشرقية</h4>
+        <div class="counters"></div>
+      </div>
+      <div class="doors-grid">
+        {% for n in "123456789"|make_list %}
+        <div class="door-card {% cycle 'open' 'closed' 'maintenance' 'secured' %}">
+          <div class="door-num">باب {{ forloop.counter|add:26 }}</div>
+          <div class="door-meta"><span>جهة: شرقية</span><span>جاهزية</span></div>
+          <div class="door-status">{% cycle 'مفتوح' 'مغلق' 'صيانة' 'مؤمّن' %}</div>
+          <div class="door-hint">اضغط للتفاصيل لاحقاً</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- =========================
+         SOUTHEAST (37-41) -> 5 doors
+    ========================= -->
+    <div class="door-section southeast">
+      <div class="section-head">
+        <h4 class="section-title">الجهة الجنوب شرقي</h4>
+        <div class="counters"></div>
+      </div>
+      <div class="doors-grid">
+        {% for n in "12345"|make_list %}
+        <div class="door-card {% cycle 'open' 'closed' 'maintenance' 'secured' %}">
+          <div class="door-num">باب {{ forloop.counter|add:36 }}</div>
+          <div class="door-meta"><span>جهة: جنوب شرقي</span><span>جاهزية</span></div>
+          <div class="door-status">{% cycle 'مفتوح' 'مغلق' 'صيانة' 'مؤمّن' %}</div>
+          <div class="door-hint">اضغط للتفاصيل لاحقاً</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- =========================
+         UNKNOWN (Door 36)
+    ========================= -->
+    <div class="door-section unknown">
+      <div class="section-head">
+        <h4 class="section-title">غير محدد</h4>
+        <div class="counters"></div>
+      </div>
+      <div class="doors-grid">
+        <div class="door-card maintenance">
+          <div class="door-num">باب 36</div>
+          <div class="door-meta"><span>قيد المراجعة</span><span>—</span></div>
+          <div class="door-status">غير محدد</div>
+          <div class="door-hint">تحديث توزيع الباب لاحقاً</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<script>
+function updateCounters() {
+  const global = { open:0, closed:0, maintenance:0, secured:0 };
+
+  document.querySelectorAll(".door-section").forEach(section => {
+    const counts = { open:0, closed:0, maintenance:0, secured:0 };
+
+    section.querySelectorAll(".door-card").forEach(card => {
+      if (card.style.display === "none") return;
+
+      for (const key in counts) {
+        if (card.classList.contains(key)) {
+          counts[key]++;
+          global[key]++;
+        }
+      }
+    });
+
+    const countersBox = section.querySelector(".counters");
+    if (countersBox) {
+      countersBox.innerHTML = `
+        <span class="counter open">مفتوح: ${counts.open}</span>
+        <span class="counter closed">مغلق: ${counts.closed}</span>
+        <span class="counter maintenance">صيانة: ${counts.maintenance}</span>
+        <span class="counter secured">مؤمّن: ${counts.secured}</span>
+      `;
+    }
+  });
+
+  document.getElementById("g-open").textContent = global.open;
+  document.getElementById("g-closed").textContent = global.closed;
+  document.getElementById("g-maintenance").textContent = global.maintenance;
+  document.getElementById("g-secured").textContent = global.secured;
+}
+
+function applyFilters() {
+  const search = document.getElementById("searchInput").value.toLowerCase();
+  const status = document.getElementById("statusFilter").value;
+  const direction = document.getElementById("directionFilter").value;
+
+  document.querySelectorAll(".door-card").forEach(card => {
+    const text = card.innerText.toLowerCase();
+    const cardStatus = ["open","closed","maintenance","secured"].find(s => card.classList.contains(s));
+    const section = card.closest(".door-section");
+    const sectionClass = section ? section.className : "";
+
+    let visible = true;
+
+    if (search && !text.includes(search)) visible = false;
+    if (status !== "all" && !card.classList.contains(status)) visible = false;
+    if (direction !== "all" && !sectionClass.includes(direction)) visible = false;
+
+    card.style.display = visible ? "" : "none";
+  });
+
+  updateCounters();
+}
+
+function resetFilters() {
+  document.getElementById("searchInput").value = "";
+  document.getElementById("statusFilter").value = "all";
+  document.getElementById("directionFilter").value = "all";
+
+  document.querySelectorAll(".door-card").forEach(card => {
+    card.style.display = "";
+  });
+
+  updateCounters();
+}
+
+document.addEventListener("DOMContentLoaded", updateCounters);
+</script>
+<!-- =========================
+     DOOR STATUS MODAL
+========================= -->
+<div id="doorModal" class="modal-backdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalDoorTitle">تعديل حالة الباب</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+
+    <div class="modal-body">
+
+      <div class="form-group">
+        <label>الحالة الجديدة</label>
+        <select id="modalStatus">
+          <option value="open">مفتوح</option>
+          <option value="closed">مغلق</option>
+          <option value="maintenance">صيانة</option>
+          <option value="secured">مؤمّن</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>سبب التغيير (إجباري)</label>
+        <textarea id="modalReason" placeholder="اكتب سبب تغيير الحالة..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>اسم المسؤول المعتمد</label>
+        <input id="modalApprovedBy" placeholder="اسم المشرف / القائد" />
+      </div>
+
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn ghost" onclick="closeModal()">إلغاء</button>
+      <button class="btn primary" onclick="saveDoorStatus()">اعتماد التغيير</button>
+    </div>
+  </div>
+</div>
+<script>
+/* =========================
+   MODAL STATE
+========================= */
+let activeDoorCard = null;
+
+/* =========================
+   OPEN MODAL
+========================= */
+document.querySelectorAll(".door-card").forEach(card => {
+  card.addEventListener("click", () => {
+    activeDoorCard = card;
+
+    // عنوان المودال
+    document.getElementById("modalDoorTitle").innerText =
+      card.querySelector(".door-num").innerText;
+
+    // تحديد الحالة الحالية
+    const status =
+      card.classList.contains("open") ? "open" :
+      card.classList.contains("closed") ? "closed" :
+      card.classList.contains("maintenance") ? "maintenance" :
+      "secured";
+
+    document.getElementById("modalStatus").value = status;
+    document.getElementById("modalReason").value = "";
+    document.getElementById("modalApprovedBy").value = "";
+
+    document.getElementById("doorModal").classList.add("active");
+  });
+});
+
+/* =========================
+   CLOSE MODAL
+========================= */
+function closeModal(){
+  document.getElementById("doorModal").classList.remove("active");
+}
+
+/* =========================
+   SAVE STATUS
+========================= */
+function saveDoorStatus(){
+  if (!activeDoorCard) return;
+
+  const status = document.getElementById("modalStatus").value;
+  const reason = document.getElementById("modalReason").value.trim();
+  const approved = document.getElementById("modalApprovedBy").value.trim();
+
+  if (!reason || !approved){
+    alert("⚠️ يجب إدخال سبب التغيير واسم المسؤول المعتمد");
+    return;
+  }
+
+  // إزالة الحالات القديمة
+  activeDoorCard.classList.remove("open","closed","maintenance","secured");
+  activeDoorCard.classList.add(status);
+
+  // تحديث النص
+  activeDoorCard.querySelector(".door-status").innerText =
+    status === "open" ? "مفتوح" :
+    status === "closed" ? "مغلق" :
+    status === "maintenance" ? "صيانة" :
+    "مؤمّن";
+
+  // توثيق بصري
+  const hint = activeDoorCard.querySelector(".door-hint");
+  if (hint){
+    hint.innerText = `اعتمد بواسطة: ${approved}`;
+  }
+function openMaintenanceModal(event,btn){
+  closeModal(  updateCounters(); // تحديث العدادات + KPIs
+);
+}
+</script>
+
+
+</main>
+
+{% include "footer.html" %}

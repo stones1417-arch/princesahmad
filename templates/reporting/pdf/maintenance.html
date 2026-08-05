@@ -1,0 +1,186 @@
+<section class="section">
+
+    <div class="section-title">
+        طلبات الصيانة
+    </div>
+
+    <div class="maintenance-card">
+
+        <table class="maintenance-table">
+
+            <thead>
+                <tr>
+                    <th>رقم الطلب</th>
+                    <th>الباب</th>
+                    <th>الأولوية</th>
+                    <th>الحالة</th>
+                    <th>تاريخ الإنشاء</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                {% for req in maintenance_requests %}
+                    <tr>
+                        <td>{{ req.request_number|default:"—" }}</td>
+
+                        <td>
+                            {% if req.door_shift %}
+                                باب {{ req.door_shift.door_number }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if req.priority == "urgent" or req.priority == "high" %}
+                                <span class="badge badge-red">
+                                    {{ req.get_priority_display }}
+                                </span>
+                            {% elif req.priority == "medium" %}
+                                <span class="badge badge-yellow">
+                                    {{ req.get_priority_display }}
+                                </span>
+                            {% else %}
+                                <span class="badge badge-green">
+                                    {{ req.get_priority_display }}
+                                </span>
+                            {% endif %}
+                        </td>
+
+                        <td>{{ req.get_status_display }}</td>
+
+                        <td>{{ req.created_at|date:"Y-m-d H:i" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="5" class="empty-row">
+                            لا توجد طلبات صيانة مرتبطة بهذه الوردية
+                        </td>
+                    </tr>
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+    <div class="maintenance-summary">
+
+        <div>
+            <span>إجمالي الطلبات</span>
+            <strong>{{ report.total_maintenance_requests|default:0 }}</strong>
+        </div>
+
+        <div>
+            <span>المنجزة</span>
+            <strong>{{ report.completed_maintenance_requests|default:0 }}</strong>
+        </div>
+
+        <div>
+            <span>نسبة الإنجاز</span>
+            <strong>{{ maintenance_rate }}%</strong>
+        </div>
+
+    </div>
+
+</section>
+
+<style>
+
+.maintenance-card{
+    background:white;
+    border-radius:14px;
+    overflow:hidden;
+    border:1px solid #e5e7eb;
+    box-shadow:0 4px 10px rgba(0,0,0,.04);
+}
+
+.maintenance-table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+.maintenance-table th{
+    background:#0f7b5c;
+    color:white;
+    padding:6px;
+    font-size:10px;
+}
+
+.maintenance-table td{
+    border:1px solid #e5e7eb;
+    padding:5px;
+    text-align:center;
+    font-size:9px;
+}
+
+.maintenance-table tr:nth-child(even){
+    background:#f9fafb;
+}
+
+.badge{
+    display:inline-block;
+    padding:3px 7px;
+    border-radius:999px;
+    font-size:8px;
+    font-weight:900;
+}
+
+.badge-green{
+    background:#dcfce7;
+    color:#166534;
+}
+
+.badge-yellow{
+    background:#fef3c7;
+    color:#92400e;
+}
+
+.badge-red{
+    background:#fee2e2;
+    color:#991b1b;
+}
+
+.empty-row{
+    color:#6b7280;
+    font-weight:800;
+    padding:8px;
+}
+
+.maintenance-summary{
+    margin-top:8px;
+    background:#ecfdf5;
+    color:#0f7b5c;
+    border-radius:12px;
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:8px;
+    padding:8px;
+}
+
+.maintenance-summary div{
+    text-align:center;
+    background:white;
+    border-radius:10px;
+    padding:7px;
+    border:1px solid #d1fae5;
+}
+
+.maintenance-summary span{
+    display:block;
+    font-size:9px;
+    color:#6b7280;
+    font-weight:800;
+}
+
+.maintenance-summary strong{
+    display:block;
+    margin-top:3px;
+    font-size:16px;
+    font-weight:900;
+    color:#0f7b5c;
+}
+
+</style>

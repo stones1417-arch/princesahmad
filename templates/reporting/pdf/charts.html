@@ -1,0 +1,233 @@
+{% widthratio supervisors_count total_assignments 100 as supervisors_percentage %}
+{% widthratio monitors_count total_assignments 100 as monitors_percentage %}
+{% widthratio technicians_count total_assignments 100 as technicians_percentage %}
+<section class="section">
+
+    <div class="section-title">
+        توزيع الموظفين على الأدوار
+    </div>
+
+    <div class="charts-grid">
+
+        <div class="donut-card">
+
+            <div class="donut-chart" style="--supervisors:{{ supervisors_percentage|default:0 }}; --monitors:{{ monitors_percentage|default:0 }}; --technicians:{{ technicians_percentage|default:0 }};">
+
+                <div class="donut-center">
+                    <strong>{{ total_assignments|default:0 }}</strong>
+                    <span>الموظفون</span>
+                </div>
+
+            </div>
+
+            <div class="legend">
+                <span><i class="legend-green"></i> المشرفون</span>
+                <span><i class="legend-blue"></i> المراقبون</span>
+                <span><i class="legend-gold"></i> الفنيون</span>
+                <span><i class="legend-gray"></i> أخرى</span>
+            </div>
+
+        </div>
+
+        <div class="roles-table-card">
+
+            <table class="roles-table">
+
+                <thead>
+                    <tr>
+                        <th>الدور</th>
+                        <th>العدد</th>
+                        <th>النسبة</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    <tr>
+                        <td>المشرفون</td>
+                        <td>{{ supervisors_count|default:0 }}</td>
+                        <td>
+                            {% if total_assignments %}
+                                {% widthratio supervisors_count total_assignments 100 %}%
+                            {% else %}
+                                0%
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td>المراقبون</td>
+                        <td>{{ monitors_count|default:0 }}</td>
+                        <td>
+                            {% if total_assignments %}
+                                {% widthratio monitors_count total_assignments 100 %}%
+                            {% else %}
+                                0%
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td>الفنيون</td>
+                        <td>{{ technicians_count|default:0 }}</td>
+                        <td>
+                            {% if total_assignments %}
+                                {% widthratio technicians_count total_assignments 100 %}%
+                            {% else %}
+                                0%
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    <tr class="total-row">
+                        <td>الإجمالي</td>
+                        <td>{{ total_assignments|default:0 }}</td>
+                        <td>100%</td>
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</section>
+
+<style>
+
+.charts-grid{
+    display:grid;
+    grid-template-columns:150px 1fr;
+    gap:12px;
+    align-items:center;
+}
+
+.donut-card{
+    background:white;
+    border:1px solid #e5e7eb;
+    border-radius:14px;
+    padding:10px;
+    text-align:center;
+    box-shadow:0 4px 10px rgba(0,0,0,.04);
+}
+
+.donut-chart{
+    width:95px;
+    height:95px;
+    margin:auto;
+    border-radius:50%;
+    background:
+        conic-gradient(
+            #0f7b5c 0 calc(var(--supervisors) * 1%),
+            #2563eb calc(var(--supervisors) * 1%) calc((var(--supervisors) + var(--monitors)) * 1%),
+            #d4af37 calc((var(--supervisors) + var(--monitors)) * 1%) calc((var(--supervisors) + var(--monitors) + var(--technicians)) * 1%),
+            #e5e7eb calc((var(--supervisors) + var(--monitors) + var(--technicians)) * 1%) 100%
+        );
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+.donut-center{
+    width:58px;
+    height:58px;
+    border-radius:50%;
+    background:white;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+}
+
+.donut-center strong{
+    font-size:20px;
+    color:#0f7b5c;
+    font-weight:900;
+    line-height:1;
+}
+
+.donut-center span{
+    font-size:8px;
+    color:#6b7280;
+    font-weight:700;
+}
+
+.legend{
+    margin-top:8px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:4px;
+    font-size:8px;
+    color:#374151;
+    text-align:right;
+}
+
+.legend span{
+    display:flex;
+    align-items:center;
+    gap:4px;
+}
+
+.legend i{
+    width:8px;
+    height:8px;
+    display:inline-block;
+    border-radius:2px;
+}
+
+.legend-green{
+    background:#0f7b5c;
+}
+
+.legend-blue{
+    background:#2563eb;
+}
+
+.legend-gold{
+    background:#d4af37;
+}
+
+.legend-gray{
+    background:#d1d5db;
+}
+
+.roles-table-card{
+    background:white;
+    border-radius:14px;
+    overflow:hidden;
+    border:1px solid #e5e7eb;
+    box-shadow:0 4px 10px rgba(0,0,0,.04);
+}
+
+.roles-table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+.roles-table th{
+    background:#0f7b5c;
+    color:white;
+    padding:7px;
+    font-size:11px;
+}
+
+.roles-table td{
+    border:1px solid #e5e7eb;
+    padding:6px;
+    text-align:center;
+    font-size:10px;
+}
+
+.roles-table tr:nth-child(even){
+    background:#f9fafb;
+}
+
+.roles-table .total-row{
+    background:#ecfdf5;
+    color:#0f7b5c;
+    font-weight:900;
+}
+
+</style>

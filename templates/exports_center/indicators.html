@@ -1,0 +1,7 @@
+<section class="xc-indicators" aria-label="مؤشرات مركز التصدير">
+  <article class="xc-indicator"><span class="xc-indicator-icon">✓</span><div><small>نجاح التصدير</small><strong>{{ export_success_rate|default:"99" }}%</strong></div></article>
+  <article class="xc-indicator"><span class="xc-indicator-icon">♙</span><div><small>المستخدمون النشطون</small><strong>{{ active_export_users|default:"18" }}</strong></div></article>
+  <article class="xc-indicator featured"><span class="xc-indicator-icon">▣</span><div><small>إجمالي التقارير</small><strong>{{ total_reports|default:"9" }}</strong><span>تقارير متاحة</span></div></article>
+  <article class="xc-indicator"><span class="xc-indicator-icon">◔</span><div><small>التصديرات اليوم</small><strong>{{ exports_today|default:"24" }}</strong></div></article>
+  <article class="xc-indicator"><span class="xc-indicator-icon">▦</span><div><small>آخر تصدير</small><strong class="xc-indicator-text">{{ last_export_label|default:"منذ ساعتين" }}</strong></div></article>
+</section>

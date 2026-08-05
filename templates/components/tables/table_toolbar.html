@@ -1,0 +1,17 @@
+<div class="table-toolbar">
+
+    <div class="table-toolbar-title">
+        {% if title %}
+            <h3>{{ title }}</h3>
+        {% endif %}
+
+        {% if subtitle %}
+            <p>{{ subtitle }}</p>
+        {% endif %}
+    </div>
+
+    <div class="table-toolbar-actions">
+        {{ actions }}
+    </div>
+
+</div>

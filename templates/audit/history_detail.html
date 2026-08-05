@@ -1,0 +1,650 @@
+{% extends "base.html" %}
+{% load static audit_tags %}
+
+{% block title %}
+تفاصيل سجل التدقيق
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --detail-primary: #0b4a32;
+        --detail-primary-dark: #062f21;
+        --detail-primary-soft: #eaf5f0;
+        --detail-gold: #d7b65d;
+        --detail-gold-soft: #fff8e6;
+        --detail-danger-soft: #fff0f0;
+        --detail-text: #173229;
+        --detail-muted: #66766f;
+        --detail-border: #dce7e1;
+        --detail-background: #f6f9f7;
+        --detail-white: #ffffff;
+        --detail-shadow:
+            0 14px 38px rgba(6, 47, 33, 0.09);
+    }
+
+    .audit-detail-page,
+    .audit-detail-page * {
+        box-sizing: border-box;
+    }
+
+    .audit-detail-page {
+        direction: rtl;
+        min-height: 100vh;
+        padding: 24px;
+        color: var(--detail-text);
+        background:
+            radial-gradient(
+                circle at top left,
+                rgba(215, 182, 93, 0.11),
+                transparent 28%
+            ),
+            var(--detail-background);
+        font-family:
+            "Tajawal",
+            "Noto Kufi Arabic",
+            "Segoe UI",
+            Tahoma,
+            Arial,
+            sans-serif;
+        text-align: right;
+    }
+
+    .detail-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 17px;
+        padding: 10px 14px;
+        border: 1px solid #cfe0d8;
+        border-radius: 13px;
+        color: var(--detail-primary);
+        background: #ffffff;
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 900;
+        transition:
+            transform 0.2s ease,
+            background 0.2s ease;
+    }
+
+    .detail-back:hover {
+        transform: translateX(2px);
+        background: var(--detail-primary-soft);
+    }
+
+    .detail-hero {
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 20px;
+        padding: 28px;
+        border: 1px solid rgba(215, 182, 93, 0.55);
+        border-radius: 25px;
+        color: #ffffff;
+        background:
+            linear-gradient(
+                135deg,
+                var(--detail-primary-dark),
+                var(--detail-primary)
+            );
+        box-shadow: var(--detail-shadow);
+    }
+
+    .detail-hero::before {
+        content: "";
+        position: absolute;
+        top: -130px;
+        left: -90px;
+        width: 290px;
+        height: 290px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .detail-hero-content,
+    .detail-id {
+        position: relative;
+        z-index: 1;
+    }
+
+    .detail-type {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+        color: #efd98f;
+        font-size: 14px;
+        font-weight: 900;
+    }
+
+    .detail-title {
+        margin: 0;
+        font-size: clamp(25px, 3vw, 38px);
+        font-weight: 900;
+        line-height: 1.4;
+    }
+
+    .detail-action {
+        margin-top: 9px;
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 14px;
+        font-weight: 700;
+    }
+
+    .detail-id {
+        min-width: 145px;
+        padding: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 18px;
+        text-align: center;
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(8px);
+    }
+
+    .detail-id strong {
+        display: block;
+        margin-bottom: 3px;
+        color: #efd98f;
+        font-size: 29px;
+        font-weight: 900;
+    }
+
+    .detail-id span {
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 12px;
+    }
+
+    .detail-grid {
+        display: grid;
+        grid-template-columns:
+            minmax(270px, 0.85fr)
+            minmax(0, 1.8fr);
+        gap: 20px;
+    }
+
+    .detail-card {
+        overflow: hidden;
+        border: 1px solid var(--detail-border);
+        border-radius: 22px;
+        background: #ffffff;
+        box-shadow: var(--detail-shadow);
+    }
+
+    .detail-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+        padding: 18px 21px;
+        border-bottom: 1px solid #edf2ef;
+        background: #ffffff;
+    }
+
+    .detail-card-title {
+        margin: 0;
+        color: var(--detail-primary-dark);
+        font-size: 18px;
+        font-weight: 900;
+    }
+
+    .detail-card-body {
+        padding: 21px;
+    }
+
+    .detail-meta-list {
+        display: grid;
+        gap: 14px;
+    }
+
+    .detail-meta-item {
+        padding: 14px;
+        border: 1px solid #e7efeb;
+        border-radius: 15px;
+        background: #fbfdfc;
+    }
+
+    .detail-meta-label {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--detail-muted);
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .detail-meta-value {
+        color: var(--detail-text);
+        font-size: 13px;
+        font-weight: 900;
+        line-height: 1.7;
+        overflow-wrap: anywhere;
+    }
+
+    .detail-reason {
+        font-weight: 700;
+        line-height: 1.9;
+    }
+
+    .detail-ip {
+        direction: ltr;
+        display: inline-block;
+        font-family:
+            Consolas,
+            "Courier New",
+            monospace;
+    }
+
+    .changes-table-wrap {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .changes-table {
+        width: 100%;
+        min-width: 720px;
+        border-collapse: collapse;
+    }
+
+    .changes-table th {
+        padding: 13px 15px;
+        color: #63736c;
+        background: #f8fbf9;
+        font-size: 12px;
+        font-weight: 900;
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    .changes-table td {
+        padding: 14px 15px;
+        border-top: 1px solid #edf2ef;
+        vertical-align: top;
+        font-size: 13px;
+        line-height: 1.7;
+        overflow-wrap: anywhere;
+    }
+
+    .changed-row {
+        background: var(--detail-gold-soft);
+    }
+
+    .unchanged-row {
+        color: #7f8d87;
+        background: #ffffff;
+    }
+
+    .change-field {
+        direction: ltr;
+        display: inline-block;
+        color: #26463a;
+        font-family:
+            Consolas,
+            "Courier New",
+            monospace;
+        font-size: 12px;
+        font-weight: 900;
+    }
+
+    .change-value {
+        display: block;
+        max-width: 360px;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .change-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 28px;
+        padding: 5px 9px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 900;
+        white-space: nowrap;
+    }
+
+    .change-badge-yes {
+        color: #735300;
+        background: #f6e5a9;
+    }
+
+    .change-badge-no {
+        color: var(--detail-muted);
+        background: #edf2ef;
+    }
+
+    .json-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+        margin-top: 20px;
+    }
+
+    .json-box {
+        overflow: hidden;
+        border: 1px solid var(--detail-border);
+        border-radius: 19px;
+        background: #ffffff;
+        box-shadow:
+            0 10px 28px rgba(6, 47, 33, 0.06);
+    }
+
+    .json-box-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 14px 17px;
+        color: #29473c;
+        font-size: 14px;
+        font-weight: 900;
+    }
+
+    .json-old .json-box-title {
+        background: var(--detail-danger-soft);
+    }
+
+    .json-new .json-box-title {
+        background: var(--detail-primary-soft);
+    }
+
+    .json-content {
+        min-height: 180px;
+        max-height: 420px;
+        margin: 0;
+        padding: 18px;
+        direction: ltr;
+        overflow: auto;
+        color: #29473c;
+        background: #fbfdfc;
+        font-family:
+            Consolas,
+            "Courier New",
+            monospace;
+        font-size: 12px;
+        line-height: 1.8;
+        text-align: left;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .detail-empty {
+        padding: 45px 25px;
+        color: var(--detail-muted);
+        text-align: center;
+    }
+
+    .detail-empty-icon {
+        display: block;
+        margin-bottom: 10px;
+        font-size: 42px;
+    }
+
+    @media (max-width: 1000px) {
+        .detail-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .json-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 650px) {
+        .audit-detail-page {
+            padding: 14px;
+        }
+
+        .detail-hero {
+            align-items: stretch;
+            flex-direction: column;
+            padding: 23px;
+        }
+
+        .detail-id {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% include "components/system_page_nav.html" %}
+<div
+    class="audit-detail-page"
+    dir="rtl"
+    lang="ar"
+>
+    <a
+        href="{% url 'audit:history-list' %}"
+        class="detail-back"
+    >
+        <span aria-hidden="true">←</span>
+        <span>العودة إلى سجل التدقيق</span>
+    </a>
+
+    <section class="detail-hero">
+        <div class="detail-hero-content">
+            <div class="detail-type">
+                <span aria-hidden="true">
+                    {{ record.type_icon }}
+                </span>
+
+                <span>
+                    {{ record.type_label|default:"سجل تدقيق" }}
+                </span>
+            </div>
+
+            <h1 class="detail-title">
+                {{ record.title|default:"تفاصيل سجل التدقيق" }}
+            </h1>
+
+            <div class="detail-action">
+                {{ record.action|default:"تحديث سجل" }}
+            </div>
+        </div>
+
+        <div class="detail-id">
+            <strong>
+                #{{ record.id }}
+            </strong>
+
+            <span>
+                معرّف سجل التدقيق
+            </span>
+        </div>
+    </section>
+
+    <div class="detail-grid">
+        <aside class="detail-card">
+            <header class="detail-card-header">
+                <h2 class="detail-card-title">
+                    معلومات العملية
+                </h2>
+            </header>
+
+            <div class="detail-card-body">
+                <div class="detail-meta-list">
+                    <div class="detail-meta-item">
+                        <span class="detail-meta-label">
+                            نوع السجل
+                        </span>
+
+                        <div class="detail-meta-value">
+                            {{ record.type_icon }}
+                            {{ record.type_label|default:"—" }}
+                        </div>
+                    </div>
+
+                    <div class="detail-meta-item">
+                        <span class="detail-meta-label">
+                            السجل المرتبط
+                        </span>
+
+                        <div class="detail-meta-value">
+                            {{ record.title|default:"—" }}
+                        </div>
+                    </div>
+
+                    <div class="detail-meta-item">
+                        <span class="detail-meta-label">
+                            الإجراء
+                        </span>
+
+                        <div class="detail-meta-value">
+                            {{ record.action|default:"تحديث سجل" }}
+                        </div>
+                    </div>
+
+                    <div class="detail-meta-item">
+                        <span class="detail-meta-label">
+                            تم بواسطة
+                        </span>
+
+                        <div class="detail-meta-value">
+                            {{ record.changed_by_name|default:"عملية نظامية" }}
+                        </div>
+                    </div>
+
+                    <div class="detail-meta-item">
+                        <span class="detail-meta-label">
+                            تاريخ العملية
+                        </span>
+
+                        <div class="detail-meta-value">
+                            {% if record.changed_at %}
+                                {{ record.changed_at|date:"Y-m-d" }}
+                                —
+                                {{ record.changed_at|time:"H:i:s" }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="detail-meta-item">
+                        <span class="detail-meta-label">
+                            عنوان IP
+                        </span>
+
+                        <div class="detail-meta-value">
+                            <span class="detail-ip">
+                                {{ record.ip_address|default:"—" }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="detail-meta-item">
+                        <span class="detail-meta-label">
+                            سبب التغيير
+                        </span>
+
+                        <div class="detail-meta-value detail-reason">
+                            {{ record.reason|default:"لا يوجد سبب مسجل." }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <section class="detail-card">
+            <header class="detail-card-header">
+                <h2 class="detail-card-title">
+                    مقارنة القيم السابقة والجديدة
+                </h2>
+            </header>
+
+            {% if changes %}
+                <div class="changes-table-wrap">
+                    <table class="changes-table">
+                        <thead>
+                            <tr>
+                                <th>الحقل</th>
+                                <th>القيمة السابقة</th>
+                                <th>القيمة الجديدة</th>
+                                <th>الحالة</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for change in changes %}
+                                <tr
+                                    class="{% if change.changed %}changed-row{% else %}unchanged-row{% endif %}"
+                                >
+                                    <td>
+                                        <span class="change-field">
+                                            {{ change.field|default:"—" }}
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        <span class="change-value">
+                                            {{ change.old_value|display_value }}
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        <span class="change-value">
+                                            {{ change.new_value|display_value }}
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        {% if change.changed %}
+                                            <span
+                                                class="change-badge change-badge-yes"
+                                            >
+                                                تم التغيير
+                                            </span>
+                                        {% else %}
+                                            <span
+                                                class="change-badge change-badge-no"
+                                            >
+                                                دون تغيير
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="detail-empty">
+                    <span class="detail-empty-icon">
+                        🗂️
+                    </span>
+
+                    <div>
+                        لا توجد قيم مسجلة للمقارنة.
+                    </div>
+                </div>
+            {% endif %}
+        </section>
+    </div>
+
+    <section class="json-grid">
+        <article class="json-box json-old">
+            <div class="json-box-title">
+                <span aria-hidden="true">◀</span>
+                <span>القيمة السابقة</span>
+            </div>
+
+            <pre class="json-content">{{ record.old_value|pretty_json }}</pre>
+        </article>
+
+        <article class="json-box json-new">
+            <div class="json-box-title">
+                <span aria-hidden="true">▶</span>
+                <span>القيمة الجديدة</span>
+            </div>
+
+            <pre class="json-content">{{ record.new_value|pretty_json }}</pre>
+        </article>
+    </section>
+</div>
+{% endblock %}

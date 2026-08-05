@@ -1,0 +1,3111 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+إدارة توزيع الأبواب
+{% endblock %}
+
+{% block content %}
+
+<div class="distribution-page" dir="rtl">
+
+    <section class="distribution-page-head">
+
+        <div>
+
+            <span class="distribution-page-eyebrow">مركز القيادة الميدانية</span>
+
+            <h1>
+                إدارة توزيع الأبواب
+            </h1>
+
+            {% if active_shift %}
+
+                <p>
+                    الوردية النشطة:
+
+                    <strong>
+                        {{ active_shift.shift_type.name }}
+                    </strong>
+
+                    <span>
+                        — {{ active_shift.date|date:"Y-m-d" }}
+                    </span>
+                </p>
+
+                <span class="distribution-live-status"><i></i> الوردية قيد التشغيل</span>
+
+            {% else %}
+
+                <p class="distribution-danger-text">
+                    لا توجد وردية نشطة حاليًا
+                </p>
+
+            {% endif %}
+
+        </div>
+
+        <div class="distribution-enterprise-actions">
+            <a href="{% url 'distribution:history' %}">سجل تغييرات التوزيع</a>
+            <a href="{% url 'exports_center:dashboard' %}" class="export">تصدير التوزيع</a>
+            <a href="{% url 'ops:operations-center' %}">مركز العمليات</a>
+        </div>
+
+    </section>
+
+    <style>
+    .distribution-enterprise-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.distribution-enterprise-actions a{padding:10px 13px;border:1px solid #cfe0d8;border-radius:10px;background:#fff;color:#0b6b50;text-decoration:none;font-size:11px;font-weight:900}.distribution-enterprise-actions a.export{border-color:#c5a34d;background:#c5a34d;color:#17231e}@media(max-width:700px){.distribution-enterprise-actions{width:100%}.distribution-enterprise-actions a{flex:1;text-align:center}}
+    </style>
+
+
+    {% if active_shift and distribution_report %}
+    <section class="smart-distribution-panel">
+        <div class="smart-distribution-head">
+            <div>
+                <span class="smart-engine-kicker">تحليل لحظي للتغطية</span>
+                <h2>محرك التوزيع الذكي</h2>
+                <p>فحص التغطية، توزيع الموظفين المتاحين، وإعادة التوازن دون حذف التوزيعات الصحيحة.</p>
+            </div>
+            <span class="smart-quality-badge">{{ distribution_report.quality_label }}</span>
+        </div>
+
+        <div class="smart-quality-progress" aria-label="جودة التوزيع" role="progressbar" aria-valuenow="{{ distribution_report.quality_score }}" aria-valuemin="0" aria-valuemax="100"><i style="width:{{ distribution_report.quality_score }}%"></i></div>
+
+        <div class="smart-distribution-grid">
+            <article><span>نسبة التغطية</span><strong>{{ distribution_report.coverage_percent }}%</strong></article>
+            <article><span>جودة التوزيع</span><strong>{{ distribution_report.quality_score }}%</strong></article>
+            <article><span>بلا مشرف</span><strong>{{ distribution_report.doors_without_supervisor }}</strong></article>
+            <article><span>بلا مراقب</span><strong>{{ distribution_report.doors_without_monitor }}</strong></article>
+            <article><span>متاحون للتوزيع</span><strong>{{ distribution_report.available_employees }}</strong></article>
+            <article><span>في الراحة</span><strong>{{ distribution_report.employees_on_break }}</strong></article>
+        </div>
+
+        <div class="smart-distribution-actions">
+            <button type="button" class="smart-action secondary" id="validateDistributionButton"
+                    data-url="{% url 'distribution:validate' %}">🔍 فحص التوزيع</button>
+
+            <form method="post" action="{% url 'distribution:auto-assign' %}"
+                  onsubmit="return confirm('سيتم توزيع الموظفين المتاحين فقط، دون حذف أي توزيع قائم. هل تريد المتابعة؟');">
+                {% csrf_token %}
+                <button type="submit" class="smart-action primary">⚙️ توزيع تلقائي</button>
+            </form>
+
+            <button
+                type="button"
+                class="smart-action warning"
+                id="previewRebalanceButton"
+                data-url="{% url 'distribution:rebalance-preview' %}"
+            >
+                ⚖️ معاينة إعادة التوازن
+            </button>
+
+            <form
+                method="post"
+                action="{% url 'distribution:rebalance' %}"
+                id="applyRebalanceForm"
+                hidden
+            >
+                {% csrf_token %}
+                <input
+                    type="hidden"
+                    name="reason"
+                    value="تنفيذ خطة إعادة التوازن بعد المعاينة"
+                >
+            </form>
+        </div>
+
+        <div class="smart-result-box" id="distributionValidationResult" hidden></div>
+
+        {% if distribution_report.warnings %}
+        <div class="smart-notes warning-notes">
+            <h3>ملاحظات تشغيلية</h3>
+            {% for warning in distribution_report.warnings %}
+                <p>⚠️ {{ warning }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if distribution_report.suggestions %}
+        <div class="smart-notes suggestion-notes">
+            <h3>اقتراحات التحسين</h3>
+            {% for suggestion in distribution_report.suggestions %}
+                <p>💡 {{ suggestion }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </section>
+    {% endif %}
+
+    <section class="distribution-stats-grid">
+
+        <article class="distribution-stat-card total">
+
+            <div class="distribution-stat-icon">
+                📋
+            </div>
+
+            <div>
+
+                <span>
+                    إجمالي التوزيعات
+                </span>
+
+                <strong>
+                    {{ total_assignments }}
+                </strong>
+
+            </div>
+
+        </article>
+
+        <article class="distribution-stat-card supervisors">
+
+            <div class="distribution-stat-icon">
+                👤
+            </div>
+
+            <div>
+
+                <span>
+                    المشرفون
+                </span>
+
+                <strong>
+                    {{ supervisor_count }}
+                </strong>
+
+            </div>
+
+        </article>
+
+        <article class="distribution-stat-card monitors">
+
+            <div class="distribution-stat-icon">
+                👥
+            </div>
+
+            <div>
+
+                <span>
+                    المراقبون
+                </span>
+
+                <strong>
+                    {{ monitor_count }}
+                </strong>
+
+            </div>
+
+        </article>
+
+        <article class="distribution-stat-card technicians">
+
+            <div class="distribution-stat-icon">
+                🛠️
+            </div>
+
+            <div>
+
+                <span>
+                    الفنيون
+                </span>
+
+                <strong>
+                    {{ technician_count }}
+                </strong>
+
+            </div>
+
+        </article>
+
+        <article class="distribution-stat-card covered">
+
+            <div class="distribution-stat-icon">
+                ✅
+            </div>
+
+            <div>
+
+                <span>
+                    الأبواب المغطاة
+                </span>
+
+                <strong>
+                    {{ covered_doors }}
+                </strong>
+
+            </div>
+
+        </article>
+
+        <article class="distribution-stat-card warning">
+
+            <div class="distribution-stat-icon">
+                ⚠️
+            </div>
+
+            <div>
+
+                <span>
+                    الأبواب غير المغطاة
+                </span>
+
+                <strong>
+                    {{ uncovered_doors }}
+                </strong>
+
+            </div>
+
+        </article>
+
+    </section>
+
+    <section class="distribution-card">
+
+        <div class="distribution-card-header">
+
+            <div>
+
+                <span class="distribution-section-kicker">إجراء تشغيلي 01</span>
+
+                <h2>
+                    إضافة توزيع جديد
+                </h2>
+
+                <p>
+                    عيّن مشرفًا واحدًا لكل باب، ثم أضف العدد المطلوب من المراقبين والمساندين والفنيين حسب حاجة العمل.
+                </p>
+
+            </div>
+
+            <div class="distribution-card-header-icon">
+                ➕
+            </div>
+
+        </div>
+
+        {% if active_shift %}
+
+            <form
+                method="post"
+                action="{% url 'distribution:create' %}"
+                id="assignmentCreateForm"
+            >
+
+                {% csrf_token %}
+
+                <div class="assignment-form-grid">
+
+                    <div class="form-field">
+
+                        <label for="employeeSelect">
+                            الموظف
+                            <small>مطلوب</small>
+                        </label>
+
+                        <select
+                            name="employee_id"
+                            id="employeeSelect"
+                            required
+                        >
+
+                            <option value="">
+                                اختر الموظف
+                            </option>
+
+                            {% for employee in available_employees %}
+
+                                <option
+                                    value="{{ employee.id }}"
+                                    data-name="{{ employee.full_name|escape }}"
+                                    data-phone="{{ employee.phone_number|default:''|escape }}"
+                                    data-number="{{ employee.employee_number|default:''|escape }}"
+                                >
+                                    {{ employee.full_name }}
+                                    —
+                                    {{ employee.employee_number }}
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+                    <div class="form-field">
+
+                        <label for="doorSelect">
+                            الباب
+                            <small>مطلوب</small>
+                        </label>
+
+                        <select
+                            name="door_id"
+                            id="doorSelect"
+                            required
+                        >
+
+                            <option value="">
+                                اختر الباب
+                            </option>
+
+                            {% for door in doors %}
+
+                                <option
+                                    value="{{ door.id }}"
+                                    data-number="{{ door.door_number }}"
+                                    data-supervisors="{{ door.supervisors_count|default:0 }}"
+                                    data-monitors="{{ door.monitors_count|default:0 }}"
+                                    data-support="{{ door.support_count|default:0 }}"
+                                    data-technicians="{{ door.technicians_count|default:0 }}"
+                                    data-total="{{ door.active_assignments_count|default:0 }}"
+                                >
+                                    باب {{ door.door_number }}
+                                    —
+                                    {% if door.supervisors_count %}
+                                        يوجد مشرف
+                                    {% else %}
+                                        بدون مشرف
+                                    {% endif %}
+                                    —
+                                    المراقبون: {{ door.monitors_count|default:0 }}
+                                    —
+                                    الإجمالي: {{ door.active_assignments_count|default:0 }}
+                                </option>
+
+                            {% empty %}
+
+                                <option value="" disabled>
+                                    لا توجد أبواب تشغيلية
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+                    <div class="form-field">
+
+                        <label for="roleSelect">
+                            الدور
+                            <small>مطلوب</small>
+                        </label>
+
+                        <select
+                            name="role"
+                            id="roleSelect"
+                            required
+                        >
+
+                            {% for value, label in role_choices %}
+
+                                <option
+                                    value="{{ value }}"
+                                    data-label="{{ label|escape }}"
+                                >
+                                    {{ label }}
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+                </div>
+
+                <div
+                    class="selected-door-status"
+                    id="selectedDoorStatus"
+                    hidden
+                >
+                    <div class="selected-door-status-head">
+                        <div>
+                            <span>حالة الباب المحدد</span>
+                            <strong id="selectedDoorTitle">لم يتم اختيار باب</strong>
+                        </div>
+
+                        <div
+                            class="selected-door-supervisor-state"
+                            id="selectedDoorSupervisorState"
+                        >
+                            بدون مشرف
+                        </div>
+                    </div>
+
+                    <div class="selected-door-status-grid">
+                        <article>
+                            <span>المشرفون</span>
+                            <strong id="selectedDoorSupervisorsCount">0</strong>
+                        </article>
+
+                        <article>
+                            <span>المراقبون</span>
+                            <strong id="selectedDoorMonitorsCount">0</strong>
+                        </article>
+
+                        <article>
+                            <span>المساندون</span>
+                            <strong id="selectedDoorSupportCount">0</strong>
+                        </article>
+
+                        <article>
+                            <span>الفنيون</span>
+                            <strong id="selectedDoorTechniciansCount">0</strong>
+                        </article>
+
+                        <article>
+                            <span>إجمالي العاملين</span>
+                            <strong id="selectedDoorTotalCount">0</strong>
+                        </article>
+                    </div>
+
+                    <div
+                        class="selected-door-warning"
+                        id="selectedDoorWarning"
+                        hidden
+                    >
+                        هذا الباب لديه مشرف بالفعل. يمكنك إضافة مراقب أو مساند أو فني.
+                    </div>
+                </div>
+
+                <div class="assignment-message-panel">
+
+                    <div class="assignment-message-header">
+
+                        <div>
+
+                            <h3>
+                                رسالة التكليف
+                            </h3>
+
+                            <p>
+                                تُنشأ تلقائيًا حسب الموظف والباب ومشرف الموقع.
+                            </p>
+
+                        </div>
+
+                        <span class="assignment-message-icon">
+                            ✉️
+                        </span>
+
+                    </div>
+
+                    <textarea
+                        id="assignmentMessage"
+                        name="notes"
+                        rows="9"
+                        readonly
+                        placeholder="اختر الموظف والباب والدور لإنشاء رسالة التكليف..."
+                    ></textarea>
+
+                    <div class="assignment-message-details">
+
+                        <div>
+
+                            <span>
+                                رقم جوال الموظف
+                            </span>
+
+                            <strong id="selectedEmployeePhone">
+                                غير محدد
+                            </strong>
+
+                        </div>
+
+                        <div>
+
+                            <span>
+                                مشرف الموقع
+                            </span>
+
+                            <strong id="selectedSupervisorName">
+                                غير محدد
+                            </strong>
+
+                        </div>
+
+                        <div>
+
+                            <span>
+                                جوال المشرف
+                            </span>
+
+                            <strong id="selectedSupervisorPhone">
+                                غير محدد
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+                    <div class="assignment-message-actions">
+
+                        <button
+                            type="button"
+                            class="assignment-copy-button"
+                            id="copyAssignmentMessage"
+                        >
+                            📋 نسخ الرسالة
+                        </button>
+
+                      <button
+    type="button"
+    class="assignment-sms-button disabled"
+    id="sendAssignmentSms"
+    disabled
+    data-url="{% url 'distribution:send-sms' %}"
+>
+    📱 إرسال SMS
+</button>
+
+                    </div>
+
+                </div>
+
+                <div class="assignment-submit-row">
+
+                    <button
+                        type="submit"
+                        class="assignment-submit-button"
+                        id="assignmentSubmitButton"
+                    >
+                        <span aria-hidden="true">✓</span>
+                        <b>حفظ واعتماد التسكين</b>
+                    </button>
+
+                </div>
+
+            </form>
+
+        {% else %}
+
+            <div class="distribution-empty-box">
+
+                <span>
+                    ⚠️
+                </span>
+
+                <strong>
+                    لا يمكن إضافة توزيع قبل تفعيل وردية.
+                </strong>
+
+            </div>
+
+        {% endif %}
+
+    </section>
+        <section class="distribution-card">
+
+        <div class="distribution-card-header">
+
+            <div>
+
+                <span class="distribution-section-kicker">سجل الوردية</span>
+
+                <h2>
+                    التوزيعات الحالية
+                </h2>
+
+                <p>
+                    الموظفون الموزعون على أبواب الوردية الحالية.
+                </p>
+
+            </div>
+
+            <span class="distribution-card-header-icon">
+                👥
+            </span>
+
+        </div>
+
+        <form class="distribution-toolbar distribution-filter-form" method="get" action="{% url 'distribution:dashboard' %}">
+
+            <div class="distribution-toolbar-left">
+
+                <input
+                    type="search"
+                    id="distributionSearch"
+                    name="q"
+                    value="{{ q }}"
+                    placeholder="بحث بالموظف أو الباب..."
+                >
+
+                <select name="role" aria-label="تصفية حسب الدور">
+                    <option value="">كل الأدوار</option>
+                    {% for value,label in role_choices %}<option value="{{ value }}" {% if selected_role == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                </select>
+
+                <select name="door" aria-label="تصفية حسب الباب">
+                    <option value="">كل الأبواب</option>
+                    {% for door in doors %}<option value="{{ door.id }}" {% if selected_door == door.id|stringformat:'s' %}selected{% endif %}>باب {{ door.door_number }}</option>{% endfor %}
+                </select>
+
+                <button type="submit">تطبيق</button>
+                <a href="{% url 'distribution:dashboard' %}">إعادة ضبط</a>
+
+            </div>
+
+            <div class="distribution-toolbar-right">
+
+                <span class="distribution-counter" id="distributionVisibleCounter">
+
+                    {{ assignments|length }}
+
+                    توزيع
+
+                </span>
+
+            </div>
+
+        </form>
+
+        <div class="distribution-table-wrapper">
+
+            <table
+                class="distribution-table"
+                id="distributionTable"
+            >
+
+                <thead>
+
+                    <tr>
+
+                        <th>
+                            الباب
+                        </th>
+
+                        <th>
+                            الموظف
+                        </th>
+
+                        <th>
+                            الرقم الوظيفي
+                        </th>
+
+                        <th>
+                            الجوال
+                        </th>
+
+                        <th>
+                            الدور
+                        </th>
+
+                        <th>
+                            الحالة
+                        </th>
+
+                        <th>
+                            إجراءات
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    {% for assignment in assignments %}
+
+                        <tr>
+
+                            <td>
+
+                                <strong>
+
+                                    باب {{ assignment.door.door_number }}
+
+                                </strong>
+
+                            </td>
+
+                            <td>
+
+                                {{ assignment.employee.full_name }}
+
+                            </td>
+
+                            <td>
+
+                                {{ assignment.employee.employee_number }}
+
+                            </td>
+
+                            <td>
+
+                                {{ assignment.employee.phone_number|default:"—" }}
+
+                            </td>
+
+                            <td>
+
+                                {% if assignment.role == "supervisor" %}
+
+                                    <span class="badge badge-blue">
+
+                                        مشرف
+
+                                    </span>
+
+                                {% elif assignment.role == "technician" %}
+
+                                    <span class="badge badge-yellow">
+
+                                        فني
+
+                                    </span>
+
+                                {% elif assignment.role == "support" %}
+
+                                    <span class="badge badge-gray">
+
+                                        مساند
+
+                                    </span>
+
+                                {% else %}
+
+                                    <span class="badge badge-green">
+
+                                        مراقب
+
+                                    </span>
+
+                                {% endif %}
+
+                            </td>
+
+                            <td>
+
+                                {% if assignment.is_active %}
+
+                                    <span class="badge badge-green">
+
+                                        نشط
+
+                                    </span>
+
+                                {% else %}
+
+                                    <span class="badge badge-red">
+
+                                        غير نشط
+
+                                    </span>
+
+                                {% endif %}
+
+                            </td>
+
+                            <td>
+
+                                <div class="distribution-actions">
+
+                                    <button
+                                        type="button"
+                                        class="btn-view-assignment"
+
+                                        data-employee-id="{{ assignment.employee.id }}"
+                                        data-employee="{{ assignment.employee.full_name|escape }}"
+                                        data-phone="{{ assignment.employee.phone_number|default:''|escape }}"
+                                        data-door="{{ assignment.door.door_number }}"
+                                        data-role="{{ assignment.get_role_display|escape }}"
+                                    >
+
+                                        👁
+
+                                        عرض
+
+                                    </button>
+
+                                    <form
+                                        method="post"
+                                        action="{% url 'distribution:deactivate' assignment.id %}"
+                                    >
+
+                                        {% csrf_token %}
+
+                                        <button
+                                            type="submit"
+                                            class="btn-delete"
+                                        >
+
+                                            ❌
+
+                                            إلغاء
+
+                                        </button>
+
+                                    </form>
+
+                                </div>
+
+                            </td>
+
+                        </tr>
+
+                    {% empty %}
+
+                        <tr>
+
+                            <td
+                                colspan="7"
+                                class="distribution-empty-row"
+                            >
+
+                                لا توجد توزيعات مسجلة لهذه الوردية.
+
+                            </td>
+
+                        </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+    {% if recent_history %}
+    <section class="distribution-card distribution-audit-card">
+        <div class="distribution-card-header"><div><span class="distribution-section-kicker">التدقيق والحوكمة</span><h2>آخر تغييرات التوزيع</h2><p>سجل مختصر لآخر العمليات المنفذة خلال الوردية.</p></div><a href="{% url 'distribution:history' %}" class="audit-full-link">عرض السجل الكامل</a></div>
+        <div class="distribution-audit-list">
+            {% for item in recent_history %}
+            <article><i aria-hidden="true">↺</i><div><strong>{{ item.employee.full_name|default:"موظف غير محدد" }}</strong><span>{% if item.door %}باب {{ item.door.door_number }}{% else %}بدون باب{% endif %}{% if item.change_reason %} · {{ item.change_reason|truncatechars:65 }}{% endif %}</span></div><time>{{ item.changed_at|date:"Y/m/d" }}<small>{{ item.changed_at|time:"H:i" }}</small></time><em>{% if item.changed_by %}{{ item.changed_by.get_full_name|default:item.changed_by.username }}{% else %}النظام{% endif %}</em></article>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+    
+    <div
+        class="rebalance-preview-modal"
+        id="rebalancePreviewModal"
+        aria-hidden="true"
+    >
+        <div
+            class="rebalance-preview-backdrop"
+            id="rebalancePreviewBackdrop"
+        ></div>
+
+        <div class="rebalance-preview-dialog">
+            <div class="rebalance-preview-header">
+                <div>
+                    <h3>معاينة إعادة التوازن</h3>
+                    <p>لن يتم تنفيذ أي نقل حتى تضغط اعتماد وتنفيذ.</p>
+                </div>
+
+                <button
+                    type="button"
+                    class="rebalance-preview-close"
+                    id="rebalancePreviewClose"
+                >
+                    ×
+                </button>
+            </div>
+
+            <div class="rebalance-preview-body">
+                <div
+                    class="rebalance-preview-summary"
+                    id="rebalancePreviewSummary"
+                ></div>
+
+                <div class="rebalance-preview-table-wrapper">
+                    <table class="rebalance-preview-table">
+                        <thead>
+                            <tr>
+                                <th>الموظف</th>
+                                <th>الدور</th>
+                                <th>الباب الحالي</th>
+                                <th>الباب المقترح</th>
+                                <th>النتيجة</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rebalancePreviewRows"></tbody>
+                    </table>
+                </div>
+
+                <div class="rebalance-preview-actions">
+                    <button
+                        type="button"
+                        class="smart-action secondary"
+                        id="cancelRebalanceButton"
+                    >
+                        إلغاء
+                    </button>
+
+                    <button
+                        type="button"
+                        class="smart-action primary"
+                        id="applyRebalanceButton"
+                    >
+                        ✅ اعتماد وتنفيذ
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div
+        class="assignment-preview-modal"
+        id="assignmentPreviewModal"
+        aria-hidden="true"
+    >
+
+        <div
+            class="assignment-preview-backdrop"
+            id="assignmentPreviewBackdrop"
+        ></div>
+
+        <div class="assignment-preview-dialog">
+
+            <div class="assignment-preview-header">
+
+                <div>
+
+                    <h3>
+                        تفاصيل رسالة التكليف
+                    </h3>
+
+                    <p>
+                        معاينة رسالة الموظف قبل النسخ أو الإرسال.
+                    </p>
+
+                </div>
+
+                <button
+                    type="button"
+                    class="assignment-preview-close"
+                    id="assignmentPreviewClose"
+                    aria-label="إغلاق"
+                >
+                    ×
+                </button>
+
+            </div>
+
+            <div class="assignment-preview-body">
+
+                <textarea
+                    id="assignmentPreviewMessage"
+                    rows="11"
+                    readonly
+                ></textarea>
+
+                <div class="assignment-preview-actions">
+
+                    <button
+                        type="button"
+                        class="assignment-copy-button"
+                        id="copyPreviewMessage"
+                    >
+                        📋 نسخ الرسالة
+                    </button>
+
+                    <button
+                        type="button"
+                        class="assignment-sms-button disabled"
+                        id="sendPreviewSms"
+                        disabled
+                        data-url="{% url 'distribution:send-sms' %}"
+                    >
+                        📱 إرسال SMS
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+
+    /* ==================================================
+       ELEMENTS
+    ================================================== */
+
+    const assignmentForm =
+        document.getElementById("assignmentCreateForm");
+
+    const employeeSelect =
+        document.getElementById("employeeSelect");
+
+    const doorSelect =
+        document.getElementById("doorSelect");
+
+    const roleSelect =
+        document.getElementById("roleSelect");
+
+    const messageField =
+        document.getElementById("assignmentMessage");
+
+    const assignmentSubmitButton =
+        document.getElementById("assignmentSubmitButton");
+
+    function setAssignmentSubmitLabel(text){
+        const label = assignmentSubmitButton?.querySelector("b");
+        if(label){
+            label.textContent = text;
+        }
+    }
+
+    const selectedDoorStatus =
+        document.getElementById("selectedDoorStatus");
+
+    const selectedDoorTitle =
+        document.getElementById("selectedDoorTitle");
+
+    const selectedDoorSupervisorState =
+        document.getElementById("selectedDoorSupervisorState");
+
+    const selectedDoorSupervisorsCount =
+        document.getElementById("selectedDoorSupervisorsCount");
+
+    const selectedDoorMonitorsCount =
+        document.getElementById("selectedDoorMonitorsCount");
+
+    const selectedDoorSupportCount =
+        document.getElementById("selectedDoorSupportCount");
+
+    const selectedDoorTechniciansCount =
+        document.getElementById("selectedDoorTechniciansCount");
+
+    const selectedDoorTotalCount =
+        document.getElementById("selectedDoorTotalCount");
+
+    const selectedDoorWarning =
+        document.getElementById("selectedDoorWarning");
+
+    const copyButton =
+        document.getElementById("copyAssignmentMessage");
+
+    const smsButton =
+        document.getElementById("sendAssignmentSms");
+
+    const employeePhoneTarget =
+        document.getElementById("selectedEmployeePhone");
+
+    const supervisorNameTarget =
+        document.getElementById("selectedSupervisorName");
+
+    const supervisorPhoneTarget =
+        document.getElementById("selectedSupervisorPhone");
+
+    const searchInput =
+        document.getElementById("distributionSearch");
+
+    const distributionTable =
+        document.getElementById("distributionTable");
+
+    const previewModal =
+        document.getElementById("assignmentPreviewModal");
+
+    const previewBackdrop =
+        document.getElementById("assignmentPreviewBackdrop");
+
+    const previewClose =
+        document.getElementById("assignmentPreviewClose");
+
+    const previewMessage =
+        document.getElementById("assignmentPreviewMessage");
+
+    const copyPreviewButton =
+        document.getElementById("copyPreviewMessage");
+
+    const previewSmsButton =
+        document.getElementById("sendPreviewSms");
+
+    const viewButtons =
+        document.querySelectorAll(".btn-view-assignment");
+
+    let previewEmployeeId = "";
+
+
+    /* ==================================================
+       HELPERS
+    ================================================== */
+
+    function getCsrfToken(){
+
+        const tokenInput = assignmentForm?.querySelector(
+            "input[name='csrfmiddlewaretoken']"
+        );
+
+        return tokenInput?.value || "";
+    }
+
+
+    function normalizePhone(phone){
+
+        let value = String(phone || "")
+            .replace(/\s+/g, "")
+            .replace(/[^\d+]/g, "");
+
+        if(value.startsWith("+966")){
+            return value;
+        }
+
+        if(value.startsWith("00966")){
+            return `+${value.slice(2)}`;
+        }
+
+        if(value.startsWith("966")){
+            return `+${value}`;
+        }
+
+        if(value.startsWith("05") && value.length === 10){
+            return `+966${value.slice(1)}`;
+        }
+
+        if(value.startsWith("5") && value.length === 9){
+            return `+966${value}`;
+        }
+
+        return "";
+    }
+
+
+
+    function getSelectedDoorData(){
+
+        if(!doorSelect){
+            return null;
+        }
+
+        const option =
+            doorSelect.options[doorSelect.selectedIndex];
+
+        if(!option || !option.value){
+            return null;
+        }
+
+        return {
+            number: option.dataset.number || "",
+            supervisors: Number(option.dataset.supervisors || 0),
+            monitors: Number(option.dataset.monitors || 0),
+            support: Number(option.dataset.support || 0),
+            technicians: Number(option.dataset.technicians || 0),
+            total: Number(option.dataset.total || 0),
+        };
+    }
+
+
+    function validateSupervisorSelection(){
+
+        const doorData = getSelectedDoorData();
+
+        const duplicateSupervisor = Boolean(
+            doorData
+            &&
+            roleSelect?.value === "supervisor"
+            &&
+            doorData.supervisors > 0
+        );
+
+        if(selectedDoorWarning){
+            selectedDoorWarning.hidden = !duplicateSupervisor;
+        }
+
+        if(assignmentSubmitButton){
+            assignmentSubmitButton.disabled = duplicateSupervisor;
+            assignmentSubmitButton.classList.toggle(
+                "disabled",
+                duplicateSupervisor
+            );
+            setAssignmentSubmitLabel(duplicateSupervisor
+                ? "يوجد مشرف لهذا الباب"
+                : "حفظ واعتماد التسكين");
+        }
+
+        return !duplicateSupervisor;
+    }
+
+
+    function updateSelectedDoorStatus(){
+
+        const doorData = getSelectedDoorData();
+
+        if(!selectedDoorStatus){
+            return;
+        }
+
+        if(!doorData){
+            selectedDoorStatus.hidden = true;
+            return;
+        }
+
+        selectedDoorStatus.hidden = false;
+
+        if(selectedDoorTitle){
+            selectedDoorTitle.textContent = `باب ${doorData.number}`;
+        }
+
+        if(selectedDoorSupervisorsCount){
+            selectedDoorSupervisorsCount.textContent = doorData.supervisors;
+        }
+
+        if(selectedDoorMonitorsCount){
+            selectedDoorMonitorsCount.textContent = doorData.monitors;
+        }
+
+        if(selectedDoorSupportCount){
+            selectedDoorSupportCount.textContent = doorData.support;
+        }
+
+        if(selectedDoorTechniciansCount){
+            selectedDoorTechniciansCount.textContent = doorData.technicians;
+        }
+
+        if(selectedDoorTotalCount){
+            selectedDoorTotalCount.textContent = doorData.total;
+        }
+
+        if(selectedDoorSupervisorState){
+            const hasSupervisor = doorData.supervisors > 0;
+
+            selectedDoorSupervisorState.textContent =
+                hasSupervisor ? "يوجد مشرف" : "بدون مشرف";
+
+            selectedDoorSupervisorState.classList.toggle(
+                "has-supervisor",
+                hasSupervisor
+            );
+
+            selectedDoorSupervisorState.classList.toggle(
+                "without-supervisor",
+                !hasSupervisor
+            );
+        }
+
+        validateSupervisorSelection();
+    }
+
+
+    function findSupervisorForDoor(doorNumber){
+
+        if(!distributionTable || !doorNumber){
+            return {
+                name: "",
+                phone: "",
+            };
+        }
+
+        const rows = distributionTable.querySelectorAll(
+            "tbody tr"
+        );
+
+        for(const row of rows){
+
+            const cells = row.querySelectorAll("td");
+
+            if(cells.length < 7){
+                continue;
+            }
+
+            const rowDoorNumber = cells[0].textContent
+                .replace(/[^\d]/g, "")
+                .trim();
+
+            const rowRole = cells[4].textContent.trim();
+
+            if(
+                rowDoorNumber === String(doorNumber)
+                &&
+                rowRole.includes("مشرف")
+            ){
+                return {
+                    name: cells[1].textContent.trim(),
+                    phone: cells[3].textContent.trim(),
+                };
+            }
+        }
+
+        return {
+            name: "",
+            phone: "",
+        };
+    }
+
+
+    function createAssignmentMessage(
+        employeeName,
+        doorNumber,
+        roleLabel
+    ){
+
+        if(!employeeName || !doorNumber){
+            return "";
+        }
+
+        const supervisor =
+            findSupervisorForDoor(doorNumber);
+
+        const supervisorName =
+            supervisor.name || "غير محدد";
+
+        const supervisorPhone =
+            supervisor.phone || "غير محدد";
+
+        return `عزيزي ${roleLabel || "المراقب"}/ ${employeeName}
+
+تم توجيهكم إلى الباب رقم ${doorNumber}.
+
+مشرف الموقع: ${supervisorName}
+رقم جوال المشرف: ${supervisorPhone}
+
+يرجى التوجه إلى الموقع الموزع والالتزام بالتعليمات التشغيلية.
+
+منصة أبواب`;
+    }
+
+
+    function updateMainSmsButton(phone, message){
+
+        if(!smsButton){
+            return;
+        }
+
+        const available = Boolean(
+            normalizePhone(phone) && message.trim()
+        );
+
+        smsButton.disabled = !available;
+
+        smsButton.classList.toggle(
+            "disabled",
+            !available
+        );
+    }
+
+
+    function updatePreviewSmsButton(employeeId, phone, message){
+
+        if(!previewSmsButton){
+            return;
+        }
+
+        const available = Boolean(
+            employeeId
+            &&
+            normalizePhone(phone)
+            &&
+            String(message || "").trim()
+        );
+
+        previewSmsButton.disabled = !available;
+        previewSmsButton.classList.toggle("disabled", !available);
+    }
+
+
+
+    async function copyMessage(text, button){
+
+        if(!String(text || "").trim()){
+
+            alert("لا توجد رسالة جاهزة للنسخ.");
+
+            return;
+        }
+
+        try{
+
+            await navigator.clipboard.writeText(text);
+
+        }catch(error){
+
+            const temporaryTextarea =
+                document.createElement("textarea");
+
+            temporaryTextarea.value = text;
+
+            temporaryTextarea.style.position = "fixed";
+            temporaryTextarea.style.opacity = "0";
+
+            document.body.appendChild(
+                temporaryTextarea
+            );
+
+            temporaryTextarea.select();
+
+            document.execCommand("copy");
+
+            temporaryTextarea.remove();
+        }
+
+        if(button){
+
+            const originalText =
+                button.textContent;
+
+            button.textContent =
+                "✅ تم نسخ الرسالة";
+
+            setTimeout(
+                function(){
+                    button.textContent =
+                        originalText;
+                },
+                1800
+            );
+        }
+    }
+
+
+    /* ==================================================
+       BUILD NEW ASSIGNMENT MESSAGE
+    ================================================== */
+
+    function buildAssignmentMessage(){
+
+        if(
+            !employeeSelect
+            ||
+            !doorSelect
+            ||
+            !roleSelect
+            ||
+            !messageField
+        ){
+            return;
+        }
+
+        const employeeOption =
+            employeeSelect.options[
+                employeeSelect.selectedIndex
+            ];
+
+        const doorOption =
+            doorSelect.options[
+                doorSelect.selectedIndex
+            ];
+
+        const roleOption =
+            roleSelect.options[
+                roleSelect.selectedIndex
+            ];
+
+        const employeeName =
+            employeeOption?.dataset?.name || "";
+
+        const employeePhone =
+            employeeOption?.dataset?.phone || "";
+
+        const doorNumber =
+            doorOption?.dataset?.number || "";
+
+        const roleLabel =
+            roleOption?.dataset?.label
+            ||
+            roleOption?.textContent?.trim()
+            ||
+            "المراقب";
+
+        const supervisor =
+            findSupervisorForDoor(doorNumber);
+
+        if(employeePhoneTarget){
+
+            employeePhoneTarget.textContent =
+                employeePhone || "غير مسجل";
+        }
+
+        if(supervisorNameTarget){
+
+            supervisorNameTarget.textContent =
+                supervisor.name || "غير محدد";
+        }
+
+        if(supervisorPhoneTarget){
+
+            supervisorPhoneTarget.textContent =
+                supervisor.phone || "غير محدد";
+        }
+
+        const message = createAssignmentMessage(
+            employeeName,
+            doorNumber,
+            roleLabel
+        );
+
+        messageField.value = message;
+
+        updateMainSmsButton(
+            employeePhone,
+            message
+        );
+    }
+
+
+    /* ==================================================
+       SEND REAL SMS THROUGH DJANGO
+    ================================================== */
+
+    async function sendAssignmentSms(){
+
+        if(!smsButton || !employeeSelect || !messageField){
+            return;
+        }
+
+        await sendSmsRequest(
+            employeeSelect.value,
+            messageField.value.trim(),
+            smsButton
+        );
+
+        buildAssignmentMessage();
+    }
+
+
+    async function sendSmsRequest(employeeId, message, button){
+
+        if(!employeeId || !String(message || "").trim()){
+            alert("بيانات الموظف أو نص الرسالة غير مكتملة.");
+            return;
+        }
+
+        const sendUrl = button?.dataset?.url;
+
+        if(!sendUrl){
+            alert("رابط خدمة إرسال الرسائل غير موجود.");
+            return;
+        }
+
+        const originalText = button.textContent;
+
+        button.disabled = true;
+        button.textContent = "جاري إرسال الرسالة...";
+
+        const formData = new FormData();
+        formData.append("employee_id", employeeId);
+        formData.append("message", message);
+
+        try{
+            const response = await fetch(sendUrl, {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": getCsrfToken(),
+                    "X-Requested-With": "XMLHttpRequest",
+                },
+                body: formData,
+            });
+
+            const data = await response.json();
+
+            if(!response.ok || !data.success){
+                throw new Error(data.error || "تعذر إرسال رسالة التكليف.");
+            }
+
+            button.textContent = "✅ تم إرسال الرسالة";
+
+            setTimeout(function(){
+                button.textContent = originalText;
+                button.disabled = false;
+            }, 2200);
+
+        }catch(error){
+            alert(error.message || "حدث خطأ أثناء إرسال الرسالة.");
+            button.textContent = originalText;
+            button.disabled = false;
+        }
+    }
+
+
+    /* ==================================================
+       PREVIEW MODAL
+    ================================================== */
+
+    function openPreviewModal(
+        employeeId,
+        employee,
+        phone,
+        door,
+        role
+    ){
+
+        if(!previewModal || !previewMessage){
+            return;
+        }
+
+        const message = createAssignmentMessage(
+            employee,
+            door,
+            role
+        );
+
+        previewEmployeeId = employeeId || "";
+        previewMessage.value = message;
+
+        updatePreviewSmsButton(
+            previewEmployeeId,
+            phone,
+            message
+        );
+
+        previewModal.classList.add(
+            "active"
+        );
+
+        previewModal.setAttribute(
+            "aria-hidden",
+            "false"
+        );
+
+        document.body.classList.add(
+            "modal-open"
+        );
+    }
+
+
+    function closePreviewModal(){
+
+        if(!previewModal){
+            return;
+        }
+
+        previewModal.classList.remove(
+            "active"
+        );
+
+        previewModal.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+
+        document.body.classList.remove(
+            "modal-open"
+        );
+
+        previewEmployeeId = "";
+    }
+
+
+    /* ==================================================
+       EVENT LISTENERS
+    ================================================== */
+
+    employeeSelect?.addEventListener(
+        "change",
+        buildAssignmentMessage
+    );
+
+    doorSelect?.addEventListener(
+        "change",
+        function(){
+            updateSelectedDoorStatus();
+            buildAssignmentMessage();
+        }
+    );
+
+    roleSelect?.addEventListener(
+        "change",
+        function(){
+            validateSupervisorSelection();
+            buildAssignmentMessage();
+        }
+    );
+
+
+    assignmentForm?.addEventListener(
+        "submit",
+        function(event){
+
+            if(
+                !employeeSelect?.value
+                ||
+                !doorSelect?.value
+                ||
+                !roleSelect?.value
+            ){
+                event.preventDefault();
+                alert("يجب اختيار الموظف والباب والدور.");
+                return;
+            }
+
+            if(!validateSupervisorSelection()){
+                event.preventDefault();
+                alert(
+                    "هذا الباب لديه مشرف بالفعل. اختر مراقبًا أو مساندًا أو فنيًا."
+                );
+                return;
+            }
+
+            if(assignmentSubmitButton){
+                assignmentSubmitButton.disabled = true;
+                assignmentSubmitButton.classList.add("is-loading");
+                setAssignmentSubmitLabel("جارٍ اعتماد التسكين...");
+            }
+        }
+    );
+
+
+    copyButton?.addEventListener(
+        "click",
+        function(){
+
+            copyMessage(
+                messageField?.value || "",
+                copyButton
+            );
+        }
+    );
+
+
+    smsButton?.addEventListener(
+        "click",
+        sendAssignmentSms
+    );
+
+
+    copyPreviewButton?.addEventListener(
+        "click",
+        function(){
+
+            copyMessage(
+                previewMessage?.value || "",
+                copyPreviewButton
+            );
+        }
+    );
+
+
+    previewSmsButton?.addEventListener(
+        "click",
+        async function(){
+
+            await sendSmsRequest(
+                previewEmployeeId,
+                previewMessage?.value?.trim() || "",
+                previewSmsButton
+            );
+        }
+    );
+
+
+    viewButtons.forEach(
+        function(button){
+
+            button.addEventListener(
+                "click",
+                function(){
+
+                    openPreviewModal(
+                        button.dataset.employeeId || "",
+                        button.dataset.employee || "",
+                        button.dataset.phone || "",
+                        button.dataset.door || "",
+                        button.dataset.role || ""
+                    );
+                }
+            );
+        }
+    );
+
+
+    previewClose?.addEventListener(
+        "click",
+        closePreviewModal
+    );
+
+
+    previewBackdrop?.addEventListener(
+        "click",
+        closePreviewModal
+    );
+
+
+    document.addEventListener(
+        "keydown",
+        function(event){
+
+            if(event.key === "Escape"){
+                closePreviewModal();
+            }
+        }
+    );
+
+
+    searchInput?.addEventListener(
+        "input",
+        function(){
+
+            if(!distributionTable){
+                return;
+            }
+
+            const query =
+                searchInput.value
+                    .trim()
+                    .toLowerCase();
+
+            const rows =
+                distributionTable.querySelectorAll(
+                    "tbody tr"
+                );
+
+            rows.forEach(
+                function(row){
+
+                    if(
+                        row.querySelector(
+                            ".distribution-empty-row"
+                        )
+                    ){
+                        return;
+                    }
+
+                    const rowText =
+                        row.textContent.toLowerCase();
+
+                    row.style.display =
+                        rowText.includes(query)
+                            ? ""
+                            : "none";
+                }
+            );
+        }
+    );
+
+
+
+    const validateDistributionButton =
+        document.getElementById("validateDistributionButton");
+    const distributionValidationResult =
+        document.getElementById("distributionValidationResult");
+
+    validateDistributionButton?.addEventListener("click", async function(){
+        const url = validateDistributionButton.dataset.url;
+        const originalText = validateDistributionButton.textContent;
+        validateDistributionButton.disabled = true;
+        validateDistributionButton.textContent = "جاري الفحص...";
+
+        try{
+            const formData = new FormData();
+            const response = await fetch(url, {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": getCsrfToken(),
+                    "X-Requested-With": "XMLHttpRequest",
+                },
+                body: formData,
+            });
+            const data = await response.json();
+            if(!response.ok || !data.success){
+                throw new Error(data.error || "تعذر فحص التوزيع.");
+            }
+
+            const report = data.report;
+            const warnings = report.warnings.length
+                ? report.warnings.map(item => `<p>⚠️ ${item}</p>`).join("")
+                : "<p>✅ لا توجد ملاحظات حرجة.</p>";
+            const suggestions = report.suggestions.length
+                ? report.suggestions.map(item => `<p>💡 ${item}</p>`).join("")
+                : "";
+
+            distributionValidationResult.innerHTML = `
+                <strong>نتيجة الفحص: ${report.quality_label} — ${report.quality_score}%</strong>
+                <p>نسبة التغطية: ${report.coverage_percent}%</p>
+                <p>الأبواب بلا مشرف: ${report.doors_without_supervisor}</p>
+                <p>الأبواب بلا مراقب: ${report.doors_without_monitor}</p>
+                ${warnings}
+                ${suggestions}
+            `;
+            distributionValidationResult.hidden = false;
+        }catch(error){
+            alert(error.message || "حدث خطأ أثناء الفحص.");
+        }finally{
+            validateDistributionButton.disabled = false;
+            validateDistributionButton.textContent = originalText;
+        }
+    });
+
+
+
+    const previewRebalanceButton =
+        document.getElementById("previewRebalanceButton");
+    const rebalancePreviewModal =
+        document.getElementById("rebalancePreviewModal");
+    const rebalancePreviewBackdrop =
+        document.getElementById("rebalancePreviewBackdrop");
+    const rebalancePreviewClose =
+        document.getElementById("rebalancePreviewClose");
+    const cancelRebalanceButton =
+        document.getElementById("cancelRebalanceButton");
+    const applyRebalanceButton =
+        document.getElementById("applyRebalanceButton");
+    const applyRebalanceForm =
+        document.getElementById("applyRebalanceForm");
+    const rebalancePreviewSummary =
+        document.getElementById("rebalancePreviewSummary");
+    const rebalancePreviewRows =
+        document.getElementById("rebalancePreviewRows");
+
+    function closeRebalancePreview(){
+        rebalancePreviewModal?.classList.remove("active");
+        rebalancePreviewModal?.setAttribute("aria-hidden", "true");
+        document.body.classList.remove("modal-open");
+    }
+
+    previewRebalanceButton?.addEventListener("click", async function(){
+        const url = previewRebalanceButton.dataset.url;
+        const originalText = previewRebalanceButton.textContent;
+
+        previewRebalanceButton.disabled = true;
+        previewRebalanceButton.textContent = "جاري إعداد الخطة...";
+
+        try{
+            const response = await fetch(url, {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": getCsrfToken(),
+                    "X-Requested-With": "XMLHttpRequest",
+                },
+                body: new FormData(),
+            });
+
+            const data = await response.json();
+            if(!response.ok || !data.success){
+                throw new Error(data.error || "تعذر إعداد خطة إعادة التوازن.");
+            }
+
+            const plan = data.plan;
+            rebalancePreviewSummary.innerHTML = `
+                <article><span>عمليات النقل</span><strong>${plan.total_moves}</strong></article>
+                <article><span>الأبواب قبل التوازن</span><strong>${plan.before_covered}</strong></article>
+                <article><span>الأبواب بعد التوازن</span><strong>${plan.after_covered}</strong></article>
+                <article><span>الأبواب المستهدفة</span><strong>${plan.target_doors.join("، ") || "—"}</strong></article>
+            `;
+
+            rebalancePreviewRows.innerHTML = plan.moves.map(move => `
+                <tr class="${move.changed ? "will-move" : "will-stay"}">
+                    <td>${move.employee_name}</td>
+                    <td>${move.role_label}</td>
+                    <td>باب ${move.old_door_number}</td>
+                    <td>باب ${move.new_door_number}</td>
+                    <td>${move.changed ? "سيتم النقل" : "يبقى في موقعه"}</td>
+                </tr>
+            `).join("");
+
+            applyRebalanceButton.disabled = plan.total_moves === 0;
+            rebalancePreviewModal.classList.add("active");
+            rebalancePreviewModal.setAttribute("aria-hidden", "false");
+            document.body.classList.add("modal-open");
+
+        }catch(error){
+            alert(error.message || "حدث خطأ أثناء إعداد الخطة.");
+        }finally{
+            previewRebalanceButton.disabled = false;
+            previewRebalanceButton.textContent = originalText;
+        }
+    });
+
+    applyRebalanceButton?.addEventListener("click", function(){
+        if(!applyRebalanceForm){
+            return;
+        }
+
+        applyRebalanceButton.disabled = true;
+        applyRebalanceButton.textContent = "جاري تنفيذ النقل...";
+        applyRebalanceForm.submit();
+    });
+
+    rebalancePreviewClose?.addEventListener("click", closeRebalancePreview);
+    rebalancePreviewBackdrop?.addEventListener("click", closeRebalancePreview);
+    cancelRebalanceButton?.addEventListener("click", closeRebalancePreview);
+
+
+    /* الحالة الابتدائية */
+
+    updateSelectedDoorStatus();
+    buildAssignmentMessage();
+
+});
+</script>
+<style>
+
+/* ==================================================
+   DISTRIBUTION PAGE
+================================================== */
+
+.distribution-page{
+    width:100%;
+    padding:28px 36px 80px;
+    background:var(--background);
+}
+
+/* ==================================================
+   PAGE HEAD
+================================================== */
+
+.distribution-page-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:20px;
+    margin-bottom:22px;
+}
+
+.distribution-page-head h1{
+    margin:0;
+    color:var(--green-dark);
+    font-size:30px;
+    font-weight:900;
+}
+
+.distribution-page-head p{
+    margin:8px 0 0;
+    color:var(--muted);
+    font-size:14px;
+}
+
+.distribution-page-head p strong{
+    color:var(--text);
+}
+
+.distribution-danger-text{
+    color:#b91c1c !important;
+    font-weight:900;
+}
+
+/* ==================================================
+   STATS
+================================================== */
+
+.distribution-stats-grid{
+    display:grid;
+    grid-template-columns:repeat(6,minmax(0,1fr));
+    gap:16px;
+    margin-bottom:28px;
+}
+
+.distribution-stat-card{
+    min-height:105px;
+    padding:18px;
+    display:flex;
+    align-items:center;
+    gap:13px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:20px;
+    box-shadow:var(--shadow-sm);
+    transition:
+        transform .16s ease,
+        box-shadow .16s ease;
+}
+
+.distribution-stat-card:hover{
+    transform:translateY(-2px);
+    box-shadow:var(--shadow-md);
+}
+
+.distribution-stat-icon{
+    width:48px;
+    height:48px;
+    flex:0 0 48px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:14px;
+    background:var(--green-light);
+    font-size:22px;
+}
+
+.distribution-stat-card span{
+    display:block;
+    color:var(--muted);
+    font-size:12px;
+    font-weight:800;
+}
+
+.distribution-stat-card strong{
+    display:block;
+    margin-top:6px;
+    color:var(--green);
+    font-size:28px;
+    font-weight:900;
+}
+
+.distribution-stat-card.warning strong{
+    color:#b45309;
+}
+
+/* ==================================================
+   MAIN CARD
+================================================== */
+
+.distribution-card{
+    margin-bottom:26px;
+    padding:24px 26px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:24px;
+    box-shadow:var(--shadow-md);
+}
+
+.distribution-card-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:18px;
+    margin-bottom:22px;
+    padding-bottom:18px;
+    border-bottom:1px solid var(--border);
+}
+
+.distribution-card-header h2{
+    margin:0;
+    color:var(--text);
+    font-size:22px;
+    font-weight:900;
+}
+
+.distribution-card-header p{
+    margin:6px 0 0;
+    color:var(--muted);
+    font-size:13px;
+    line-height:1.7;
+}
+
+.distribution-card-header-icon{
+    width:50px;
+    height:50px;
+    flex:0 0 50px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:15px;
+    background:var(--green-light);
+    font-size:23px;
+}
+
+/* ==================================================
+   ASSIGNMENT FORM
+================================================== */
+
+.assignment-form-grid{
+    display:grid;
+    grid-template-columns:1.3fr 1fr 1fr;
+    gap:16px;
+    align-items:end;
+}
+
+.assignment-form-grid .form-field label{
+    display:block;
+    margin-bottom:8px;
+    color:var(--text);
+    font-size:13px;
+    font-weight:900;
+}
+
+.assignment-form-grid .form-field select{
+    width:100%;
+    min-height:50px;
+    padding:0 14px;
+    border:1px solid var(--border);
+    border-radius:14px;
+    background:var(--surface);
+    color:var(--text);
+    font-size:14px;
+}
+
+.assignment-form-grid .form-field select:focus{
+    outline:none;
+    border-color:var(--gold);
+    box-shadow:0 0 0 4px rgba(212,175,55,.14);
+}
+
+/* ==================================================
+   SELECTED DOOR STATUS
+================================================== */
+
+.selected-door-status{
+    margin-top:18px;
+    padding:18px;
+    border:1px solid var(--border);
+    border-radius:18px;
+    background:var(--surface-soft);
+}
+
+.selected-door-status[hidden]{
+    display:none;
+}
+
+.selected-door-status-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:14px;
+    margin-bottom:14px;
+}
+
+.selected-door-status-head span{
+    display:block;
+    color:var(--muted);
+    font-size:12px;
+    font-weight:800;
+}
+
+.selected-door-status-head strong{
+    display:block;
+    margin-top:5px;
+    color:var(--green-dark);
+    font-size:19px;
+    font-weight:900;
+}
+
+.selected-door-supervisor-state{
+    min-height:38px;
+    padding:0 14px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:999px;
+    font-size:12px;
+    font-weight:900;
+}
+
+.selected-door-supervisor-state.has-supervisor{
+    background:#dcfce7;
+    color:#166534;
+}
+
+.selected-door-supervisor-state.without-supervisor{
+    background:#fef3c7;
+    color:#92400e;
+}
+
+.selected-door-status-grid{
+    display:grid;
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:12px;
+}
+
+.selected-door-status-grid article{
+    padding:13px;
+    text-align:center;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:14px;
+}
+
+.selected-door-status-grid span{
+    display:block;
+    color:var(--muted);
+    font-size:11px;
+    font-weight:800;
+}
+
+.selected-door-status-grid strong{
+    display:block;
+    margin-top:6px;
+    color:var(--green);
+    font-size:22px;
+    font-weight:900;
+}
+
+.selected-door-warning{
+    margin-top:14px;
+    padding:13px 15px;
+    border:1px solid #fca5a5;
+    border-radius:13px;
+    background:#fee2e2;
+    color:#991b1b;
+    font-size:13px;
+    font-weight:900;
+}
+
+.assignment-submit-button.disabled,
+.assignment-submit-button:disabled{
+    opacity:.55;
+    cursor:not-allowed;
+    transform:none;
+}
+
+/* ==================================================
+   ASSIGNMENT MESSAGE PANEL
+================================================== */
+
+.assignment-message-panel{
+    margin-top:20px;
+    padding:20px;
+    background:var(--surface-soft);
+    border:1px solid var(--border);
+    border-radius:20px;
+}
+
+.assignment-message-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    margin-bottom:14px;
+}
+
+.assignment-message-header h3{
+    margin:0;
+    color:var(--green-dark);
+    font-size:20px;
+    font-weight:900;
+}
+
+.assignment-message-header p{
+    margin:5px 0 0;
+    color:var(--muted);
+    font-size:12px;
+}
+
+.assignment-message-icon{
+    width:46px;
+    height:46px;
+    flex:0 0 46px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:14px;
+    background:var(--green-light);
+    font-size:21px;
+}
+
+#assignmentMessage,
+#assignmentPreviewMessage{
+    width:100%;
+    min-height:210px;
+    padding:16px;
+    resize:vertical;
+    border:1px solid rgba(15,123,92,.22);
+    border-radius:16px;
+    background:var(--surface);
+    color:var(--text);
+    font-size:13px;
+    font-weight:700;
+    line-height:1.9;
+}
+
+#assignmentMessage:focus,
+#assignmentPreviewMessage:focus{
+    outline:none;
+    border-color:var(--green);
+    box-shadow:0 0 0 3px rgba(15,123,92,.10);
+}
+
+.assignment-message-details{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:12px;
+    margin-top:14px;
+}
+
+.assignment-message-details > div{
+    padding:13px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:14px;
+}
+
+.assignment-message-details span{
+    display:block;
+    color:var(--muted);
+    font-size:11px;
+}
+
+.assignment-message-details strong{
+    display:block;
+    margin-top:5px;
+    color:var(--text);
+    font-size:13px;
+    font-weight:900;
+    overflow-wrap:anywhere;
+}
+
+.assignment-message-actions{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-top:14px;
+}
+
+.assignment-copy-button,
+.assignment-sms-button{
+    min-height:42px;
+    padding:0 15px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:7px;
+    border:none;
+    border-radius:12px;
+    text-decoration:none;
+    font-size:13px;
+    font-weight:900;
+    cursor:pointer;
+    transition:
+        transform .15s ease,
+        opacity .15s ease,
+        box-shadow .15s ease;
+}
+
+.assignment-copy-button{
+    background:#f3f4f6;
+    color:#111827;
+    border:1px solid var(--border);
+}
+
+.assignment-sms-button{
+    background:var(--green);
+    color:#fff;
+}
+
+.assignment-copy-button:hover,
+.assignment-sms-button:hover{
+    transform:translateY(-1px);
+    box-shadow:var(--shadow-sm);
+}
+
+.assignment-sms-button.disabled,
+.assignment-sms-button:disabled{
+    opacity:.5;
+    cursor:not-allowed;
+    pointer-events:none;
+}
+/* ==================================================
+   SUBMIT
+================================================== */
+
+.assignment-submit-row{
+    display:flex;
+    justify-content:flex-end;
+    margin-top:18px;
+}
+
+.assignment-submit-button{
+    min-width:180px;
+    min-height:50px;
+    padding:0 18px;
+    border:none;
+    border-radius:14px;
+    background:#16a34a;
+    color:#fff;
+    font-size:14px;
+    font-weight:900;
+    cursor:pointer;
+    transition:
+        transform .15s ease,
+        background .15s ease;
+}
+
+.assignment-submit-button:hover{
+    background:#15803d;
+    transform:translateY(-1px);
+}
+
+/* ==================================================
+   EMPTY BOX
+================================================== */
+
+.distribution-empty-box{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    padding:24px;
+    background:#fef3c7;
+    color:#92400e;
+    border:1px solid #fde68a;
+    border-radius:16px;
+    font-weight:900;
+}
+
+/* ==================================================
+   TOOLBAR
+================================================== */
+
+.distribution-toolbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    margin-bottom:16px;
+}
+
+.distribution-toolbar-left{
+    min-width:0;
+    flex:1;
+}
+
+.distribution-toolbar-left input{
+    width:100%;
+    max-width:360px;
+    min-height:44px;
+    padding:0 14px;
+    border:1px solid var(--border);
+    border-radius:12px;
+    background:var(--surface);
+    color:var(--text);
+}
+
+.distribution-counter{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-height:38px;
+    padding:0 13px;
+    background:var(--green-light);
+    color:var(--green-dark);
+    border-radius:999px;
+    font-size:12px;
+    font-weight:900;
+}
+
+/* ==================================================
+   TABLE
+================================================== */
+
+.distribution-table-wrapper{
+    width:100%;
+    overflow-x:auto;
+    border:1px solid var(--border);
+    border-radius:18px;
+}
+
+.distribution-table{
+    width:100%;
+    min-width:980px;
+    border-collapse:separate;
+    border-spacing:0;
+}
+
+.distribution-table thead th{
+    padding:15px 14px;
+    background:var(--green);
+    color:#fff;
+    text-align:center;
+    font-size:13px;
+    font-weight:900;
+    white-space:nowrap;
+}
+
+.distribution-table tbody td{
+    padding:15px 14px;
+    border-bottom:1px solid var(--border);
+    color:var(--text);
+    text-align:center;
+    font-size:13px;
+    vertical-align:middle;
+}
+
+.distribution-table tbody tr:nth-child(even){
+    background:var(--surface-soft);
+}
+
+.distribution-table tbody tr:hover{
+    background:var(--green-light);
+}
+
+.distribution-table tbody tr:last-child td{
+    border-bottom:none;
+}
+
+.distribution-empty-row{
+    padding:30px !important;
+    color:var(--muted) !important;
+    font-weight:900;
+}
+
+/* ==================================================
+   TABLE ACTIONS
+================================================== */
+
+.distribution-actions{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    flex-wrap:nowrap;
+}
+
+.distribution-actions form{
+    margin:0;
+}
+
+.btn-view-assignment,
+.distribution-actions .btn-delete{
+    min-width:90px;
+    min-height:38px;
+    padding:0 12px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    border:none;
+    border-radius:10px;
+    color:#fff;
+    font-size:12px;
+    font-weight:900;
+    cursor:pointer;
+}
+
+.btn-view-assignment{
+    background:var(--blue);
+}
+
+.distribution-actions .btn-delete{
+    background:var(--red);
+}
+
+/* ==================================================
+   BADGES
+================================================== */
+
+.badge-gray{
+    background:#f3f4f6;
+    color:#4b5563;
+}
+
+.badge-red{
+    background:#fee2e2;
+    color:#991b1b;
+}
+
+/* ==================================================
+   PREVIEW MODAL
+================================================== */
+
+.assignment-preview-modal{
+    position:fixed;
+    inset:0;
+    z-index:100000;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+}
+
+.assignment-preview-modal.active{
+    display:flex;
+}
+
+.assignment-preview-backdrop{
+    position:absolute;
+    inset:0;
+    background:rgba(15,23,42,.58);
+    backdrop-filter:blur(4px);
+}
+
+.assignment-preview-dialog{
+    position:relative;
+    z-index:2;
+    width:min(680px,96vw);
+    max-height:90vh;
+    overflow:auto;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:22px;
+    box-shadow:var(--shadow-lg);
+}
+
+.assignment-preview-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    padding:20px 22px;
+    background:linear-gradient(135deg,var(--green-dark),var(--green));
+    color:#fff;
+}
+
+.assignment-preview-header h3{
+    margin:0;
+    color:#fff;
+    font-size:20px;
+    font-weight:900;
+}
+
+.assignment-preview-header p{
+    margin:5px 0 0;
+    color:#d1fae5;
+    font-size:12px;
+}
+
+.assignment-preview-close{
+    width:38px;
+    height:38px;
+    flex:0 0 38px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border:none;
+    border-radius:50%;
+    background:#fff;
+    color:#111827;
+    font-size:23px;
+    cursor:pointer;
+}
+
+.assignment-preview-body{
+    padding:22px;
+}
+
+.assignment-preview-actions{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-top:14px;
+}
+
+body.modal-open{
+    overflow:hidden;
+}
+
+/* ==================================================
+   DARK MODE
+================================================== */
+
+body.dark .assignment-message-panel,
+body.dark .assignment-message-details > div{
+    background:#191f1d;
+}
+
+body.dark .assignment-copy-button{
+    background:#1f2926;
+    color:#e5e7eb;
+}
+
+body.dark .distribution-table tbody tr:nth-child(even){
+    background:#191f1d;
+}
+
+body.dark .distribution-table tbody tr:hover{
+    background:#173a30;
+}
+
+/* ==================================================
+   RESPONSIVE
+================================================== */
+
+@media(max-width:1450px){
+    .distribution-stats-grid{
+        grid-template-columns:repeat(3,minmax(0,1fr));
+    }
+}
+
+@media(max-width:1000px){
+    .assignment-form-grid{
+        grid-template-columns:1fr 1fr;
+    }
+
+    .assignment-message-details{
+        grid-template-columns:1fr;
+    }
+
+    .selected-door-status-grid{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+    }
+}
+
+@media(max-width:750px){
+    .distribution-page{
+        padding:20px 16px 70px;
+    }
+
+    .distribution-page-head,
+    .distribution-card-header,
+    .distribution-toolbar{
+        align-items:flex-start;
+        flex-direction:column;
+    }
+
+    .distribution-stats-grid,
+    .assignment-form-grid,
+    .selected-door-status-grid{
+        grid-template-columns:1fr;
+    }
+
+    .selected-door-status-head{
+        align-items:flex-start;
+        flex-direction:column;
+    }
+
+    .distribution-toolbar-left,
+    .distribution-toolbar-left input{
+        width:100%;
+        max-width:none;
+    }
+
+    .assignment-submit-row{
+        justify-content:stretch;
+    }
+
+    .assignment-submit-button{
+        width:100%;
+    }
+
+    .distribution-actions{
+        flex-wrap:wrap;
+    }
+}
+
+@media(max-width:500px){
+    .distribution-card{
+        padding:18px;
+    }
+
+    .assignment-message-actions,
+    .assignment-preview-actions{
+        align-items:stretch;
+        flex-direction:column;
+    }
+
+    .assignment-message-actions a,
+    .assignment-message-actions button,
+    .assignment-preview-actions a,
+    .assignment-preview-actions button{
+        width:100%;
+    }
+}
+
+
+/* ==================================================
+   SMART DISTRIBUTION ENGINE
+================================================== */
+.smart-distribution-panel{
+    margin-bottom:26px;
+    padding:24px 26px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:24px;
+    box-shadow:var(--shadow-md);
+}
+.smart-distribution-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:18px;
+    margin-bottom:18px;
+}
+.smart-distribution-head h2{
+    margin:0;
+    color:var(--green-dark);
+    font-size:22px;
+    font-weight:900;
+}
+.smart-distribution-head p{
+    margin:6px 0 0;
+    color:var(--muted);
+    font-size:13px;
+}
+.smart-quality-badge{
+    padding:10px 16px;
+    border-radius:999px;
+    background:var(--green-light);
+    color:var(--green-dark);
+    font-weight:900;
+}
+.smart-distribution-grid{
+    display:grid;
+    grid-template-columns:repeat(6,minmax(0,1fr));
+    gap:12px;
+}
+.smart-distribution-grid article{
+    padding:16px;
+    text-align:center;
+    border:1px solid var(--border);
+    border-radius:16px;
+    background:var(--surface-soft);
+}
+.smart-distribution-grid span{
+    display:block;
+    color:var(--muted);
+    font-size:11px;
+    font-weight:800;
+}
+.smart-distribution-grid strong{
+    display:block;
+    margin-top:7px;
+    color:var(--green);
+    font-size:24px;
+    font-weight:900;
+}
+.smart-distribution-actions{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-top:18px;
+}
+.smart-distribution-actions form{margin:0;}
+.smart-action{
+    min-height:44px;
+    padding:0 17px;
+    border:0;
+    border-radius:12px;
+    color:#fff;
+    font-weight:900;
+    cursor:pointer;
+}
+.smart-action.primary{background:var(--green);}
+.smart-action.secondary{background:var(--blue);}
+.smart-action.warning{background:#b45309;}
+.smart-action:disabled{opacity:.55;cursor:not-allowed;}
+.smart-result-box,
+.smart-notes{
+    margin-top:16px;
+    padding:16px;
+    border-radius:14px;
+    line-height:1.8;
+}
+.smart-result-box{
+    border:1px solid #86efac;
+    background:#f0fdf4;
+    color:#166534;
+}
+.smart-notes h3{margin:0 0 8px;font-size:15px;}
+.smart-notes p{margin:4px 0;font-size:13px;font-weight:700;}
+.warning-notes{background:#fff7ed;color:#9a3412;border:1px solid #fdba74;}
+.suggestion-notes{background:#eff6ff;color:#1d4ed8;border:1px solid #93c5fd;}
+
+@media(max-width:1200px){
+    .smart-distribution-grid{grid-template-columns:repeat(3,minmax(0,1fr));}
+}
+@media(max-width:750px){
+    .smart-distribution-head{align-items:flex-start;flex-direction:column;}
+    .smart-distribution-grid{grid-template-columns:1fr 1fr;}
+    .smart-distribution-actions,
+    .smart-distribution-actions form,
+    .smart-action{width:100%;}
+}
+@media(max-width:500px){
+    .smart-distribution-grid{grid-template-columns:1fr;}
+}
+
+
+/* ==================================================
+   REAL REBALANCE PREVIEW
+================================================== */
+.rebalance-preview-modal{
+    position:fixed;
+    inset:0;
+    z-index:100100;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+}
+.rebalance-preview-modal.active{display:flex;}
+.rebalance-preview-backdrop{
+    position:absolute;
+    inset:0;
+    background:rgba(15,23,42,.62);
+    backdrop-filter:blur(4px);
+}
+.rebalance-preview-dialog{
+    position:relative;
+    z-index:2;
+    width:min(980px,97vw);
+    max-height:92vh;
+    overflow:auto;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:22px;
+    box-shadow:var(--shadow-lg);
+}
+.rebalance-preview-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    padding:20px 22px;
+    background:linear-gradient(135deg,#92400e,#b45309);
+    color:#fff;
+}
+.rebalance-preview-header h3{margin:0;color:#fff;font-size:21px;font-weight:900;}
+.rebalance-preview-header p{margin:5px 0 0;color:#ffedd5;font-size:12px;}
+.rebalance-preview-close{
+    width:38px;
+    height:38px;
+    border:0;
+    border-radius:50%;
+    background:#fff;
+    color:#111827;
+    font-size:23px;
+    cursor:pointer;
+}
+.rebalance-preview-body{padding:22px;}
+.rebalance-preview-summary{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:12px;
+    margin-bottom:16px;
+}
+.rebalance-preview-summary article{
+    padding:15px;
+    text-align:center;
+    border:1px solid var(--border);
+    border-radius:14px;
+    background:var(--surface-soft);
+}
+.rebalance-preview-summary span{
+    display:block;
+    color:var(--muted);
+    font-size:11px;
+    font-weight:800;
+}
+.rebalance-preview-summary strong{
+    display:block;
+    margin-top:6px;
+    color:var(--green-dark);
+    font-size:20px;
+    font-weight:900;
+}
+.rebalance-preview-table-wrapper{
+    overflow-x:auto;
+    border:1px solid var(--border);
+    border-radius:16px;
+}
+.rebalance-preview-table{
+    width:100%;
+    min-width:760px;
+    border-collapse:collapse;
+}
+.rebalance-preview-table th{
+    padding:13px;
+    background:var(--green);
+    color:#fff;
+    text-align:center;
+}
+.rebalance-preview-table td{
+    padding:13px;
+    border-bottom:1px solid var(--border);
+    text-align:center;
+    color:var(--text);
+}
+.rebalance-preview-table tr.will-move{background:#fff7ed;}
+.rebalance-preview-table tr.will-stay{background:#f0fdf4;}
+.rebalance-preview-actions{
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+    margin-top:18px;
+}
+@media(max-width:750px){
+    .rebalance-preview-summary{grid-template-columns:1fr 1fr;}
+    .rebalance-preview-actions{flex-direction:column;}
+    .rebalance-preview-actions .smart-action{width:100%;}
+}
+@media(max-width:500px){
+    .rebalance-preview-summary{grid-template-columns:1fr;}
+}
+
+</style>
+
+<link rel="stylesheet" href="{% static 'css/distribution/distribution_enterprise.css' %}?v=20260803-1">
+<script src="{% static 'js/distribution/distribution_enterprise.js' %}?v=20260803-1" defer></script>
+
+{% endblock %}

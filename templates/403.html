@@ -1,0 +1,3 @@
+{% extends "base.html" %}
+{% block title %}الوصول غير مصرح{% endblock %}
+{% block content %}{% include "components/error_state.html" with error_code="403" error_title="الوصول غير مصرح" error_message="لا يملك حسابك الصلاحية اللازمة للوصول إلى هذه الصفحة." %}{% endblock %}

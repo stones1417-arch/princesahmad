@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<link rel="stylesheet" href="{% static 'css/hr/employee_list.css' %}">
+<link rel="stylesheet" href="{% static 'css/hr/employee_form.css' %}">
+
+<div class="employees-page employee-form-page" dir="rtl">
+
+    {% if messages %}
+        <div class="employees-messages">
+            {% for message in messages %}
+                <div class="employees-message {{ message.tags }}">
+                    <span class="employees-message-icon">
+                        {% if message.tags == "success" %}
+                            ✓
+                        {% elif message.tags == "error" %}
+                            ✕
+                        {% elif message.tags == "warning" %}
+                            ⚠
+                        {% else %}
+                            ℹ
+                        {% endif %}
+                    </span>
+
+                    <span class="employees-message-content">
+                        {{ message }}
+                    </span>
+
+                    <button
+                        type="button"
+                        class="employees-message-close"
+                        onclick="this.parentElement.remove()"
+                        aria-label="إغلاق الرسالة"
+                    >
+                        ×
+                    </button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <section class="employees-hero employee-form-hero">
+        <div class="employees-hero-content">
+
+            <div class="employees-hero-info">
+                <div class="employees-hero-icon">
+                    {% if form.instance.pk %}✏️{% else %}👤{% endif %}
+                </div>
+
+                <div>
+                    <span class="employees-hero-eyebrow">
+                        إدارة الموارد البشرية
+                    </span>
+
+                    <h1>
+                        {% if title %}
+                            {{ title }}
+                        {% elif form.instance.pk %}
+                            تعديل بيانات الموظف
+                        {% else %}
+                            إضافة موظف جديد
+                        {% endif %}
+                    </h1>
+
+                    <p>
+                        {% if form.instance.pk %}
+                            تحديث البيانات الوظيفية والتشغيلية للموظف مع الحفاظ على سجله.
+                        {% else %}
+                            تسجيل موظف جديد وإعداد حالته وصلاحياته التشغيلية داخل المنصة.
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+
+            <div class="employees-hero-actions">
+                <a
+                    href="{% url 'hr:list' %}"
+                    class="employees-hero-button secondary"
+                >
+                    ← العودة إلى الموظفين
+                </a>
+            </div>
+
+        </div>
+    </section>
+
+    <form method="post" class="employee-form" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div class="employee-form-alert error">
+                <div class="employee-form-alert-icon">!</div>
+                <div>
+                    <strong>تعذر حفظ البيانات</strong>
+                    <div>{{ form.non_field_errors }}</div>
+                </div>
+            </div>
+        {% endif %}
+
+        <section class="employees-panel employee-form-panel">
+
+            <div class="employees-panel-header">
+                <div class="employees-panel-heading">
+                    <div class="employees-panel-icon">🪪</div>
+
+                    <div>
+                        <span class="employees-panel-eyebrow">
+                            البيانات الأساسية
+                        </span>
+
+                        <h2>
+                            بيانات الموظف
+                        </h2>
+
+                        <p>
+                            أدخل البيانات بدقة. الحقول المعلّمة بنجمة مطلوبة.
+                        </p>
+                    </div>
+                </div>
+
+                <span class="employees-panel-badge">
+                    نموذج الموظف
+                </span>
+            </div>
+
+            <div class="employee-form-grid">
+
+                {% for field in form %}
+
+                    {% if field.field.widget.input_type == "checkbox" %}
+
+                        <div class="employee-form-field employee-checkbox-field {% if field.name == 'notes' %}full{% endif %}">
+                            <label class="employee-switch-row" for="{{ field.id_for_label }}">
+                                <span class="employee-switch-control">
+                                    {{ field }}
+                                    <span class="employee-switch-slider"></span>
+                                </span>
+
+                                <span class="employee-switch-text">
+                                    <strong>{{ field.label }}</strong>
+
+                                    {% if field.help_text %}
+                                        <small>{{ field.help_text }}</small>
+                                    {% endif %}
+                                </span>
+                            </label>
+
+                            {% if field.errors %}
+                                <div class="employee-field-error">
+                                    {{ field.errors|striptags }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                    {% else %}
+
+                        <div class="employee-form-field {% if field.name == 'notes' %}full{% endif %}">
+                            <label for="{{ field.id_for_label }}">
+                                {{ field.label }}
+                                {% if field.field.required %}
+                                    <span class="required-mark">*</span>
+                                {% endif %}
+                            </label>
+
+                            <div class="employee-input-wrapper">
+                                {{ field }}
+                            </div>
+
+                            {% if field.help_text %}
+                                <small class="employee-field-help">
+                                    {{ field.help_text }}
+                                </small>
+                            {% endif %}
+
+                            {% if field.errors %}
+                                <div class="employee-field-error">
+                                    {{ field.errors|striptags }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                    {% endif %}
+
+                {% endfor %}
+
+            </div>
+
+        </section>
+
+        <section class="employee-form-actions-panel">
+
+            <div class="employee-form-actions-info">
+                <span class="employee-form-actions-icon">ℹ</span>
+                <div>
+                    <strong>مراجعة البيانات قبل الحفظ</strong>
+                    <small>
+                        سيتم تسجيل التغييرات في سجل النظام وفق صلاحيات المستخدم.
+                    </small>
+                </div>
+            </div>
+
+            <div class="employee-form-actions">
+                <a
+                    href="{% url 'hr:list' %}"
+                    class="employee-form-button secondary"
+                >
+                    إلغاء
+                </a>
+
+                <button
+                    type="submit"
+                    class="employee-form-button primary"
+                >
+                    <span>✓</span>
+                    {% if form.instance.pk %}
+                        حفظ التعديلات
+                    {% else %}
+                        إضافة الموظف
+                    {% endif %}
+                </button>
+            </div>
+
+        </section>
+
+    </form>
+
+</div>
+
+{% endblock %}

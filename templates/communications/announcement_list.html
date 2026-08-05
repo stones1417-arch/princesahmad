@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+سجل التعاميم الإدارية
+{% endblock %}
+
+{% block content %}
+
+{% include "components/layout/page_container_start.html" %}
+
+    {% include "components/layout/page_title.html" with title="سجل التعاميم الإدارية" subtitle="إدارة التعاميم ومتابعة حالتها وأولويتها" %}
+
+    <div class="stats-grid">
+
+        {% include "components/cards/stat_card.html" with icon="📣" title="إجمالي التعاميم" value=total_announcements %}
+
+        {% include "components/cards/stat_card.html" with icon="✅" title="التعاميم النشطة" value=active_announcements %}
+
+        {% include "components/cards/stat_card.html" with icon="⛔" title="التعاميم المعطلة" value=inactive_announcements %}
+
+        {% include "components/cards/stat_card.html" with icon="🚨" title="التعاميم العاجلة" value=urgent_announcements %}
+
+    </div>
+
+    <form method="get" class="datagrid-filters">
+
+        <div class="datagrid-search">
+
+            <input
+                type="text"
+                name="q"
+                value="{{ q }}"
+                placeholder="بحث بعنوان التعميم أو المحتوى أو اسم المنشئ"
+            >
+
+        </div>
+
+        <div class="datagrid-filter-fields">
+
+            <select name="priority">
+
+                <option value="">
+                    كل الأولويات
+                </option>
+
+                {% for value, label in priority_choices %}
+
+                    <option
+                        value="{{ value }}"
+                        {% if selected_priority == value %}selected{% endif %}
+                    >
+                        {{ label }}
+                    </option>
+
+                {% endfor %}
+
+            </select>
+
+            <select name="status">
+
+                <option value="">
+                    كل الحالات
+                </option>
+
+                <option
+                    value="active"
+                    {% if selected_status == "active" %}selected{% endif %}
+                >
+                    نشط
+                </option>
+
+                <option
+                    value="inactive"
+                    {% if selected_status == "inactive" %}selected{% endif %}
+                >
+                    معطل
+                </option>
+
+            </select>
+
+        </div>
+
+        <div class="datagrid-filter-actions">
+
+            <button type="submit" class="btn-filter">
+                تطبيق الفلاتر
+            </button>
+
+            <a
+                href="{% url 'communications:list' %}"
+                class="btn-reset"
+            >
+                إعادة ضبط
+            </a>
+
+        </div>
+
+    </form>
+
+    <div class="datagrid">
+
+        <div class="datagrid-header">
+
+            <div>
+
+                <h3>
+                    سجل التعاميم
+                </h3>
+
+                <p>
+                    عدد النتائج الحالية: {{ announcements_count }}
+                </p>
+
+            </div>
+
+            <div class="datagrid-actions">
+
+                <a
+                    href="{% url 'communications:create' %}"
+                    class="btn-add"
+                >
+                    + إضافة تعميم
+                </a>
+
+            </div>
+
+        </div>
+
+        {% if announcements %}
+
+            <div class="datagrid-table-wrap">
+
+                <table class="datagrid-table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>
+                                العنوان
+                            </th>
+
+                            <th>
+                                الأولوية
+                            </th>
+
+                            <th>
+                                الحالة
+                            </th>
+
+                            <th>
+                                المنشئ
+                            </th>
+
+                            <th>
+                                تاريخ الإنشاء
+                            </th>
+
+                            <th>
+                                آخر تحديث
+                            </th>
+
+                            <th>
+                                الإجراءات
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        {% for announcement in announcements %}
+
+                            <tr class="announcement-row priority-{{ announcement.priority }} {% if not announcement.is_active %}is-inactive{% endif %}">
+
+                                <td>
+
+                                    <div class="announcement-title-cell">
+
+                                        <a
+                                            href="{% url 'communications:detail' announcement.id %}"
+                                            class="announcement-title-link"
+                                        >
+                                            {{ announcement.title }}
+                                        </a>
+
+                                        <small>
+                                            {{ announcement.content|truncatechars:90 }}
+                                        </small>
+                                        {% if announcement.attachment %}
+                                            <span class="attachment-indicator">مرفق · {{ announcement.attachment_type }}</span>
+                                        {% endif %}
+
+                                    </div>
+
+                                </td>
+
+                                <td>
+
+                                    {% if announcement.priority == "urgent" %}
+
+                                        <span class="datagrid-badge danger">
+                                            عاجل
+                                        </span>
+
+                                    {% elif announcement.priority == "important" %}
+
+                                        <span class="datagrid-badge warning">
+                                            مهم
+                                        </span>
+
+                                    {% else %}
+
+                                        <span class="datagrid-badge info">
+                                            عادي
+                                        </span>
+
+                                    {% endif %}
+
+                                </td>
+
+                                <td>
+
+                                    {% if announcement.is_active %}
+
+                                        <span class="datagrid-badge success">
+                                            نشط
+                                        </span>
+
+                                    {% else %}
+
+                                        <span class="datagrid-badge danger">
+                                            معطل
+                                        </span>
+
+                                    {% endif %}
+
+                                </td>
+
+                                <td>
+
+                                    {% if announcement.created_by %}
+
+                                        {% if announcement.created_by.get_full_name %}
+
+                                            {{ announcement.created_by.get_full_name }}
+
+                                        {% else %}
+
+                                            {{ announcement.created_by.username }}
+
+                                        {% endif %}
+
+                                    {% else %}
+
+                                        —
+
+                                    {% endif %}
+
+                                </td>
+
+                                <td>
+                                    {{ announcement.created_at|date:"Y-m-d H:i" }}
+                                </td>
+
+                                <td>
+                                    {{ announcement.updated_at|date:"Y-m-d H:i" }}
+                                </td>
+
+                                <td>
+
+                                    <div class="actions">
+
+                                        <a
+                                            href="{% url 'communications:detail' announcement.id %}"
+                                            class="btn-view"
+                                        >
+                                            عرض
+                                        </a>
+
+                                        <a
+                                            href="{% url 'communications:edit' announcement.id %}"
+                                            class="btn-edit"
+                                        >
+                                            تعديل
+                                        </a>
+
+                                        <form
+                                            method="post"
+                                            action="{% url 'communications:toggle-status' announcement.id %}"
+                                        >
+
+                                            {% csrf_token %}
+
+                                            {% if announcement.is_active %}
+
+                                                <button
+                                                    type="submit"
+                                                    class="btn-disable"
+                                                >
+                                                    تعطيل
+                                                </button>
+
+                                            {% else %}
+
+                                                <button
+                                                    type="submit"
+                                                    class="btn-enable"
+                                                >
+                                                    تفعيل
+                                                </button>
+
+                                            {% endif %}
+
+                                        </form>
+
+                                        <a
+                                            href="{% url 'communications:delete' announcement.id %}"
+                                            class="btn-delete"
+                                        >
+                                            حذف
+                                        </a>
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        {% else %}
+
+            {% include "components/tables/empty_state.html" with icon="📣" title="لا توجد تعاميم" message="لم يتم العثور على تعاميم مطابقة للبحث أو الفلاتر الحالية." %}
+
+        {% endif %}
+
+    </div>
+
+{% include "components/layout/page_container_end.html" %}
+
+<link rel="stylesheet" href="{% static 'css/communications/announcement_list_enterprise.css' %}?v=20260803-1">
+
+{% endblock %}

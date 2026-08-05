@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+
+<div class="operational-page" dir="rtl">
+
+  <div class="page-head">
+    <div class="operational-heading">
+      <span>مركز التقارير والجاهزية</span>
+      <h2>التقرير التشغيلي المباشر</h2>
+      {% if active_shift %}
+        <p>الوردية النشطة: <strong>{{ active_shift.shift_type.name }}</strong> — {{ active_shift.date }}</p>
+      {% else %}
+        <p class="danger">لا توجد وردية نشطة حاليًا</p>
+      {% endif %}
+      <small class="report-live"><i></i> تحديث مباشر · <b id="operationalLiveClock">—</b></small>
+    </div>
+    <div class="operational-head-actions">
+      <a href="{% url 'reporting:list' %}">أرشيف التقارير</a>
+      {% if can_create %}<a class="primary" href="{% url 'reporting:generate-active' %}">إنشاء تقرير الوردية</a>{% endif %}
+    </div>
+  </div>
+
+  {% if active_shift %}
+  <section class="operational-health">
+    <div><span>جاهزية الأبواب</span><strong>{{ readiness_rate }}%</strong><small>{{ open_doors }} بابًا مفتوحًا من {{ total_doors }}</small></div>
+    <div class="health-progress"><i style="width:{{ readiness_rate }}%"></i></div>
+    <div><span>إنجاز الصيانة</span><strong>{{ maintenance_rate }}%</strong><small>{{ maintenance_completed }} مكتمل · {{ maintenance_pending }} قيد المعالجة</small></div>
+    <div class="health-progress maintenance"><i style="width:{{ maintenance_rate }}%"></i></div>
+  </section>
+  {% endif %}
+
+  <div class="kpi-grid">
+    <div class="kpi total"><i>▦</i><span>إجمالي الأبواب</span><strong>{{ total_doors }}</strong><small>ضمن الوردية النشطة</small></div>
+    <div class="kpi green"><i>✓</i><span>مفتوحة</span><strong>{{ open_doors }}</strong><small>متاحة للتشغيل</small></div>
+    <div class="kpi red"><i>×</i><span>مغلقة</span><strong>{{ closed_doors }}</strong><small>تتطلب متابعة</small></div>
+    <div class="kpi yellow"><i>⚙</i><span>صيانة</span><strong>{{ maintenance_doors }}</strong><small>خارج الجاهزية</small></div>
+    <div class="kpi blue"><i>◆</i><span>مؤمنة</span><strong>{{ secured_doors }}</strong><small>مؤمنة ميدانيًا</small></div>
+    <div class="kpi employees"><i>👥</i><span>الموظفون المناوبون</span><strong>{{ employees_count }}</strong><small>{{ total_assignments }} تكليفًا نشطًا</small></div>
+  </div>
+
+  <div class="card">
+    <div class="report-card-header"><div><span>المتابعة الميدانية</span><h3>حالة الأبواب</h3><p>الحالة الحالية وآخر تحديث لكل باب تشغيلي.</p></div><strong id="doorsVisibleCount">{{ door_shifts|length }} باب</strong></div>
+    <div class="report-toolbar"><div><span>⌕</span><input type="search" data-report-search="doorsTable" placeholder="ابحث برقم الباب، الحالة أو الملاحظات..."></div><select data-table-state-filter="doorsTable"><option value="">كل الحالات</option><option value="مفتوح">مفتوح</option><option value="مغلق">مغلق</option><option value="تحت الصيانة">تحت الصيانة</option><option value="مؤمّن">مؤمّن</option></select></div>
+    <div class="table-wrap">
+      <table id="doorsTable" data-count-target="doorsVisibleCount" data-count-label="باب">
+        <thead>
+          <tr>
+            <th>الباب</th>
+            <th>الحالة</th>
+            <th>ملاحظات</th>
+            <th>آخر تحديث</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for door in door_shifts %}
+            <tr data-report-row data-state="{{ door.get_state_display }}">
+              <td><strong class="door-number">باب {{ door.door_number }}</strong></td>
+              <td><span class="state-badge state-{{ door.state }}"><i></i>{{ door.get_state_display }}</span></td>
+              <td>{{ door.notes|default:"—" }}</td>
+              <td>{{ door.updated_at|date:"Y-m-d H:i" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4">لا توجد أبواب للوردية النشطة</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card workforce-report-card">
+    <div class="report-card-header workforce-header"><div><span>القوى العاملة</span><h3>التوزيع التشغيلي</h3><p>الموظفون المكلفون على الأبواب وأدوارهم الحالية.</p></div><strong id="assignmentsVisibleCount">{{ assignments|length }} تكليف</strong></div>
+    <div class="workforce-role-summary">
+      <article><i class="supervisor">م</i><span>المشرفون</span><strong>{{ supervisors_count }}</strong></article>
+      <article><i class="monitor">ر</i><span>المراقبون</span><strong>{{ monitors_count }}</strong></article>
+      <article><i class="technician">ف</i><span>الفنيون</span><strong>{{ technicians_count }}</strong></article>
+      <article><i class="support">س</i><span>المساندون</span><strong>{{ support_count }}</strong></article>
+    </div>
+    <div class="report-toolbar"><div><span>⌕</span><input type="search" data-report-search="assignmentsTable" placeholder="ابحث بالباب، الموظف أو الدور..."></div><select data-table-role-filter="assignmentsTable"><option value="">كل الأدوار</option>{% for value,label in assignment_role_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
+    <div class="table-wrap">
+      <table id="assignmentsTable" data-count-target="assignmentsVisibleCount" data-count-label="تكليف">
+        <thead>
+          <tr>
+            <th>الباب</th>
+            <th>الموظف</th>
+            <th>الدور</th>
+            <th>الجوال</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in assignments %}
+            <tr data-report-row data-role="{{ item.role }}" class="role-row-{{ item.role }}">
+              <td><strong class="door-number"><i aria-hidden="true">⌑</i>{{ item.door }}</strong></td>
+              <td><span class="report-employee"><i>{{ item.employee.full_name|slice:":1" }}</i><b>{{ item.employee.full_name }}</b></span></td>
+              <td><span class="role-badge role-{{ item.role }}">{{ item.get_role_display }}</span></td>
+              <td>{% if item.employee.phone_number %}<a class="phone-link" href="tel:{{ item.employee.phone_number }}">{{ item.employee.phone_number }}</a>{% else %}<span class="missing-phone">غير مسجل</span>{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4">لا توجد توزيعات</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="report-card-header"><div><span>الاستجابة الفنية</span><h3>آخر طلبات الصيانة</h3><p>طلبات الصيانة المرتبطة بأبواب الوردية النشطة.</p></div><strong id="maintenanceVisibleCount">{{ maintenance_requests|length }} طلب</strong></div>
+    <div class="report-toolbar"><div><span>⌕</span><input type="search" data-report-search="maintenanceTable" placeholder="ابحث برقم الطلب، الباب أو الحالة..."></div></div>
+    <div class="table-wrap">
+      <table id="maintenanceTable" data-count-target="maintenanceVisibleCount" data-count-label="طلب">
+        <thead>
+          <tr>
+            <th>رقم الطلب</th>
+            <th>الباب</th>
+            <th>الأولوية</th>
+            <th>الحالة</th>
+            <th>المنشئ</th>
+            <th>التاريخ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for req in maintenance_requests %}
+            <tr data-report-row>
+              <td><strong>{{ req.request_number|default:req.id }}</strong></td>
+              <td>باب {{ req.door_shift.door_number }}</td>
+              <td><span class="priority-badge priority-{{ req.priority }}">{{ req.get_priority_display }}</span></td>
+              <td><span class="maintenance-status">{{ req.get_status_display }}</span></td>
+              <td>
+                {% if req.created_by %}
+                  {{ req.created_by.username }}
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+              <td>{{ req.created_at|date:"Y-m-d H:i" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6">لا توجد طلبات صيانة</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<style>
+.operational-page{
+  padding:28px 36px 80px;
+  background:#f7f7f7;
+}
+
+.page-head{
+  margin-bottom:24px;
+}
+
+.page-head h2{
+  margin:0;
+  color:#0f7b5c;
+  font-size:28px;
+  font-weight:900;
+}
+
+.page-head p{
+  margin:8px 0 0;
+  color:#6b7280;
+}
+
+.danger{
+  color:#b91c1c !important;
+  font-weight:900;
+}
+
+.kpi-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:16px;
+  margin-bottom:26px;
+}
+
+.kpi{
+  background:#fff;
+  border-radius:20px;
+  padding:20px;
+  box-shadow:0 12px 30px rgba(0,0,0,.07);
+}
+
+.kpi span{
+  color:#6b7280;
+  font-size:13px;
+}
+
+.kpi strong{
+  display:block;
+  margin-top:10px;
+  color:#0f7b5c;
+  font-size:34px;
+}
+
+.kpi.green strong{color:#16a34a;}
+.kpi.red strong{color:#dc2626;}
+.kpi.yellow strong{color:#b45309;}
+.kpi.blue strong{color:#2563eb;}
+
+.card{
+  background:#fff;
+  padding:24px;
+  border-radius:22px;
+  box-shadow:0 12px 30px rgba(0,0,0,.07);
+  margin-bottom:24px;
+}
+
+.card h3{
+  margin:0 0 18px;
+  color:#111827;
+  font-size:22px;
+  font-weight:900;
+}
+
+.table-wrap{
+  overflow-x:auto;
+}
+
+table{
+  width:100%;
+  min-width:850px;
+  border-collapse:separate;
+  border-spacing:0;
+}
+
+th{
+  background:#0f7b5c;
+  color:#fff;
+  padding:14px;
+  text-align:center;
+}
+
+td{
+  padding:14px;
+  text-align:center;
+  border-bottom:1px solid #eee;
+}
+
+tr:hover td{
+  background:#f9fafb;
+}
+</style>
+
+<link rel="stylesheet" href="{% static 'css/reporting/operational_report_enterprise.css' %}?v=20260803-1">
+<script src="{% static 'js/reporting/operational_report.js' %}?v=20260803-1" defer></script>
+
+{% endblock %}

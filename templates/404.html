@@ -1,0 +1,3 @@
+{% extends "base.html" %}
+{% block title %}الصفحة غير موجودة{% endblock %}
+{% block content %}{% include "components/error_state.html" with error_code="404" error_title="الصفحة غير موجودة" error_message="تعذر العثور على الصفحة المطلوبة أو ربما تغير مسارها." %}{% endblock %}

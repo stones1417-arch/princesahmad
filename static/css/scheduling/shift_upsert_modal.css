@@ -1,0 +1,74 @@
+/* Shift upsert modal — enterprise workflow layer */
+.shift-modal-backdrop { padding: clamp(10px,3vw,30px) !important; background: rgba(7,28,21,.74) !important; backdrop-filter: blur(10px) saturate(.85) !important; }
+.shift-modal-form {
+    width: min(800px,100%) !important; max-width: 100% !important; padding: 0 !important;
+    overflow-x: hidden !important; border: 1px solid rgba(255,255,255,.72); border-top: 3px solid #cba43b;
+    border-radius: 26px !important; box-shadow: 0 35px 100px rgba(2,19,13,.4) !important;
+    animation: shift-modal-enter .24s cubic-bezier(.2,.8,.2,1) both;
+}
+.shift-modal-header {
+    position: sticky; top: 0; z-index: 5; min-height: 116px; padding: 22px 26px;
+    display: flex; justify-content: space-between; align-items: center; gap: 20px;
+    background: linear-gradient(135deg,#fbfdfc,#f1f8f5); border-bottom: 1px solid #dfe9e4;
+}
+.shift-modal-header::before { content:""; position:absolute; inset-block:0; right:0; width:5px; background:linear-gradient(#d4af37,#08765a); }
+.shift-modal-kicker { display:inline-flex; margin-bottom:6px; padding:4px 9px; color:#896b1c; background:#fff6d8; border:1px solid #edda98; border-radius:999px; font-size:9px; font-weight:950; }
+.shift-modal-form .shift-modal-header h3 { margin:0; color:#10251e; font-size:clamp(22px,3vw,28px); letter-spacing:-.02em; }
+.shift-modal-header p { margin:5px 0 0; color:#6e7c75; font-size:11px; }
+.shift-modal-close { width:44px; height:44px; flex:0 0 44px; padding:0; border:1px solid #d9e4df; border-radius:14px; color:#35443e; background:#fff; font-size:22px; transition:.18s ease; }
+.shift-modal-close:hover { color:#991b1b; background:#fee2e2; border-color:#fecaca; transform:rotate(6deg); }
+.shift-modal-form > .schedule-mode,
+.shift-modal-form > #regularShiftSection,
+.shift-modal-form > #seasonalShiftSection,
+.shift-modal-form > .modal-actions,
+.shift-modal-form > .form-message { margin-inline:26px; }
+.shift-modal-form > .schedule-mode { margin-top:22px; }
+.schedule-mode-item { min-height:78px; padding:14px 16px !important; border-radius:16px !important; transition:.18s ease; }
+.schedule-mode-item:hover { border-color:#9db8ad; transform:translateY(-1px); }
+.schedule-mode-item > span { display:block; min-width:0; }
+.schedule-mode-item b,.schedule-mode-item small { display:block; }
+.schedule-mode-item b { font-size:14px; }
+.schedule-mode-item small { margin-top:4px; color:#738079; font-size:9px; font-weight:700; }
+.schedule-mode-item.selected small { color:#477565; }
+.schedule-mode-item input { accent-color:#08765a; transform:scale(1.15); }
+.shift-modal-form .form-section { padding:20px !important; border-color:#dfe7e3 !important; border-radius:18px !important; background:#fbfcfc !important; }
+.shift-modal-form .form-section-title { display:flex; align-items:center; gap:9px; padding-bottom:13px; border-bottom:1px solid #e4ebe8; font-size:16px; }
+.shift-modal-form .form-section-title > span { width:29px; height:29px; display:grid; place-items:center; color:#fff; background:#08765a; border-radius:9px; font-size:9px; }
+.shift-modal-form .form-group label { display:flex; align-items:center; gap:7px; color:#182620; font-size:12px; }
+.shift-required,.shift-optional { padding:2px 7px; border-radius:999px; font-size:8px; font-style:normal; font-weight:900; }
+.shift-required { color:#876715; background:#fff4cc; }
+.shift-optional { color:#64748b; background:#eef2f6; }
+.shift-modal-form .form-group input,
+.shift-modal-form .form-group select,
+.shift-modal-form .form-group textarea { min-height:52px; border-color:#d6e1dc; background:#fff; transition:.18s ease; }
+.shift-modal-form .form-group input:focus,
+.shift-modal-form .form-group select:focus,
+.shift-modal-form .form-group textarea:focus { outline:none; border-color:#08765a; box-shadow:0 0 0 4px rgba(8,118,90,.1); }
+.shift-activation-toggle { min-height:66px; margin-top:14px; padding:11px 13px; display:flex; align-items:center; gap:11px; border:1px solid #dce7e2; border-radius:15px; background:#f4f9f7; cursor:pointer; }
+.shift-activation-toggle > input { position:absolute; opacity:0; pointer-events:none; }
+.shift-toggle-track { width:42px; height:24px; flex:0 0 42px; padding:3px; display:block; background:#b8c3be; border-radius:99px; transition:.18s ease; }
+.shift-toggle-track i { width:18px; height:18px; display:block; background:#fff; border-radius:50%; box-shadow:0 2px 5px rgba(0,0,0,.18); transition:.18s ease; }
+.shift-activation-toggle input:checked + .shift-toggle-track { background:#08765a; }
+.shift-activation-toggle input:checked + .shift-toggle-track i { transform:translateX(-18px); }
+.shift-activation-toggle b,.shift-activation-toggle small { display:block; }
+.shift-activation-toggle b { color:#192720; font-size:12px; }
+.shift-activation-toggle small { margin-top:3px; color:#738079; font-size:9px; }
+.regular-shift-summary { margin-top:14px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; gap:12px; color:#65736c; background:#eef7f3; border:1px solid #d4e8df; border-radius:14px; font-size:9px; }
+.regular-shift-summary strong { color:#08654d; font-size:11px; }
+.shift-modal-form > .modal-actions { position:sticky; bottom:0; z-index:5; margin:22px 0 0 !important; padding:16px 26px; background:rgba(250,252,251,.97); border-top:1px solid #dfe8e4; backdrop-filter:blur(10px); }
+.shift-modal-form .modal-actions button { min-width:128px; min-height:47px; display:inline-flex; align-items:center; justify-content:center; gap:7px; border-radius:13px; }
+.shift-modal-form .btn-save { min-width:165px; background:linear-gradient(135deg,#0b8060,#075d47); box-shadow:0 8px 20px rgba(8,118,90,.2); }
+.shift-save-icon { width:21px; height:21px; display:grid; place-items:center; color:#08765a; background:#fff; border-radius:50%; font-size:11px; }
+.shift-modal-form > .form-message { margin-top:12px; margin-bottom:22px; }
+body.dark .shift-modal-header,html[data-theme="dark"] .shift-modal-header { background:linear-gradient(135deg,#19221e,#111815); }
+body.dark .shift-modal-form .form-section,html[data-theme="dark"] .shift-modal-form .form-section { background:#171e1b !important; border-color:#334039 !important; }
+body.dark .shift-modal-header p,html[data-theme="dark"] .shift-modal-header p { color:#a7b3ad; }
+@keyframes shift-modal-enter { from{opacity:0;transform:translateY(14px) scale(.985)} to{opacity:1;transform:none} }
+@media(max-width:650px){
+    .shift-modal-backdrop{padding:7px!important}.shift-modal-form{max-height:calc(100vh - 14px)!important;border-radius:19px!important}
+    .shift-modal-header{padding:16px;min-height:104px}.shift-modal-header p{display:none}
+    .shift-modal-form > .schedule-mode,.shift-modal-form > #regularShiftSection,.shift-modal-form > #seasonalShiftSection,.shift-modal-form > .form-message{margin-inline:14px}
+    .schedule-mode{grid-template-columns:1fr!important}.form-row-two{grid-template-columns:1fr!important}
+    .shift-modal-form > .modal-actions{padding:13px 14px}.shift-modal-form .modal-actions button{flex:1;min-width:0}
+}
+@media(prefers-reduced-motion:reduce){.shift-modal-form,.shift-modal-form *{animation:none!important;transition:none!important}}

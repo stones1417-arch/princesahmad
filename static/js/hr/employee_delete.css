@@ -1,0 +1,215 @@
+:root{
+    --hr-green:#0f7b5c;
+    --hr-text:#17211e;
+    --hr-muted:#64706c;
+    --hr-border:#e2e8e5;
+    --hr-danger:#b42318;
+    --hr-danger-dark:#8f1711;
+    --hr-danger-soft:#fff1f0;
+}
+
+.employee-delete-page{
+    max-width:1180px;
+    margin:0 auto;
+    padding:24px 32px 48px;
+}
+
+.employee-delete-hero{
+    margin-bottom:22px;
+}
+
+.employees-hero-icon.danger,
+.employees-panel-icon.danger{
+    color:var(--hr-danger);
+    background:var(--hr-danger-soft);
+}
+
+.employees-panel-eyebrow.danger{
+    color:var(--hr-danger);
+}
+
+.employees-panel-badge.danger{
+    color:var(--hr-danger);
+    background:var(--hr-danger-soft);
+    border-color:#ffd0cc;
+}
+
+.employee-delete-panel{
+    overflow:hidden;
+}
+
+.employee-delete-content{
+    display:flex;
+    flex-direction:column;
+    gap:20px;
+}
+
+.employee-delete-profile{
+    display:grid;
+    grid-template-columns:auto 1fr auto;
+    align-items:center;
+    gap:16px;
+    padding:18px;
+    background:#fbfcfb;
+    border:1px solid var(--hr-border);
+    border-radius:18px;
+}
+
+.employee-delete-avatar{
+    width:58px;
+    height:58px;
+    display:grid;
+    place-items:center;
+    color:#fff;
+    background:linear-gradient(135deg,#075a43,#0f7b5c);
+    border-radius:17px;
+    font-size:22px;
+    font-weight:900;
+}
+
+.employee-delete-profile-info span,
+.employee-delete-profile-info h3,
+.employee-delete-profile-info strong{
+    display:block;
+}
+
+.employee-delete-profile-info span{
+    color:var(--hr-muted);
+    font-size:11px;
+}
+
+.employee-delete-profile-info h3{
+    margin:4px 0;
+    color:var(--hr-text);
+    font-size:18px;
+}
+
+.employee-delete-profile-info strong{
+    color:var(--hr-green);
+    font-size:12px;
+}
+
+.employee-delete-current-status{
+    padding:8px 12px;
+    color:#166534;
+    background:#dcfce7;
+    border-radius:999px;
+    font-size:11px;
+    font-weight:900;
+}
+
+.employee-delete-warning{
+    display:flex;
+    align-items:flex-start;
+    gap:14px;
+    padding:18px;
+    color:var(--hr-danger-dark);
+    background:var(--hr-danger-soft);
+    border:1px solid #ffd0cc;
+    border-radius:18px;
+}
+
+.employee-delete-warning-icon{
+    width:34px;
+    height:34px;
+    flex:0 0 34px;
+    display:grid;
+    place-items:center;
+    color:#fff;
+    background:var(--hr-danger);
+    border-radius:50%;
+    font-weight:900;
+}
+
+.employee-delete-warning strong{
+    display:block;
+    margin-bottom:8px;
+    font-size:13px;
+}
+
+.employee-delete-warning ul{
+    margin:0;
+    padding-right:18px;
+    font-size:12px;
+    line-height:1.9;
+}
+
+.employee-delete-actions{
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    gap:10px;
+    padding-top:3px;
+}
+
+.employee-delete-button{
+    min-height:45px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:7px;
+    padding:10px 20px;
+    border:none;
+    border-radius:13px;
+    font:inherit;
+    font-size:13px;
+    font-weight:900;
+    text-decoration:none;
+    cursor:pointer;
+    transition:transform .2s ease,box-shadow .2s ease;
+}
+
+.employee-delete-button:hover{
+    transform:translateY(-1px);
+}
+
+.employee-delete-button.secondary{
+    color:var(--hr-text);
+    background:#f2f5f3;
+    border:1px solid #dde4e0;
+}
+
+.employee-delete-button.danger{
+    color:#fff;
+    background:linear-gradient(135deg,var(--hr-danger-dark),var(--hr-danger));
+    box-shadow:0 8px 18px rgba(180,35,24,.18);
+}
+
+@media (max-width:720px){
+    .employee-delete-page{
+        padding:18px;
+    }
+
+    .employee-delete-profile{
+        grid-template-columns:auto 1fr;
+    }
+
+    .employee-delete-current-status{
+        grid-column:1 / -1;
+        justify-self:start;
+    }
+}
+
+@media (max-width:520px){
+    .employee-delete-page{
+        padding:12px;
+    }
+
+    .employee-delete-profile{
+        grid-template-columns:1fr;
+        text-align:center;
+    }
+
+    .employee-delete-avatar,
+    .employee-delete-current-status{
+        justify-self:center;
+    }
+
+    .employee-delete-actions{
+        flex-direction:column-reverse;
+    }
+
+    .employee-delete-button{
+        width:100%;
+    }
+}

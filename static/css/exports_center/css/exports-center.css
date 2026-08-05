@@ -1,0 +1,673 @@
+/* =========================================================
+   إصلاح وتنظيم رأس مركز التصدير
+========================================================= */
+
+.xc-page {
+    width: 100%;
+    min-height: calc(100vh - 80px);
+    padding: 14px;
+    overflow-x: hidden;
+}
+
+
+/* =========================================================
+   إزالة العناصر القديمة
+========================================================= */
+
+.xc-hero::before,
+.xc-hero::after {
+    content: none !important;
+    display: none !important;
+}
+
+
+/* =========================================================
+   رأس الصفحة
+========================================================= */
+
+.xc-hero {
+    position: relative !important;
+    isolation: isolate;
+
+    width: 100% !important;
+    height: 225px !important;
+    min-height: 225px !important;
+    max-height: 225px !important;
+
+    margin: 0 0 14px !important;
+    overflow: hidden !important;
+
+    border: 1px solid #dce7e2 !important;
+    border-radius: 17px !important;
+
+    background:
+        radial-gradient(
+            circle at 21% 38%,
+            rgba(255, 255, 255, 0.08) 0 1px,
+            transparent 2px
+        ) 0 0 / 21px 21px,
+        linear-gradient(
+            112deg,
+            #064b3d 0%,
+            #075b47 48%,
+            #d4aa45 48.15%,
+            #d4aa45 48.7%,
+            #f8faf9 48.85%,
+            #ffffff 100%
+        ) !important;
+
+    box-shadow:
+        0 10px 28px
+        rgba(18, 52, 41, 0.08) !important;
+}
+
+
+/* =========================================================
+   محتوى الرأس
+========================================================= */
+
+.xc-hero-copy {
+    position: absolute !important;
+    z-index: 10 !important;
+
+    top: 50% !important;
+    right: 48px !important;
+    left: auto !important;
+    bottom: auto !important;
+
+    width: 42% !important;
+    max-width: 650px !important;
+
+    transform: translateY(-50%) !important;
+    text-align: right !important;
+}
+
+.xc-brand {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+
+    color: #087457 !important;
+    font-size: 12px !important;
+    font-weight: 900 !important;
+}
+
+.xc-brand-icon {
+    flex: 0 0 31px !important;
+    width: 31px !important;
+    height: 34px !important;
+}
+
+.xc-brand-icon svg {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+
+    fill: none !important;
+    stroke: currentColor !important;
+    stroke-width: 2 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+}
+
+.xc-hero-copy h1 {
+    margin: 9px 0 8px !important;
+    padding: 0 !important;
+
+    color: #13231e !important;
+    font-size:
+        clamp(
+            35px,
+            3.5vw,
+            51px
+        ) !important;
+    font-weight: 900 !important;
+    line-height: 1.08 !important;
+}
+
+.xc-hero-copy p {
+    max-width: 610px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+
+    color: #6f7b76 !important;
+    font-size: 13px !important;
+    line-height: 1.9 !important;
+}
+
+.xc-excel-word {
+    color: #087457 !important;
+}
+
+.xc-pdf-word {
+    color: #df3e3e !important;
+}
+
+.xc-csv-word {
+    color: #7043ce !important;
+}
+
+
+/* =========================================================
+   الرسم الوسطي
+========================================================= */
+
+.xc-hero-art {
+    position: absolute !important;
+    z-index: 8 !important;
+
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 29% !important;
+    right: auto !important;
+
+    width: 35% !important;
+    height: 225px !important;
+
+    overflow: visible !important;
+    pointer-events: none !important;
+}
+
+.xc-art-folder {
+    position: absolute !important;
+
+    top: 50% !important;
+    left: 50% !important;
+
+    width: 220px !important;
+    height: 180px !important;
+
+    transform:
+        translate(
+            -50%,
+            -48%
+        ) !important;
+
+    filter:
+        drop-shadow(
+            0 17px 15px
+            rgba(0, 0, 0, 0.2)
+        ) !important;
+}
+
+.xc-folder-back {
+    position: absolute !important;
+    z-index: 1 !important;
+
+    left: 28px !important;
+    bottom: 20px !important;
+
+    width: 162px !important;
+    height: 112px !important;
+
+    border-radius:
+        18px 18px
+        28px 28px !important;
+
+    background:
+        linear-gradient(
+            145deg,
+            #30a578,
+            #087157
+        ) !important;
+}
+
+
+/* =========================================================
+   المستند
+========================================================= */
+
+.xc-art-document {
+    position: absolute !important;
+    z-index: 3 !important;
+
+    top: -5px !important;
+    left: 62px !important;
+
+    width: 105px !important;
+    height: 133px !important;
+
+    overflow: hidden !important;
+
+    border-radius:
+        10px 17px
+        10px 10px !important;
+
+    background:
+        linear-gradient(
+            145deg,
+            #ffffff,
+            #e9efec
+        ) !important;
+
+    box-shadow:
+        0 9px 20px
+        rgba(0, 0, 0, 0.16) !important;
+
+    transform: rotate(2deg) !important;
+}
+
+.xc-doc-fold {
+    position: absolute !important;
+    z-index: 2 !important;
+
+    top: 0 !important;
+    right: 0 !important;
+    left: auto !important;
+    bottom: auto !important;
+
+    display: block !important;
+
+    width: 28px !important;
+    height: 28px !important;
+
+    border: 0 !important;
+    background: #d8e1dd !important;
+
+    clip-path:
+        polygon(
+            0 0,
+            100% 100%,
+            0 100%
+        ) !important;
+
+    transform: none !important;
+}
+
+.xc-doc-line {
+    position: absolute !important;
+    left: 17px !important;
+
+    display: block !important;
+    height: 5px !important;
+
+    border-radius: 999px !important;
+    background: #8bb4e5 !important;
+}
+
+.xc-doc-line.one {
+    top: 28px !important;
+    width: 46px !important;
+}
+
+.xc-doc-line.two {
+    top: 42px !important;
+    width: 62px !important;
+}
+
+.xc-doc-line.three {
+    top: 56px !important;
+    width: 38px !important;
+}
+
+.xc-doc-chart {
+    position: absolute !important;
+    bottom: 17px !important;
+
+    display: block !important;
+    width: 13px !important;
+
+    border-radius:
+        3px 3px 0 0 !important;
+
+    transform: none !important;
+}
+
+.xc-doc-chart.c1 {
+    right: 52px !important;
+    height: 20px !important;
+    background: #e27958 !important;
+}
+
+.xc-doc-chart.c2 {
+    right: 34px !important;
+    height: 36px !important;
+    background: #4c89d7 !important;
+}
+
+.xc-doc-chart.c3 {
+    right: 16px !important;
+    height: 27px !important;
+    background: #75ad5e !important;
+}
+
+.xc-doc-pie {
+    position: absolute !important;
+
+    top: 18px !important;
+    right: 12px !important;
+
+    display: block !important;
+
+    width: 24px !important;
+    height: 24px !important;
+
+    border-radius: 50% !important;
+
+    background:
+        conic-gradient(
+            #efb94c 0 25%,
+            #62a8dc 25% 52%,
+            #6bbf7e 52% 100%
+        ) !important;
+
+    transform: none !important;
+}
+
+
+/* =========================================================
+   مقدمة المجلد
+========================================================= */
+
+.xc-folder-front {
+    position: absolute !important;
+    z-index: 5 !important;
+
+    left: 17px !important;
+    bottom: 2px !important;
+
+    width: 186px !important;
+    height: 92px !important;
+
+    display: grid !important;
+    place-items: center !important;
+
+    border: 0 !important;
+
+    border-radius:
+        18px 18px
+        31px 31px !important;
+
+    background:
+        linear-gradient(
+            145deg,
+            #158663,
+            #064d3d
+        ) !important;
+
+    transform: none !important;
+}
+
+.xc-folder-front svg {
+    display: block !important;
+
+    width: 45px !important;
+    height: 45px !important;
+
+    fill: none !important;
+    stroke: #ffffff !important;
+    stroke-width: 4 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+}
+
+
+/* =========================================================
+   صيغ التصدير العائمة
+========================================================= */
+
+.xc-floating-format {
+    position: absolute !important;
+    z-index: 8 !important;
+
+    display: grid !important;
+    place-items: center !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    color: #ffffff !important;
+    font-family:
+        Arial,
+        sans-serif !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+
+    border: 0 !important;
+
+    box-shadow:
+        0 10px 18px
+        rgba(0, 0, 0, 0.18) !important;
+}
+
+.xc-floating-format.excel {
+    top: 23px !important;
+    left: -3px !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: 54px !important;
+    height: 60px !important;
+
+    border-radius: 9px !important;
+    background: #209a5e !important;
+
+    font-size: 24px !important;
+    transform: rotate(-8deg) !important;
+}
+
+.xc-floating-format.pdf {
+    top: 28px !important;
+    right: -4px !important;
+    left: auto !important;
+    bottom: auto !important;
+
+    width: 56px !important;
+    height: 60px !important;
+
+    border-radius: 9px !important;
+    background: #e74b4b !important;
+
+    font-size: 12px !important;
+    transform: rotate(8deg) !important;
+}
+
+.xc-floating-format.csv {
+    top: auto !important;
+    right: -22px !important;
+    left: auto !important;
+    bottom: 8px !important;
+
+    width: 53px !important;
+    height: 54px !important;
+
+    border-radius: 9px !important;
+    background: #7443c8 !important;
+
+    font-size: 11px !important;
+    transform: rotate(8deg) !important;
+}
+
+
+/* =========================================================
+   بطاقة سجل التصدير
+========================================================= */
+
+.xc-log-card {
+    position: absolute !important;
+    z-index: 10 !important;
+
+    top: 50% !important;
+    left: 30px !important;
+    right: auto !important;
+
+    width: 245px !important;
+    min-height: 70px !important;
+    padding: 11px 13px !important;
+
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+
+    transform:
+        translateY(-50%) !important;
+
+    border:
+        1px solid
+        rgba(255, 255, 255, 0.8) !important;
+
+    border-radius: 12px !important;
+
+    color: var(--xc-text) !important;
+    background:
+        rgba(
+            255,
+            255,
+            255,
+            0.98
+        ) !important;
+
+    box-shadow:
+        0 15px 30px
+        rgba(0, 0, 0, 0.13) !important;
+
+    text-decoration: none !important;
+}
+
+.xc-log-card:hover {
+    transform:
+        translateY(
+            calc(-50% - 3px)
+        ) !important;
+}
+
+.xc-log-icon {
+    flex: 0 0 41px !important;
+
+    width: 41px !important;
+    height: 41px !important;
+
+    display: grid !important;
+    place-items: center !important;
+
+    border-radius: 9px !important;
+
+    color: var(--xc-purple) !important;
+    background:
+        var(--xc-purple-soft) !important;
+}
+
+.xc-log-icon svg,
+.xc-log-arrow {
+    width: 20px !important;
+    height: 20px !important;
+
+    fill: none !important;
+    stroke: currentColor !important;
+    stroke-width: 1.8 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+}
+
+.xc-log-copy {
+    flex: 1 !important;
+    min-width: 0 !important;
+}
+
+.xc-log-copy strong,
+.xc-log-copy small {
+    display: block !important;
+}
+
+.xc-log-copy strong {
+    color:
+        var(--xc-green-dark) !important;
+    font-size: 11px !important;
+}
+
+.xc-log-copy small {
+    margin-top: 4px !important;
+
+    color: var(--xc-muted) !important;
+    font-size: 7px !important;
+}
+
+.xc-log-arrow {
+    flex: 0 0 20px !important;
+    color: var(--xc-green) !important;
+}
+
+
+/* =========================================================
+   الشاشات المتوسطة
+========================================================= */
+
+@media (max-width: 1150px) {
+    .xc-hero-copy {
+        right: 30px !important;
+        width: 48% !important;
+    }
+
+    .xc-hero-art {
+        left: 13% !important;
+        width: 39% !important;
+    }
+
+    .xc-log-card {
+        display: none !important;
+    }
+}
+
+
+/* =========================================================
+   الجوال
+========================================================= */
+
+@media (max-width: 760px) {
+    .xc-hero {
+        height: 410px !important;
+        min-height: 410px !important;
+        max-height: none !important;
+
+        background:
+            linear-gradient(
+                180deg,
+                #ffffff 0%,
+                #ffffff 54%,
+                #075b47 54.2%,
+                #064b3d 100%
+            ) !important;
+    }
+
+    .xc-hero-copy {
+        top: 25px !important;
+        right: 18px !important;
+        left: 18px !important;
+
+        width: auto !important;
+        max-width: none !important;
+
+        transform: none !important;
+        text-align: center !important;
+    }
+
+    .xc-brand {
+        justify-content: center !important;
+    }
+
+    .xc-hero-copy h1 {
+        font-size: 36px !important;
+    }
+
+    .xc-hero-art {
+        top: auto !important;
+        bottom: 0 !important;
+        left: 50% !important;
+
+        width: 100% !important;
+        height: 195px !important;
+
+        transform:
+            translateX(-50%) !important;
+    }
+
+    .xc-art-folder {
+        transform:
+            translate(
+                -50%,
+                -48%
+            )
+            scale(0.86) !important;
+    }
+}

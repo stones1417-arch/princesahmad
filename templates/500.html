@@ -1,0 +1,3 @@
+{% extends "base.html" %}
+{% block title %}تعذر إكمال الطلب{% endblock %}
+{% block content %}{% include "components/error_state.html" with error_code="500" error_title="تعذر إكمال الطلب" error_message="حدث خطأ غير متوقع وتم تسجيله للمتابعة. حاول مرة أخرى لاحقًا." %}{% endblock %}

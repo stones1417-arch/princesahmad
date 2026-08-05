@@ -1,0 +1,135 @@
+/* Door status approval dialog — scoped enterprise layer */
+.dashboard-dialog:has(.door-status-dialog-card) {
+    padding: clamp(10px, 3vw, 32px);
+    background: rgba(8, 28, 22, .72);
+    backdrop-filter: blur(10px) saturate(.85);
+}
+
+.door-status-dialog-card {
+    width: min(680px, 100%) !important;
+    border: 1px solid rgba(255,255,255,.75) !important;
+    border-radius: 26px !important;
+    box-shadow: 0 35px 100px rgba(1, 18, 13, .36), 0 0 0 1px rgba(8,118,90,.08) !important;
+    animation: door-dialog-enter .24s cubic-bezier(.2,.8,.2,1) both;
+}
+
+.door-status-dialog-card .dashboard-dialog-header {
+    position: relative;
+    min-height: 118px;
+    padding: 24px 28px;
+    align-items: center;
+    overflow: hidden;
+    background: linear-gradient(135deg, #fbfdfc 0%, #f2f8f5 100%);
+    border-bottom-color: #dfe9e4;
+}
+
+.door-status-dialog-card .dashboard-dialog-header::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    right: 0;
+    width: 5px;
+    background: linear-gradient(180deg, #d4af37, #08765a);
+}
+
+.dialog-kicker {
+    display: inline-flex;
+    margin-bottom: 7px;
+    padding: 4px 9px;
+    color: #876a18;
+    background: #fff7d9;
+    border: 1px solid #f0df9d;
+    border-radius: 999px;
+    font-size: 9px;
+    font-weight: 950;
+}
+
+.door-status-dialog-card .dashboard-dialog-heading h3 { font-size: clamp(22px, 3vw, 28px); letter-spacing: -.02em; }
+.door-status-dialog-card .dashboard-dialog-heading p { margin-top: 5px; }
+.door-status-dialog-card .dashboard-dialog-close {
+    width: 44px; height: 44px; flex-basis: 44px;
+    border-color: #dce5e1; border-radius: 14px;
+    background: rgba(255,255,255,.8);
+    transition: .18s ease;
+}
+.door-status-dialog-card .dashboard-dialog-close:hover { transform: rotate(6deg); border-color: #fecaca; }
+
+.door-status-dialog-card .dashboard-dialog-body { padding: 24px 28px 28px; }
+.door-status-context {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 24px;
+    padding: 13px;
+    background: #f7faf8;
+    border: 1px solid #e1eae6;
+    border-radius: 16px;
+}
+.door-status-context > div { padding: 3px 7px; }
+.door-status-context span { display: block; margin-bottom: 3px; color: #76817c; font-size: 9px; font-weight: 850; }
+.door-status-context strong { color: #28352f; font-size: 13px; }
+.door-status-context .is-target strong { color: #08765a; }
+.door-status-context-arrow { width: 30px; height: 30px; margin: 0 !important; display: grid !important; place-items: center; color: #08765a !important; background: #e4f3ed; border-radius: 50%; font-size: 15px !important; }
+
+.door-status-dialog-card .dashboard-dialog-form { gap: 19px; }
+.door-status-dialog-card .dashboard-dialog-field label { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+.field-required { padding: 2px 7px; color: #8a6813; background: #fff7d9; border-radius: 999px; font-size: 8px; font-weight: 900; }
+.door-status-dialog-card .dashboard-dialog-field input,
+.door-status-dialog-card .dashboard-dialog-field select,
+.door-status-dialog-card .dashboard-dialog-field textarea {
+    min-height: 54px;
+    padding: 13px 15px;
+    border-color: #d6e1dc;
+    border-radius: 14px;
+    background: #fcfdfd;
+    transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.door-status-dialog-card .dashboard-dialog-field textarea { min-height: 120px; line-height: 1.8; }
+.door-status-dialog-card .dashboard-dialog-field input:hover,
+.door-status-dialog-card .dashboard-dialog-field select:hover,
+.door-status-dialog-card .dashboard-dialog-field textarea:hover { border-color: #aebfb7; background: #fff; }
+.dialog-field-meta { display: flex; justify-content: space-between; gap: 12px; margin-top: 7px; color: #7b8781; font-size: 9px; }
+.dialog-field-meta small { font-size: inherit; }
+.dialog-field-meta b { color: #08765a; }
+
+.door-status-dialog-card .dashboard-dialog-message { margin-bottom: 18px; padding: 12px 14px; border-radius: 12px; }
+.door-status-dialog-card .dashboard-dialog-footer {
+    min-height: 86px;
+    padding: 16px 28px;
+    gap: 10px;
+    background: #f8fbf9;
+    border-top-color: #dfe9e4;
+}
+.door-status-dialog-card .dashboard-dialog-button { min-height: 48px; border-radius: 13px; transition: transform .18s ease, box-shadow .18s ease; }
+.door-status-dialog-card .dashboard-dialog-button:hover { transform: translateY(-1px); }
+.door-status-dialog-card .dashboard-dialog-button.is-primary { min-width: 170px; box-shadow: 0 8px 20px rgba(8,118,90,.2); }
+.door-status-dialog-card .dashboard-dialog-button.is-primary:hover { box-shadow: 0 11px 25px rgba(8,118,90,.28); }
+.button-check { width: 21px; height: 21px; display: grid; place-items: center; color: #08765a; background: #fff; border-radius: 50%; font-size: 11px; }
+
+html[data-theme="dark"] .door-status-dialog-card .dashboard-dialog-header { background: linear-gradient(135deg, #17201c, #111815); }
+html[data-theme="dark"] .door-status-context { background: #17201c; border-color: #304039; }
+html[data-theme="dark"] .door-status-context strong { color: #e7efeb; }
+html[data-theme="dark"] .door-status-context .is-target strong { color: #73d7b6; }
+html[data-theme="dark"] .field-required,
+html[data-theme="dark"] .dialog-kicker { color: #f5d873; background: #3a3218; border-color: #5b4d21; }
+
+@keyframes door-dialog-enter {
+    from { opacity: 0; transform: translateY(14px) scale(.985); }
+    to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 620px) {
+    .door-status-dialog-card { border-radius: 20px !important; }
+    .door-status-dialog-card .dashboard-dialog-header,
+    .door-status-dialog-card .dashboard-dialog-body,
+    .door-status-dialog-card .dashboard-dialog-footer { padding: 16px; }
+    .door-status-context { gap: 8px; padding: 10px; }
+    .door-status-context-arrow { width: 26px; height: 26px; }
+    .door-status-dialog-card .dashboard-dialog-footer { flex-direction: column-reverse; }
+    .door-status-dialog-card .dashboard-dialog-button { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .door-status-dialog-card { animation: none; }
+}

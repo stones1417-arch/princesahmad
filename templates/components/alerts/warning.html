@@ -1,0 +1,7 @@
+<div class="alert-box alert-warning-box">
+    <strong>⚠️ {{ title|default:"تنبيه" }}</strong>
+
+    {% if message %}
+        <p>{{ message }}</p>
+    {% endif %}
+</div>

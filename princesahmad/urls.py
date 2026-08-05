@@ -1,40 +1,137 @@
+from __future__ import annotations
+
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import path, include
+from django.contrib.auth import views as auth_views
+from django.urls import include, path
+from apps.core.health import health_check
+
 
 urlpatterns = [
-    # =========================
-    # لوحة الإدارة
-    # =========================
-    path('admin/', admin.site.urls),
+    path("health/", health_check, name="health-check"),
+    # ==========================================================
+    # لوحة التحكم الرئيسية
+    # ==========================================================
 
-    # =========================
-    # تطبيقات المنصة
-    # =========================
+    path(
+        "",
+        include("apps.dashboard.urls"),
+    ),
 
-    # الحسابات والصلاحيات
-    path('accounts/', include('apps.accounts.urls')),
+    # ==========================================================
+    # إدارة Django
+    # ==========================================================
 
-    # الموارد البشرية (الموظفين)
-    path('hr/', include('apps.hr.urls')),
+    path(
+        "admin/",
+        admin.site.urls,
+    ),
 
-    # الأبواب والمناطق
-    path('locations/', include('apps.locations.urls')),
+    # ==========================================================
+    # الحسابات والمصادقة
+    # ==========================================================
 
-    # الورديات والتسكين
-    path('scheduling/', include('apps.scheduling.urls')),
+    path(
+        "accounts/",
+        include("apps.accounts.urls"),
+    ),
 
-    # توزيع الموظفين على الأبواب
-    path('distribution/', include('apps.distribution.urls')),
+    path(
+        "logout/",
+        auth_views.LogoutView.as_view(
+            next_page="/accounts/login/",
+        ),
+        name="logout",
+    ),
 
-    # الراحات
-    path('breaks/', include('apps.breaks.urls')),
+    # ==========================================================
+    # الموارد البشرية والمواقع
+    # ==========================================================
 
-    # التشغيل اليومي (حالة الأبواب – الصيانة)
-    path('ops/', include('apps.ops.urls')),
+    path(
+        "hr/",
+        include("apps.hr.urls"),
+    ),
 
-    # التعاميم
-    path('communications/', include('apps.communications.urls')),
+    path(
+        "locations/",
+        include("apps.locations.urls"),
+    ),
 
-    # التقارير
-    path('reporting/', include('apps.reporting.urls')),
+    # ==========================================================
+    # الورديات والتوزيع والراحات
+    # ==========================================================
+
+    path(
+        "scheduling/",
+        include("apps.scheduling.urls"),
+    ),
+
+    path(
+        "distribution/",
+        include("apps.distribution.urls"),
+    ),
+
+    path(
+        "breaks/",
+        include("apps.breaks.urls"),
+    ),
+
+    # ==========================================================
+    # العمليات
+    # ==========================================================
+
+    path(
+        "ops/",
+        include("apps.ops.urls"),
+    ),
+
+    # ==========================================================
+    # التعاميم والتقارير والتصدير
+    # ==========================================================
+
+    path(
+        "communications/",
+        include("apps.communications.urls"),
+    ),
+
+    path(
+        "reporting/",
+        include("apps.reporting.urls"),
+    ),
+
+    path(
+        "exports/",
+        include("apps.exports_center.urls"),
+    ),
+
+    # ==========================================================
+    # الإشعارات
+    # ==========================================================
+
+    path(
+        "notifications/",
+        include("apps.notifications.urls"),
+    ),
+
+    # ==========================================================
+    # سجل المراجعة والتدقيق
+    # ==========================================================
+
+    path(
+        "audit/",
+        include("apps.audit.urls"),
+    ),
 ]
+
+
+# ==========================================================
+# ملفات الوسائط أثناء التطوير فقط
+# ==========================================================
+
+if settings.DEBUG:
+    urlpatterns += static(
+        settings.MEDIA_URL,
+        document_root=settings.MEDIA_ROOT,
+    )

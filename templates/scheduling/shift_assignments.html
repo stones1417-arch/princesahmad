@@ -1,0 +1,581 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+
+<div class="assign-page" dir="rtl">
+
+  <div class="page-head">
+    <div class="assignment-page-heading">
+      <span>إدارة القوى العاملة</span>
+      <h2>تسكين الموظفين في الوردية</h2>
+      {% if active_shift %}
+        <p>الوردية النشطة: <strong>{{ active_shift }}</strong></p>
+      {% else %}
+        <p class="danger">لا توجد وردية نشطة حاليًا</p>
+      {% endif %}
+    </div>
+    <div class="assignment-head-actions">
+      <a href="{% url 'scheduling:status' %}">حالة الورديات</a>
+      <a class="is-primary" href="#assignmentCreateCard">＋ تسكين جديد</a>
+    </div>
+  </div>
+
+  {% if not active_shift %}
+
+    <div class="alert-box">
+      لا توجد وردية نشطة حاليًا. فعّل وردية أولًا من صفحة حالات الورديات.
+    </div>
+
+  {% else %}
+
+    <div class="stats-grid">
+      <div class="stat-card total">
+        <i aria-hidden="true">👥</i>
+        <span>إجمالي المسكنين</span>
+        <strong>{{ assignments|length }}</strong>
+      </div>
+
+      <div class="stat-card green">
+        <i aria-hidden="true">✓</i>
+        <span>المؤكدون</span>
+        <strong>
+          {% with total=0 %}
+            {{ confirmed_count|default:0 }}
+          {% endwith %}
+        </strong>
+      </div>
+
+      <div class="stat-card blue">
+        <i aria-hidden="true">＋</i>
+        <span>المتاحون للتسكين</span>
+        <strong>{{ available_employees|length }}</strong>
+      </div>
+
+      <div class="stat-card gold">
+        <i aria-hidden="true">◷</i>
+        <span>الوردية</span>
+        <strong>{{ active_shift.shift_type.name }}</strong>
+      </div>
+    </div>
+
+    <div class="card assignment-create-card" id="assignmentCreateCard">
+      <div class="card-title">
+        <span class="card-kicker">إجراء 01</span>
+        <h3>إضافة تسكين جديد</h3>
+        <span>اختر الموظف وحدد دوره التشغيلي داخل الوردية</span>
+      </div>
+
+      <form id="assignmentCreateForm" method="post" action="{% url 'scheduling:assignment-create' %}">
+        {% csrf_token %}
+
+        <div class="form-grid">
+
+          <div class="form-field">
+            <label for="assignmentEmployee">الموظف <small>مطلوب</small></label>
+            <select id="assignmentEmployee" name="employee_id" required {% if not available_employees %}disabled{% endif %}>
+              <option value="">
+                {% if available_employees %}
+                  اختر الموظف
+                {% else %}
+                  لا يوجد موظفون متاحون
+                {% endif %}
+              </option>
+
+              {% for emp in available_employees %}
+                <option value="{{ emp.id }}">
+                  {{ emp.employee_number }} - {{ emp.full_name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-field">
+            <label for="assignmentRole">الدور التشغيلي <small>مطلوب</small></label>
+            <select id="assignmentRole" name="role" required {% if not available_employees %}disabled{% endif %}>
+              {% for value,label in role_choices %}
+                <option value="{{ value }}">
+                  {{ label }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-field notes">
+            <label for="assignmentNotes">ملاحظات <small class="optional">اختياري</small></label>
+            <input id="assignmentNotes" name="notes" maxlength="500" placeholder="ملاحظات تساعد فريق التشغيل" {% if not available_employees %}disabled{% endif %}>
+          </div>
+
+          <div class="form-action">
+            <button id="assignmentSubmitButton" type="submit" {% if not available_employees %}disabled{% endif %}>
+              <span aria-hidden="true">＋</span>
+              <b>تسكين الموظف</b>
+            </button>
+          </div>
+
+        </div>
+      </form>
+
+      {% if not available_employees %}
+        <div class="hint">
+          جميع الموظفين النشطين تم تسكينهم في هذه الوردية أو لا يوجد موظفون نشطون.
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span class="card-kicker">توزيع الفريق</span>
+        <h3>ملخص الأدوار التشغيلية</h3>
+        <span>توزيع المناوبين حسب الدور داخل الوردية</span>
+      </div>
+
+      <div class="role-grid">
+
+        <div class="role-box" data-role-box>
+          <strong>رئيس الوردية</strong>
+          <ul>
+            {% for a in assignments %}
+              {% if a.role == "shift_head" %}
+                <li>{{ a.employee.full_name }}</li>
+              {% endif %}
+            {% empty %}
+              <li>لا يوجد</li>
+            {% endfor %}
+          </ul>
+        </div>
+
+        <div class="role-box" data-role-box>
+          <strong>نائب الوردية</strong>
+          <ul>
+            {% for a in assignments %}
+              {% if a.role == "shift_deputy" %}
+                <li>{{ a.employee.full_name }}</li>
+              {% endif %}
+            {% empty %}
+              <li>لا يوجد</li>
+            {% endfor %}
+          </ul>
+        </div>
+
+        <div class="role-box" data-role-box>
+          <strong>المشرفون</strong>
+          <ul>
+            {% for a in assignments %}
+              {% if a.role == "supervisor" %}
+                <li>{{ a.employee.full_name }}</li>
+              {% endif %}
+            {% empty %}
+              <li>لا يوجد</li>
+            {% endfor %}
+          </ul>
+        </div>
+
+        <div class="role-box" data-role-box>
+          <strong>المراقبون</strong>
+          <ul>
+            {% for a in assignments %}
+              {% if a.role == "monitor" %}
+                <li>{{ a.employee.full_name }}</li>
+              {% endif %}
+            {% empty %}
+              <li>لا يوجد</li>
+            {% endfor %}
+          </ul>
+        </div>
+
+        <div class="role-box" data-role-box>
+          <strong>الفنيون</strong>
+          <ul>
+            {% for a in assignments %}
+              {% if a.role == "technician" %}
+                <li>{{ a.employee.full_name }}</li>
+              {% endif %}
+            {% empty %}
+              <li>لا يوجد</li>
+            {% endfor %}
+          </ul>
+        </div>
+
+        <div class="role-box" data-role-box>
+          <strong>الإداريون</strong>
+          <ul>
+            {% for a in assignments %}
+              {% if a.role == "admin" %}
+                <li>{{ a.employee.full_name }}</li>
+              {% endif %}
+            {% empty %}
+              <li>لا يوجد</li>
+            {% endfor %}
+          </ul>
+        </div>
+
+        <div class="role-box" data-role-box>
+          <strong>كبير الإداريين</strong>
+          <ul>
+            {% for a in assignments %}
+              {% if a.role == "senior_admin" %}
+                <li>{{ a.employee.full_name }}</li>
+              {% endif %}
+            {% empty %}
+              <li>لا يوجد</li>
+            {% endfor %}
+          </ul>
+        </div>
+
+        <div class="role-box" data-role-box>
+          <strong>مساند</strong>
+          <ul>
+            {% for a in assignments %}
+              {% if a.role == "support" %}
+                <li>{{ a.employee.full_name }}</li>
+              {% endif %}
+            {% empty %}
+              <li>لا يوجد</li>
+            {% endfor %}
+          </ul>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span class="card-kicker">سجل الوردية</span>
+        <h3>الموظفون المسكنون</h3>
+        <span>قائمة جميع المسكنين في الوردية الحالية</span>
+      </div>
+
+      <div class="assignment-table-toolbar">
+        <label for="assignmentTableSearch">بحث في المسكنين</label>
+        <div><span aria-hidden="true">⌕</span><input id="assignmentTableSearch" type="search" placeholder="الاسم، الرقم أو الدور..." autocomplete="off"></div>
+        <strong id="visibleAssignmentsCount">{{ assignments|length }} موظف</strong>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>الرقم</th>
+              <th>الاسم</th>
+              <th>الدور التشغيلي</th>
+              <th>الحالة</th>
+              <th>تاريخ التسكين</th>
+              <th>إجراء</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {% for a in assignments %}
+              <tr data-assignment-row>
+                <td>{{ a.employee.employee_number }}</td>
+                <td><span class="employee-cell"><i>{{ a.employee.full_name|slice:":1" }}</i><b>{{ a.employee.full_name }}</b></span></td>
+                <td>
+                  <span class="badge blue">
+                    {{ a.get_role_display }}
+                  </span>
+                </td>
+                <td>
+                  {% if a.is_confirmed %}
+                    <span class="badge green">مؤكد</span>
+                  {% else %}
+                    <span class="badge yellow">غير مؤكد</span>
+                  {% endif %}
+                </td>
+                <td>{{ a.assigned_at|date:"Y-m-d H:i" }}</td>
+                <td>
+                  {% if not a.is_confirmed %}
+                    <form method="post" action="{% url 'scheduling:assignment-confirm' a.id %}">
+                      {% csrf_token %}
+                      <button class="btn-confirm" type="submit">تأكيد</button>
+                    </form>
+                  {% else %}
+                    <span class="muted">—</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="6" class="empty-row">
+                  لا يوجد موظفون مسكنون
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  {% endif %}
+
+</div>
+
+<style>
+.assign-page{
+  padding:28px 36px 80px;
+  background:#f7f7f7;
+}
+
+.page-head h2{
+  margin:0;
+  color:#0f7b5c;
+  font-size:28px;
+  font-weight:900;
+}
+
+.page-head p{
+  margin:8px 0 22px;
+  color:#6b7280;
+}
+
+.danger{
+  color:#b91c1c !important;
+  font-weight:900;
+}
+
+.alert-box{
+  background:#fef3c7;
+  color:#92400e;
+  padding:18px;
+  border-radius:18px;
+  font-weight:900;
+}
+
+.stats-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:16px;
+  margin-bottom:24px;
+}
+
+.stat-card{
+  background:#fff;
+  border-radius:22px;
+  padding:20px;
+  box-shadow:0 12px 30px rgba(0,0,0,.07);
+}
+
+.stat-card span{
+  color:#6b7280;
+  font-size:13px;
+}
+
+.stat-card strong{
+  display:block;
+  margin-top:8px;
+  font-size:28px;
+  color:#0f7b5c;
+  font-weight:900;
+}
+
+.stat-card.green strong{color:#16a34a;}
+.stat-card.blue strong{color:#2563eb;}
+.stat-card.gold strong{color:#a16207;}
+
+.card{
+  background:#fff;
+  border-radius:24px;
+  padding:24px;
+  box-shadow:0 12px 30px rgba(0,0,0,.07);
+  margin-bottom:24px;
+}
+
+.card-title{
+  margin-bottom:18px;
+}
+
+.card-title h3{
+  margin:0;
+  color:#111827;
+  font-size:22px;
+  font-weight:900;
+}
+
+.card-title span{
+  display:block;
+  margin-top:6px;
+  color:#6b7280;
+  font-size:13px;
+}
+
+.form-grid{
+  display:grid;
+  grid-template-columns:1.4fr 1fr 1.3fr 140px;
+  gap:14px;
+  align-items:end;
+}
+
+.form-field label{
+  display:block;
+  margin-bottom:8px;
+  font-weight:900;
+  color:#374151;
+}
+
+.form-field select,
+.form-field input{
+  width:100%;
+  box-sizing:border-box;
+  border:1px solid #d1d5db;
+  border-radius:14px;
+  height:48px;
+  padding:0 12px;
+}
+
+.form-action button,
+.btn-confirm{
+  width:100%;
+  height:48px;
+  border:none;
+  border-radius:14px;
+  background:#0f7b5c;
+  color:#fff;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.form-action button:disabled{
+  opacity:.5;
+  cursor:not-allowed;
+}
+
+.hint{
+  margin-top:12px;
+  color:#6b7280;
+  font-size:13px;
+}
+
+.role-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+  gap:14px;
+}
+
+.role-box{
+  background:#f9fafb;
+  border:1px solid #eee;
+  border-radius:18px;
+  padding:14px;
+}
+
+.role-box strong{
+  color:#0f7b5c;
+}
+
+.role-box ul{
+  margin:8px 0 0;
+  padding:0;
+  list-style:none;
+}
+
+.role-box li{
+  padding:6px 0;
+  border-top:1px dashed #e5e7eb;
+  color:#374151;
+}
+
+.table-wrap{
+  overflow-x:auto;
+}
+
+table{
+  width:100%;
+  min-width:900px;
+  border-collapse:separate;
+  border-spacing:0;
+}
+
+th{
+  background:#0f7b5c;
+  color:white;
+  padding:14px;
+  text-align:center;
+}
+
+td{
+  padding:14px;
+  text-align:center;
+  border-bottom:1px solid #eee;
+}
+
+.badge{
+  display:inline-block;
+  padding:6px 12px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:900;
+}
+
+.badge.blue{
+  background:#dbeafe;
+  color:#1d4ed8;
+}
+
+.badge.green{
+  background:#dcfce7;
+  color:#166534;
+}
+
+.badge.yellow{
+  background:#fef3c7;
+  color:#92400e;
+}
+
+.muted{
+  color:#6b7280;
+}
+
+.empty-row{
+  padding:24px;
+  color:#6b7280;
+  font-weight:900;
+}
+
+@media(max-width:1000px){
+  .stats-grid,
+  .form-grid{
+    grid-template-columns:1fr;
+  }
+}
+</style>
+
+<link rel="stylesheet" href="{% static 'css/scheduling/shift_assignments_page.css' %}?v=20260803-1">
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const search = document.getElementById("assignmentTableSearch");
+  const rows = Array.from(document.querySelectorAll("[data-assignment-row]"));
+  const visibleCount = document.getElementById("visibleAssignmentsCount");
+  const createForm = document.getElementById("assignmentCreateForm");
+  const submitButton = document.getElementById("assignmentSubmitButton");
+
+  document.querySelectorAll("[data-role-box]").forEach(function (box) {
+    const validItems = Array.from(box.querySelectorAll("li")).filter(function (item) {
+      return item.textContent.trim() !== "لا يوجد";
+    });
+    const badge = document.createElement("em");
+    badge.textContent = String(validItems.length);
+    box.appendChild(badge);
+    box.classList.toggle("is-empty", validItems.length === 0);
+  });
+
+  search?.addEventListener("input", function () {
+    const query = search.value.trim().toLowerCase();
+    let count = 0;
+    rows.forEach(function (row) {
+      const visible = !query || row.textContent.toLowerCase().includes(query);
+      row.hidden = !visible;
+      if (visible) count += 1;
+    });
+    visibleCount.textContent = `${count} موظف`;
+  });
+
+  createForm?.addEventListener("submit", function () {
+    if (!createForm.checkValidity() || !submitButton) return;
+    submitButton.disabled = true;
+    submitButton.classList.add("is-loading");
+    submitButton.querySelector("b").textContent = "جارٍ التسكين...";
+  });
+});
+</script>
+
+{% endblock %}

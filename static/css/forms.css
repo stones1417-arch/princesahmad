@@ -1,0 +1,1192 @@
+/* =========================================================
+   منصة أبواب — نظام النماذج الموحد
+   الملف: static/css/forms.css
+   يعتمد على:
+   - design-system.css
+   - components.css
+   الإصدار: 2026.07.28
+========================================================= */
+
+
+/* =========================================================
+   1) الحاويات العامة للنماذج
+========================================================= */
+
+.app-form,
+.form-card,
+.form-container {
+    width: 100%;
+}
+
+.app-form-card,
+.form-card {
+    padding: var(--space-5);
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--color-white);
+    box-shadow: var(--shadow-sm);
+}
+
+.app-form-header,
+.form-card-header {
+    margin-bottom: var(--space-5);
+    padding-bottom: var(--space-4);
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+
+    border-bottom: 1px solid var(--color-border);
+}
+
+.app-form-header h2,
+.app-form-header h3,
+.form-card-header h2,
+.form-card-header h3 {
+    margin: 0;
+
+    color: var(--color-text-strong);
+
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-black);
+}
+
+.app-form-header p,
+.form-card-header p {
+    margin-top: var(--space-1);
+
+    color: var(--color-muted);
+
+    font-size: var(--font-size-xs);
+    line-height: var(--line-height-relaxed);
+}
+
+
+/* =========================================================
+   2) شبكات النماذج
+========================================================= */
+
+.app-form-grid,
+.form-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: var(--space-4);
+}
+
+.app-form-grid-1 {
+    grid-template-columns: 1fr;
+}
+
+.app-form-grid-3 {
+    grid-template-columns:
+        repeat(3, minmax(0, 1fr));
+}
+
+.app-form-grid-4 {
+    grid-template-columns:
+        repeat(4, minmax(0, 1fr));
+}
+
+.app-form-field,
+.form-field {
+    min-width: 0;
+}
+
+.app-form-field-full,
+.form-field.full {
+    grid-column: 1 / -1;
+}
+
+.app-form-row {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-4);
+}
+
+.app-form-row > * {
+    min-width: 0;
+    flex: 1;
+}
+
+
+/* =========================================================
+   3) العناوين والوصف
+========================================================= */
+
+.app-form-label,
+.form-field label,
+.app-fieldset legend {
+    display: block;
+
+    margin-bottom: var(--space-2);
+
+    color: var(--color-text-strong);
+
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-extrabold);
+}
+
+.app-required {
+    margin-inline-start: var(--space-1);
+
+    color: var(--color-danger-600);
+}
+
+.app-form-help,
+.form-field small,
+.helptext {
+    display: block;
+
+    margin-top: var(--space-2);
+
+    color: var(--color-muted);
+
+    font-size: var(--font-size-xs);
+    line-height: var(--line-height-relaxed);
+}
+
+.app-form-help ul,
+.helptext ul {
+    margin-top: var(--space-2);
+    padding-right: var(--space-5);
+}
+
+
+/* =========================================================
+   4) الحقول الأساسية
+========================================================= */
+
+.app-input,
+.app-select,
+.app-textarea,
+.form-field input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.form-field select,
+.form-field textarea,
+.filter-bar input,
+.filter-bar select,
+.datagrid-search input,
+.datagrid-filter-fields input,
+.datagrid-filter-fields select {
+    width: 100%;
+    min-height: 46px;
+    padding: 0 var(--space-4);
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+
+    color: var(--color-text);
+    background: var(--color-white);
+
+    font-family: inherit;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+
+    transition:
+        border-color var(--transition-fast),
+        box-shadow var(--transition-fast),
+        background var(--transition-fast),
+        color var(--transition-fast);
+}
+
+.app-textarea,
+.form-field textarea {
+    min-height: 130px;
+    padding-top: var(--space-3);
+    padding-bottom: var(--space-3);
+
+    resize: vertical;
+}
+
+.app-select,
+.form-field select,
+.filter-bar select,
+.datagrid-filter-fields select {
+    appearance: none;
+
+    padding-left: 42px;
+
+    background-image:
+        linear-gradient(
+            45deg,
+            transparent 50%,
+            var(--color-neutral-500) 50%
+        ),
+        linear-gradient(
+            135deg,
+            var(--color-neutral-500) 50%,
+            transparent 50%
+        );
+
+    background-position:
+        18px 20px,
+        12px 20px;
+
+    background-size:
+        6px 6px,
+        6px 6px;
+
+    background-repeat: no-repeat;
+}
+
+.app-input::placeholder,
+.app-textarea::placeholder,
+.form-field input::placeholder,
+.form-field textarea::placeholder {
+    color: var(--color-neutral-400);
+}
+
+.app-input:hover,
+.app-select:hover,
+.app-textarea:hover,
+.form-field input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):hover,
+.form-field select:hover,
+.form-field textarea:hover {
+    border-color: var(--color-border-strong);
+}
+
+.app-input:focus,
+.app-select:focus,
+.app-textarea:focus,
+.form-field input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,
+.form-field select:focus,
+.form-field textarea:focus,
+.filter-bar input:focus,
+.filter-bar select:focus,
+.datagrid-search input:focus,
+.datagrid-filter-fields input:focus,
+.datagrid-filter-fields select:focus {
+    outline: none;
+
+    border-color: var(--color-primary-400);
+    box-shadow: var(--shadow-focus);
+}
+
+.app-input[readonly],
+.app-select[readonly],
+.app-textarea[readonly],
+.form-field input[readonly],
+.form-field textarea[readonly] {
+    cursor: default;
+
+    color: var(--color-neutral-600);
+    background: var(--color-neutral-50);
+}
+
+.app-input:disabled,
+.app-select:disabled,
+.app-textarea:disabled,
+.form-field input:disabled,
+.form-field select:disabled,
+.form-field textarea:disabled {
+    cursor: not-allowed;
+
+    color: var(--color-disabled);
+    background: var(--color-neutral-100);
+}
+
+
+/* =========================================================
+   5) حالات التحقق
+========================================================= */
+
+.app-form-field.is-success .app-input,
+.app-form-field.is-success .app-select,
+.app-form-field.is-success .app-textarea,
+.form-field.is-success input,
+.form-field.is-success select,
+.form-field.is-success textarea {
+    border-color: var(--color-success-500);
+}
+
+.app-form-field.is-warning .app-input,
+.app-form-field.is-warning .app-select,
+.app-form-field.is-warning .app-textarea,
+.form-field.is-warning input,
+.form-field.is-warning select,
+.form-field.is-warning textarea {
+    border-color: var(--color-warning-500);
+}
+
+.app-form-field.is-error .app-input,
+.app-form-field.is-error .app-select,
+.app-form-field.is-error .app-textarea,
+.form-field.is-error input,
+.form-field.is-error select,
+.form-field.is-error textarea,
+.form-field .errorlist + input,
+.form-field .errorlist + select,
+.form-field .errorlist + textarea {
+    border-color: var(--color-danger-500);
+}
+
+.app-field-message,
+.field-error,
+.errorlist {
+    margin: var(--space-2) 0 0;
+    padding: 0;
+
+    color: var(--color-danger-600);
+
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-relaxed);
+
+    list-style: none;
+}
+
+.app-field-message.success {
+    color: var(--color-success-600);
+}
+
+.app-field-message.warning {
+    color: var(--color-warning-700);
+}
+
+
+/* =========================================================
+   6) مجموعات الإدخال
+========================================================= */
+
+.app-input-group {
+    width: 100%;
+
+    display: flex;
+    align-items: stretch;
+}
+
+.app-input-group .app-input {
+    min-width: 0;
+    flex: 1;
+
+    border-radius: 0;
+}
+
+.app-input-group > :first-child {
+    border-top-right-radius: var(--radius-md);
+    border-bottom-right-radius: var(--radius-md);
+}
+
+.app-input-group > :last-child {
+    border-top-left-radius: var(--radius-md);
+    border-bottom-left-radius: var(--radius-md);
+}
+
+.app-input-addon {
+    min-width: 46px;
+    padding: 0 var(--space-3);
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    border: 1px solid var(--color-border);
+
+    color: var(--color-muted);
+    background: var(--color-neutral-50);
+
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-extrabold);
+}
+
+.app-input-group > * + * {
+    margin-right: -1px;
+}
+
+.app-input-icon-wrap {
+    position: relative;
+}
+
+.app-input-icon-wrap .app-input {
+    padding-right: 46px;
+}
+
+.app-input-icon {
+    position: absolute;
+    top: 50%;
+    right: 15px;
+
+    width: 19px;
+    height: 19px;
+
+    color: var(--color-muted);
+
+    transform: translateY(-50%);
+
+    pointer-events: none;
+}
+
+.app-input-action {
+    position: absolute;
+    top: 50%;
+    left: 8px;
+
+    width: 34px;
+    height: 34px;
+    padding: 0;
+
+    display: grid;
+    place-items: center;
+
+    border: 0;
+    border-radius: var(--radius-sm);
+
+    color: var(--color-muted);
+    background: transparent;
+
+    transform: translateY(-50%);
+}
+
+.app-input-action:hover {
+    color: var(--color-primary-700);
+    background: var(--color-primary-50);
+}
+
+
+/* =========================================================
+   7) Checkbox و Radio
+========================================================= */
+
+.app-checkbox,
+.app-radio,
+.checkbox-field {
+    min-height: 46px;
+    padding: var(--space-3);
+
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+
+    background: var(--color-surface-soft);
+
+    cursor: pointer;
+}
+
+.app-checkbox input,
+.app-radio input,
+.checkbox-field input {
+    width: 19px;
+    height: 19px;
+    min-height: auto;
+    margin: 0;
+
+    flex: 0 0 19px;
+
+    accent-color: var(--color-primary-600);
+}
+
+.app-checkbox-content,
+.app-radio-content {
+    min-width: 0;
+}
+
+.app-checkbox strong,
+.app-radio strong,
+.checkbox-field span {
+    display: block;
+
+    color: var(--color-text-strong);
+
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+}
+
+.app-checkbox small,
+.app-radio small {
+    display: block;
+
+    margin-top: var(--space-1);
+
+    color: var(--color-muted);
+
+    font-size: var(--font-size-xs);
+    line-height: var(--line-height-relaxed);
+}
+
+.app-choice-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: var(--space-3);
+}
+
+
+/* =========================================================
+   8) Toggle Switch
+========================================================= */
+
+.app-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-3);
+
+    cursor: pointer;
+}
+
+.app-switch input {
+    position: absolute;
+
+    opacity: 0;
+    pointer-events: none;
+}
+
+.app-switch-track {
+    position: relative;
+
+    width: 50px;
+    height: 28px;
+
+    flex: 0 0 50px;
+
+    border-radius: var(--radius-pill);
+
+    background: var(--color-neutral-300);
+
+    transition: background var(--transition-fast);
+}
+
+.app-switch-track::after {
+    content: "";
+
+    position: absolute;
+    top: 4px;
+    right: 4px;
+
+    width: 20px;
+    height: 20px;
+
+    border-radius: 50%;
+
+    background: var(--color-white);
+    box-shadow: var(--shadow-sm);
+
+    transition: transform var(--transition-fast);
+}
+
+.app-switch input:checked + .app-switch-track {
+    background: var(--color-primary-600);
+}
+
+.app-switch input:checked + .app-switch-track::after {
+    transform: translateX(-22px);
+}
+
+.app-switch-label {
+    color: var(--color-text);
+
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+}
+
+
+/* =========================================================
+   9) رفع الملفات
+========================================================= */
+
+.app-file-upload,
+.attachment-upload-field {
+    padding: var(--space-5);
+
+    border: 2px dashed var(--color-border-strong);
+    border-radius: var(--radius-lg);
+
+    background: var(--color-surface-soft);
+
+    transition:
+        border-color var(--transition-fast),
+        background var(--transition-fast);
+}
+
+.app-file-upload:hover,
+.app-file-upload.dragover,
+.attachment-upload-field:hover {
+    border-color: var(--color-gold-500);
+    background: var(--color-gold-50);
+}
+
+.app-file-upload input[type="file"],
+.attachment-upload-field input[type="file"] {
+    width: 100%;
+    min-height: 46px;
+    padding: var(--space-2);
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+
+    background: var(--color-white);
+}
+
+.app-file-dropzone {
+    min-height: 170px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+
+    text-align: center;
+
+    cursor: pointer;
+}
+
+.app-file-dropzone-icon {
+    width: 58px;
+    height: 58px;
+    margin-bottom: var(--space-3);
+
+    display: grid;
+    place-items: center;
+
+    border-radius: var(--radius-lg);
+
+    color: var(--color-primary-700);
+    background: var(--color-primary-100);
+}
+
+.app-file-dropzone strong {
+    color: var(--color-text-strong);
+
+    font-size: var(--font-size-sm);
+}
+
+.app-file-dropzone span,
+.attachment-help {
+    margin-top: var(--space-2);
+
+    color: var(--color-muted);
+
+    font-size: var(--font-size-xs);
+    line-height: var(--line-height-relaxed);
+}
+
+.current-attachment {
+    margin-top: var(--space-4);
+    padding: var(--space-3);
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+
+    border: 1px solid var(--color-primary-100);
+    border-radius: var(--radius-md);
+
+    background: var(--color-primary-50);
+}
+
+.current-attachment-info {
+    min-width: 0;
+
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.current-attachment strong {
+    display: block;
+
+    color: var(--color-primary-800);
+
+    font-size: var(--font-size-sm);
+}
+
+.current-attachment small {
+    display: block;
+
+    margin-top: var(--space-1);
+
+    overflow-wrap: anywhere;
+
+    color: var(--color-muted);
+
+    font-size: var(--font-size-xs);
+}
+
+
+/* =========================================================
+   10) شريط الفلاتر
+========================================================= */
+
+.app-filter-bar,
+.filter-bar,
+.datagrid-filters {
+    margin-bottom: var(--space-5);
+    padding: var(--space-4);
+
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--color-white);
+    box-shadow: var(--shadow-sm);
+}
+
+.app-filter-search,
+.filter-bar input,
+.datagrid-search {
+    min-width: 240px;
+    flex: 1 1 320px;
+}
+
+.app-filter-field,
+.filter-bar select,
+.datagrid-filter-fields select {
+    width: auto;
+    min-width: 180px;
+}
+
+.datagrid-filter-fields,
+.datagrid-filter-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+
+/* =========================================================
+   11) أزرار النموذج
+========================================================= */
+
+.app-form-actions,
+.form-buttons,
+.password-form-actions {
+    margin-top: var(--space-5);
+
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+}
+
+.app-form-actions-end {
+    justify-content: flex-end;
+}
+
+.app-form-actions-between {
+    justify-content: space-between;
+}
+
+
+/* =========================================================
+   12) Fieldset
+========================================================= */
+
+.app-fieldset {
+    margin: 0;
+    padding: var(--space-5);
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--color-white);
+}
+
+.app-fieldset + .app-fieldset {
+    margin-top: var(--space-4);
+}
+
+.app-fieldset legend {
+    padding: 0 var(--space-2);
+
+    color: var(--color-primary-700);
+}
+
+
+/* =========================================================
+   13) Floating Label
+========================================================= */
+
+.app-floating-field {
+    position: relative;
+}
+
+.app-floating-field .app-input,
+.app-floating-field .app-textarea {
+    padding-top: 18px;
+}
+
+.app-floating-field label {
+    position: absolute;
+    top: 50%;
+    right: var(--space-4);
+
+    margin: 0;
+
+    color: var(--color-muted);
+
+    font-size: var(--font-size-sm);
+
+    transform: translateY(-50%);
+
+    transition:
+        top var(--transition-fast),
+        font-size var(--transition-fast),
+        color var(--transition-fast);
+
+    pointer-events: none;
+}
+
+.app-floating-field .app-textarea + label {
+    top: 24px;
+}
+
+.app-floating-field .app-input:focus + label,
+.app-floating-field .app-input:not(:placeholder-shown) + label,
+.app-floating-field .app-textarea:focus + label,
+.app-floating-field .app-textarea:not(:placeholder-shown) + label {
+    top: 9px;
+
+    color: var(--color-primary-700);
+
+    font-size: var(--font-size-2xs);
+}
+
+
+/* =========================================================
+   14) عدادات النصوص
+========================================================= */
+
+.app-text-counter,
+.maintenance-text-counter {
+    margin-top: var(--space-2);
+
+    color: var(--color-muted);
+
+    font-size: var(--font-size-xs);
+
+    text-align: left;
+}
+
+
+/* =========================================================
+   15) حالات AJAX
+========================================================= */
+
+.app-form.is-loading {
+    position: relative;
+
+    pointer-events: none;
+}
+
+.app-form.is-loading::after {
+    content: "";
+
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+
+    border-radius: inherit;
+
+    background:
+        rgba(255, 255, 255, 0.68);
+
+    backdrop-filter: blur(2px);
+}
+
+.app-form-loading-indicator {
+    position: absolute;
+    top: 50%;
+    right: 50%;
+    z-index: 5;
+
+    width: 44px;
+    height: 44px;
+
+    border: 4px solid var(--color-primary-100);
+    border-top-color: var(--color-primary-600);
+    border-radius: 50%;
+
+    transform: translate(50%, -50%);
+
+    animation: appFormSpin 0.8s linear infinite;
+}
+
+.app-submit-button.is-loading,
+button[type="submit"].is-loading {
+    position: relative;
+
+    color: transparent !important;
+
+    pointer-events: none;
+}
+
+.app-submit-button.is-loading::after,
+button[type="submit"].is-loading::after {
+    content: "";
+
+    position: absolute;
+    top: 50%;
+    right: 50%;
+
+    width: 18px;
+    height: 18px;
+
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top-color: currentColor;
+    border-radius: 50%;
+
+    transform: translate(50%, -50%);
+
+    animation: appFormSpin 0.7s linear infinite;
+}
+
+
+/* =========================================================
+   16) Password Strength
+========================================================= */
+
+.app-password-strength {
+    margin-top: var(--space-3);
+}
+
+.app-password-strength-track {
+    height: 8px;
+
+    overflow: hidden;
+
+    border-radius: var(--radius-pill);
+
+    background: var(--color-neutral-100);
+}
+
+.app-password-strength-bar {
+    width: 0;
+    height: 100%;
+
+    border-radius: inherit;
+
+    background: var(--color-danger-600);
+
+    transition:
+        width var(--transition-normal),
+        background var(--transition-normal);
+}
+
+.app-password-strength.weak .app-password-strength-bar {
+    width: 25%;
+    background: var(--color-danger-600);
+}
+
+.app-password-strength.medium .app-password-strength-bar {
+    width: 55%;
+    background: var(--color-warning-600);
+}
+
+.app-password-strength.good .app-password-strength-bar {
+    width: 78%;
+    background: var(--color-info-600);
+}
+
+.app-password-strength.strong .app-password-strength-bar {
+    width: 100%;
+    background: var(--color-success-600);
+}
+
+.app-password-strength-text {
+    display: block;
+
+    margin-top: var(--space-2);
+
+    color: var(--color-muted);
+
+    font-size: var(--font-size-xs);
+}
+
+
+/* =========================================================
+   17) نموذج أفقي
+========================================================= */
+
+.app-form-horizontal .app-form-field {
+    display: grid;
+    grid-template-columns:
+        minmax(150px, 220px)
+        minmax(0, 1fr);
+
+    align-items: start;
+    gap: var(--space-4);
+}
+
+.app-form-horizontal .app-form-label {
+    margin: 12px 0 0;
+}
+
+
+/* =========================================================
+   18) نموذج مدمج
+========================================================= */
+
+.app-form-inline {
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+}
+
+.app-form-inline .app-form-field {
+    min-width: 180px;
+    flex: 1;
+}
+
+
+/* =========================================================
+   19) الوضع الداكن
+========================================================= */
+
+body.dark .app-form-card,
+body.dark .form-card,
+body.dark .app-fieldset,
+body.dark .app-filter-bar,
+body.dark .filter-bar,
+body.dark .datagrid-filters,
+body.dark .app-input,
+body.dark .app-select,
+body.dark .app-textarea,
+body.dark .form-field input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+body.dark .form-field select,
+body.dark .form-field textarea,
+body.dark .filter-bar input,
+body.dark .filter-bar select,
+body.dark .datagrid-search input,
+body.dark .datagrid-filter-fields input,
+body.dark .datagrid-filter-fields select {
+    color: var(--color-text);
+    background: var(--color-surface);
+}
+
+body.dark .app-checkbox,
+body.dark .app-radio,
+body.dark .checkbox-field,
+body.dark .app-file-upload,
+body.dark .attachment-upload-field {
+    background: var(--color-surface-soft);
+}
+
+body.dark .app-input[readonly],
+body.dark .app-textarea[readonly],
+body.dark .form-field input[readonly],
+body.dark .form-field textarea[readonly] {
+    background: var(--color-neutral-800);
+}
+
+body.dark .app-form.is-loading::after {
+    background:
+        rgba(13, 17, 16, 0.72);
+}
+
+
+/* =========================================================
+   20) الاستجابة
+========================================================= */
+
+@media (max-width: 1100px) {
+    .app-form-grid-4 {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 800px) {
+    .app-form-grid,
+    .form-grid,
+    .app-form-grid-3,
+    .app-form-grid-4,
+    .app-choice-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .app-form-field-full,
+    .form-field.full {
+        grid-column: auto;
+    }
+
+    .app-form-row,
+    .app-form-inline,
+    .app-filter-bar,
+    .filter-bar,
+    .datagrid-filters,
+    .datagrid-filter-fields,
+    .datagrid-filter-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .app-filter-search,
+    .app-filter-field,
+    .filter-bar input,
+    .filter-bar select,
+    .datagrid-search,
+    .datagrid-filter-fields,
+    .datagrid-filter-fields input,
+    .datagrid-filter-fields select,
+    .datagrid-filter-actions {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .app-form-horizontal .app-form-field {
+        grid-template-columns: 1fr;
+        gap: var(--space-2);
+    }
+
+    .app-form-horizontal .app-form-label {
+        margin-top: 0;
+    }
+}
+
+@media (max-width: 600px) {
+    .app-form-card,
+    .form-card,
+    .app-fieldset {
+        padding: var(--space-4);
+    }
+
+    .app-form-header,
+    .form-card-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .app-form-actions,
+    .form-buttons,
+    .password-form-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .app-form-actions a,
+    .app-form-actions button,
+    .form-buttons a,
+    .form-buttons button,
+    .password-form-actions a,
+    .password-form-actions button {
+        width: 100%;
+    }
+}
+
+
+/* =========================================================
+   21) الحركة
+========================================================= */
+
+@keyframes appFormSpin {
+    to {
+        transform:
+            translate(50%, -50%)
+            rotate(360deg);
+    }
+}
