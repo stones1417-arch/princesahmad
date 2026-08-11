@@ -1,3 +1,9 @@
+from __future__ import annotations
+
+import logging
+import time
+
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import (
     authenticate,
@@ -1901,42 +1907,146 @@ def logout_view(
     )
 
 
+# ============================================================
+# Profile
+# ============================================================
+
 @login_required
-def profile_view(request):
+def profile_view(
+    request,
+):
     """
-    عرض الملف الشخصي للمستخدم الحالي.
+    عرض وتحديث الملف الشخصي.
+
+    يدعم:
+    - الصورة الشخصية
+    - رقم الجوال
     """
+
     user = request.user
 
-    account_profile, _ = AccountProfile.objects.get_or_create(
-        user=user,
-    )
-
-    if request.method == "POST":
-        photo_form = ProfilePhotoForm(
-            request.POST,
-            request.FILES,
-            instance=account_profile,
+    account_profile, _ = (
+        AccountProfile.objects
+        .get_or_create(
+            user=user,
         )
-        if photo_form.is_valid():
-            photo_form.save()
-            messages.success(request, "تم تحديث الصورة الشخصية بنجاح.")
-            return redirect("accounts:profile")
-        messages.error(request, "تعذر تحديث الصورة. راجع الصيغة والحجم.")
-    else:
-        photo_form = ProfilePhotoForm(instance=account_profile)
+    )
 
     employee = (
         Employee.objects
-        .filter(user=user)
+        .filter(
+            user=user
+        )
         .first()
     )
 
+    if request.method == "POST":
+        form_type = (
+            request.POST.get(
+                "form_type"
+            )
+            or "photo"
+        ).strip().lower()
+
+        # ====================================================
+        # Contact Form
+        # ====================================================
+
+        if form_type == "contact":
+            contact_form = (
+                ProfileContactForm(
+                    request.POST,
+                    instance=account_profile,
+                )
+            )
+
+            photo_form = (
+                ProfilePhotoForm(
+                    instance=account_profile,
+                )
+            )
+
+            if contact_form.is_valid():
+                if contact_form.cleaned_data["phone_number"] != account_profile.phone_number:
+                    messages.error(
+                        request,
+                        "تغيير رقم الجوال يتطلب تحققًا من الرقم الجديد ولا يمكن حفظه مباشرة.",
+                    )
+                else:
+                    return redirect("accounts:profile")
+
+            messages.error(
+                request,
+                (
+                    "تعذر تحديث رقم الجوال. "
+                    "راجع الرقم المدخل."
+                ),
+            )
+
+        # ====================================================
+        # Photo Form
+        # ====================================================
+
+        else:
+            photo_form = (
+                ProfilePhotoForm(
+                    request.POST,
+                    request.FILES,
+                    instance=account_profile,
+                )
+            )
+
+            contact_form = (
+                ProfileContactForm(
+                    instance=account_profile,
+                )
+            )
+
+            if photo_form.is_valid():
+                photo_form.save()
+
+                messages.success(
+                    request,
+                    (
+                        "تم تحديث الصورة "
+                        "الشخصية بنجاح."
+                    ),
+                )
+
+                return redirect(
+                    "accounts:profile"
+                )
+
+            messages.error(
+                request,
+                (
+                    "تعذر تحديث الصورة. "
+                    "راجع الصيغة والحجم."
+                ),
+            )
+
+    else:
+        photo_form = (
+            ProfilePhotoForm(
+                instance=account_profile,
+            )
+        )
+
+        contact_form = (
+            ProfileContactForm(
+                instance=account_profile,
+            )
+        )
+
     if user.is_superuser:
-        account_role = "مدير النظام"
+        account_role = (
+            "مدير النظام"
+        )
 
     elif user.is_staff:
-        account_role = "موظف إداري"
+        account_role = (
+            "موظف إداري"
+        )
 
     elif (
         employee
@@ -1948,13 +2058,22 @@ def profile_view(request):
     ):
         try:
             account_role = (
-                employee.get_job_title_display()
+                employee
+                .get_job_title_display()
             )
-        except (AttributeError, TypeError):
-            account_role = "مستخدم"
+
+        except (
+            AttributeError,
+            TypeError,
+        ):
+            account_role = (
+                "مستخدم"
+            )
 
     else:
-        account_role = "مستخدم"
+        account_role = (
+            "مستخدم"
+        )
 
     full_name = (
         employee.full_name
@@ -1968,13 +2087,37 @@ def profile_view(request):
         )
     )
 
+    effective_phone = (
+        _account_phone_number(
+            user
+        )
+    )
+
     context = {
-        "profile_user": user,
-        "employee": employee,
-        "full_name": full_name,
-        "account_role": account_role,
-        "account_profile": account_profile,
-        "photo_form": photo_form,
+        "profile_user": (
+            user
+        ),
+        "employee": (
+            employee
+        ),
+        "full_name": (
+            full_name
+        ),
+        "account_role": (
+            account_role
+        ),
+        "account_profile": (
+            account_profile
+        ),
+        "photo_form": (
+            photo_form
+        ),
+        "contact_form": (
+            contact_form
+        ),
+        "effective_phone": (
+            effective_phone
+        ),
     }
 
     return render(
@@ -1984,12 +2127,19 @@ def profile_view(request):
     )
 
 
+# ============================================================
+# Change Password
+# ============================================================
+
 @login_required
-def password_change_view(request):
+def password_change_view(
+    request,
+):
     """
     تغيير كلمة مرور المستخدم الحالي
     مع الإبقاء على جلسة الدخول.
     """
+
     if request.method == "POST":
         form = PasswordChangeForm(
             user=request.user,
@@ -2006,7 +2156,10 @@ def password_change_view(request):
 
             messages.success(
                 request,
-                "تم تغيير كلمة المرور بنجاح.",
+                (
+                    "تم تغيير كلمة "
+                    "المرور بنجاح."
+                ),
             )
 
             return redirect(

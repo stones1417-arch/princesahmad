@@ -153,16 +153,26 @@ class Role(models.Model):
 
 class UserRole(models.Model):
     """
-    ربط المستخدم بالدور
+    ربط المستخدم بالدور.
     """
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
     )
-    role = models.ForeignKey(Role, on_delete=models.PROTECT)
+
+    role = models.ForeignKey(
+        Role,
+        on_delete=models.PROTECT,
+    )
 
     class Meta:
-        unique_together = ('user', 'role')
+        unique_together = (
+            "user",
+            "role",
+        )
 
     def __str__(self):
-        return f"{self.user} - {self.role}"
+        return (
+            f"{self.user} - {self.role}"
+        )
