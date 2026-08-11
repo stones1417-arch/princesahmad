@@ -226,6 +226,29 @@ def env_json_object(
     return parsed
 
 
+def env_csv(
+    name: str,
+    default: str = "",
+) -> list[str]:
+    return [
+        value.strip()
+        for value in os.getenv(
+            name,
+            default,
+        ).split(",")
+        if value.strip()
+    ]
+
+
+def normalize_hostname(
+    value: str,
+) -> str:
+    parsed = urlsplit(
+        value if "://" in value else f"//{value}"
+    )
+    return parsed.hostname or ""
+
+
 # ============================================================
 # Security
 # ============================================================
@@ -255,14 +278,30 @@ if not SECRET_KEY:
     )
 
 
-ALLOWED_HOSTS = [
-    host.strip()
-    for host in os.getenv(
-        "DJANGO_ALLOWED_HOSTS",
-        "127.0.0.1,localhost",
-    ).split(",")
-    if host.strip()
-]
+configured_hosts = env_csv(
+    "DJANGO_ALLOWED_HOSTS",
+    "127.0.0.1,localhost" if DEBUG else "",
+)
+render_hostname = normalize_hostname(
+    os.getenv(
+        "RENDER_EXTERNAL_HOSTNAME",
+        "",
+    ).strip()
+)
+
+ALLOWED_HOSTS = list(
+    dict.fromkeys(
+        [
+            normalize_hostname(host)
+            for host in configured_hosts
+        ]
+        + [
+            "princesahmad.onrender.com",
+            render_hostname,
+        ]
+    )
+)
+ALLOWED_HOSTS = [host for host in ALLOWED_HOSTS if host]
 
 
 # ============================================================
@@ -609,17 +648,27 @@ LANGUAGES = [
 # CSRF
 # ============================================================
 
-CSRF_TRUSTED_ORIGINS = [
-    origin.strip()
-    for origin in os.getenv(
-        "DJANGO_CSRF_TRUSTED_ORIGINS",
-        (
-            "http://127.0.0.1:8000,"
-            "http://localhost:8000"
-        ),
-    ).split(",")
-    if origin.strip()
+configured_csrf_origins = env_csv(
+    "DJANGO_CSRF_TRUSTED_ORIGINS",
+    (
+        "http://127.0.0.1:8000,"
+        "http://localhost:8000"
+    ) if DEBUG else "",
+)
+render_csrf_origins = [
+    f"https://{hostname}"
+    for hostname in (
+        "princesahmad.onrender.com",
+        render_hostname,
+    )
+    if hostname
 ]
+
+CSRF_TRUSTED_ORIGINS = list(
+    dict.fromkeys(
+        configured_csrf_origins + render_csrf_origins
+    )
+)
 
 
 # ============================================================
@@ -805,16 +854,22 @@ CACHES = {
 # Celery
 # ============================================================
 
-CELERY_BROKER_URL = os.getenv(
-    "CELERY_BROKER_URL",
-    REDIS_URL,
-).strip()
+CELERY_BROKER_URL = (
+    os.getenv(
+        "CELERY_BROKER_URL",
+        "",
+    ).strip()
+    or REDIS_URL
+)
 
 
-CELERY_RESULT_BACKEND = os.getenv(
-    "CELERY_RESULT_BACKEND",
-    CELERY_BROKER_URL,
-).strip()
+CELERY_RESULT_BACKEND = (
+    os.getenv(
+        "CELERY_RESULT_BACKEND",
+        "",
+    ).strip()
+    or CELERY_BROKER_URL
+)
 
 
 CELERY_TASK_ALWAYS_EAGER = env_bool(
