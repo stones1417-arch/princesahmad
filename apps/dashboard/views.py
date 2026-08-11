@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import timedelta
 from typing import Any, Iterable
 
@@ -170,6 +171,118 @@ def _get_average_duration_minutes(queryset, end_field: str | None) -> float | No
         return None
 
     return round(value.total_seconds() / 60, 1)
+
+
+def _build_section_dashboard_metrics(
+    *,
+    active_shift,
+    all_doors: list[dict[str, Any]],
+    all_assignments,
+) -> dict[str, dict[str, int]]:
+    """Build comparable institution, male, female, and shared metrics."""
+    open_incident_statuses = [
+        Incident.Status.NEW,
+        Incident.Status.IN_PROGRESS,
+        Incident.Status.FORWARDED,
+    ]
+
+    active_employees = Employee.objects.filter(
+        **_get_employee_active_filter()
+    )
+    active_incidents = Incident.objects.filter(
+        status__in=open_incident_statuses
+    )
+    active_maintenance = MaintenanceRequest.objects.exclude(
+        status__in=CLOSED_MAINTENANCE_STATUSES
+    )
+
+    section_definitions = {
+        "male": "male",
+        "female": "female",
+    }
+    metrics: dict[str, dict[str, int]] = {}
+
+    for key, employee_section in section_definitions.items():
+        section_doors = [
+            door
+            for door in all_doors
+            if getattr(
+                door.get("door_obj"),
+                "operational_section",
+                "",
+            ) in {key, Door.OperationalSection.SHARED}
+        ]
+        section_assignments = all_assignments.filter(section=key)
+        metrics[key] = {
+            "employees": active_employees.filter(
+                operational_section=employee_section
+            ).count(),
+            "supervisors": section_assignments.filter(
+                role=DoorAssignment.Role.SUPERVISOR
+            ).count(),
+            "active_assignments": section_assignments.count(),
+            "available_doors": sum(
+                door["state"] in {
+                    DoorShift.DoorState.OPEN,
+                    DoorShift.DoorState.SECURED,
+                }
+                for door in section_doors
+            ),
+            "open_incidents": active_incidents.filter(
+                section=key
+            ).count(),
+            "open_maintenance": active_maintenance.filter(
+                section=key
+            ).count(),
+            "total_doors": len(section_doors),
+        }
+
+    shared_doors = [
+        door
+        for door in all_doors
+        if getattr(
+            door.get("door_obj"),
+            "operational_section",
+            "",
+        ) == Door.OperationalSection.SHARED
+    ]
+    metrics["shared"] = {
+        "total_doors": len(shared_doors),
+        "available_doors": sum(
+            door["state"] in {
+                DoorShift.DoorState.OPEN,
+                DoorShift.DoorState.SECURED,
+            }
+            for door in shared_doors
+        ),
+        "active_assignments": all_assignments.filter(
+            door__operational_section=Door.OperationalSection.SHARED
+        ).count(),
+        "supervisors": all_assignments.filter(
+            door__operational_section=Door.OperationalSection.SHARED,
+            role=DoorAssignment.Role.SUPERVISOR,
+        ).count(),
+    }
+
+    metrics["all"] = {
+        "employees": active_employees.count(),
+        "supervisors": all_assignments.filter(
+            role=DoorAssignment.Role.SUPERVISOR
+        ).count(),
+        "active_assignments": all_assignments.count(),
+        "available_doors": sum(
+            door["state"] in {
+                DoorShift.DoorState.OPEN,
+                DoorShift.DoorState.SECURED,
+            }
+            for door in all_doors
+        ),
+        "open_incidents": active_incidents.count(),
+        "open_maintenance": active_maintenance.count(),
+        "total_doors": len(all_doors),
+    }
+
+    return metrics
 
 
 def _get_optional_incident_metrics(today):
@@ -407,7 +520,7 @@ def build_dashboard_context(request):
                 .select_related("employee", "door")[:20]
             )
 
-        door_shifts = (
+        door_shifts = list(
             DoorShift.objects
             .filter(shift_plan=active_shift, is_active=True)
             .select_related(
@@ -418,11 +531,25 @@ def build_dashboard_context(request):
             .order_by("door_number")
         )
 
+        doors_by_number = {
+            door.door_number: door
+            for door in Door.objects.filter(
+                is_active=True,
+                door_number__in=[
+                    door_shift.door_number
+                    for door_shift in door_shifts
+                ],
+            )
+        }
+        assignments_by_door = defaultdict(list)
+        for assignment in all_assignments:
+            assignments_by_door[assignment.door_id].append(assignment)
+
         for door_shift in door_shifts:
             direction_key, direction_label = _get_direction(
                 door_shift.door_number
             )
-            door_obj = _find_door_by_number(door_shift.door_number)
+            door_obj = doors_by_number.get(door_shift.door_number)
 
             supervisor = None
             monitors = []
@@ -431,45 +558,56 @@ def build_dashboard_context(request):
             assignments_count = 0
 
             if door_obj:
-                assignments = (
-                    all_assignments
-                    .filter(door=door_obj)
-                    .order_by(
-                        "-is_supervisor",
-                        "role",
-                        "employee__employee_number",
-                    )
+                assignments = sorted(
+                    assignments_by_door.get(door_obj.pk, []),
+                    key=lambda assignment: (
+                        not assignment.is_supervisor,
+                        assignment.role,
+                        assignment.employee.employee_number,
+                    ),
                 )
 
-                assignments_count = assignments.count()
+                assignments_count = len(assignments)
 
-                supervisor_assignment = (
-                    assignments
-                    .filter(role=DoorAssignment.Role.SUPERVISOR)
-                    .first()
+                supervisor_assignment = next(
+                    (
+                        assignment
+                        for assignment in assignments
+                        if assignment.role == DoorAssignment.Role.SUPERVISOR
+                    ),
+                    None,
                 )
 
                 if not supervisor_assignment:
-                    supervisor_assignment = (
-                        assignments
-                        .filter(is_supervisor=True)
-                        .first()
+                    supervisor_assignment = next(
+                        (
+                            assignment
+                            for assignment in assignments
+                            if assignment.is_supervisor
+                        ),
+                        None,
                     )
 
                 if supervisor_assignment:
                     supervisor = supervisor_assignment.employee
 
-                monitors = list(
-                    assignments.filter(role=DoorAssignment.Role.MONITOR)
-                )
-                technicians = list(
-                    assignments.filter(role=DoorAssignment.Role.TECHNICIAN)
-                )
+                monitors = [
+                    assignment
+                    for assignment in assignments
+                    if assignment.role == DoorAssignment.Role.MONITOR
+                ]
+                technicians = [
+                    assignment
+                    for assignment in assignments
+                    if assignment.role == DoorAssignment.Role.TECHNICIAN
+                ]
 
                 if hasattr(DoorAssignment.Role, "SUPPORT"):
-                    support_members = list(
-                        assignments.filter(role=DoorAssignment.Role.SUPPORT)
-                    )
+                    support_members = [
+                        assignment
+                        for assignment in assignments
+                        if assignment.role == DoorAssignment.Role.SUPPORT
+                    ]
 
             if not supervisor and door_shift.supervisor:
                 supervisor = door_shift.supervisor
@@ -534,6 +672,14 @@ def build_dashboard_context(request):
         for direction_doors in grouped_doors.values()
         for door in direction_doors
     ]
+
+    section_dashboard_metrics = (
+        _build_section_dashboard_metrics(
+            active_shift=active_shift,
+            all_doors=all_doors,
+            all_assignments=all_assignments,
+        )
+    )
 
     open_doors_count = sum(
         door["state"] == DoorShift.DoorState.OPEN
@@ -769,6 +915,13 @@ def build_dashboard_context(request):
 
     context = {
         "active_shift": active_shift,
+        "selected_operational_section": str(
+            request.GET.get("section", "all") or "all"
+        ).strip().lower()
+        if str(
+            request.GET.get("section", "all") or "all"
+        ).strip().lower() in {"all", "male", "female"}
+        else "all",
         "shift_start_time": shift_start_time,
         "shift_end_time": shift_end_time,
         "shift_supervisor_name": shift_supervisor_name,
@@ -776,6 +929,7 @@ def build_dashboard_context(request):
         "sections": sections,
         "grouped_doors": grouped_doors,
         "direction_summary": list(direction_summary.values()),
+        "section_dashboard_metrics": section_dashboard_metrics,
         "shift_leaders": shift_leaders,
 
         "open_doors_count": open_doors_count,

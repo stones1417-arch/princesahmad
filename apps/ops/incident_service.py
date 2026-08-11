@@ -381,6 +381,56 @@ class IncidentService:
     """
 
     @staticmethod
+    @transaction.atomic
+    def create(
+        *,
+        request,
+        active_shift,
+        door_shift=None,
+        assignment=None,
+        section: str = "",
+        description: str,
+        incident_type: str,
+        priority: str,
+        reported_by_name: str = "",
+        assigned_to_name: str = "",
+    ):
+        from apps.ops.models import Incident
+
+        if not str(description or "").strip():
+            raise ValidationError({
+                "description": "وصف البلاغ مطلوب."
+            })
+
+        incident = Incident(
+            shift_plan=active_shift,
+            door_shift=door_shift,
+            assignment=assignment,
+            section=section,
+            description=str(description).strip(),
+            incident_type=incident_type,
+            priority=priority,
+            reported_by_name=str(
+                reported_by_name or ""
+            ).strip(),
+            assigned_to_name=str(
+                assigned_to_name or ""
+            ).strip(),
+            created_by=(
+                request.user
+                if getattr(
+                    request.user,
+                    "is_authenticated",
+                    False,
+                )
+                else None
+            ),
+        )
+        incident.full_clean()
+        incident.save()
+        return incident
+
+    @staticmethod
     def change_status(
         *,
         incident,

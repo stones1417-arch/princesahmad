@@ -62,6 +62,29 @@ class BreakModelTests(TestCase):
             break_obj.is_active
         )
 
+    def test_operational_section_follows_employee_gender(self):
+        """
+        قسم الراحة لا ينفصل عن قسم الموظف التشغيلي.
+        """
+        self.employee.operational_section = "male"
+        self.employee.save(
+            update_fields=[
+                "operational_section",
+                "updated_at",
+            ]
+        )
+
+        break_obj = self.create_break()
+
+        self.assertEqual(
+            break_obj.operational_section,
+            "male",
+        )
+        self.assertEqual(
+            break_obj.operational_section_label,
+            "رجالي",
+        )
+
     def test_inactive_employee_is_rejected(self):
         """
         لا يمكن إضافة راحة لموظف غير نشط.

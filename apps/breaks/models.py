@@ -255,6 +255,24 @@ class Break(models.Model):
             else "غير نشط"
         )
 
+    @property
+    def operational_section(self) -> str:
+        """القسم التشغيلي الموروث من سجل الموظف."""
+        return str(
+            getattr(self.employee, "operational_section", "")
+            or ""
+        ).strip().lower()
+
+    @property
+    def operational_section_label(self) -> str:
+        """الاسم العربي للقسم التشغيلي."""
+        return dict(
+            Employee.OperationalSection.choices
+        ).get(
+            self.operational_section,
+            "غير محدد",
+        )
+
     def clean(self) -> None:
         """
         التحقق من قواعد الراحة قبل الحفظ.
@@ -346,6 +364,12 @@ class Break(models.Model):
                 self.employee.full_name
                 if self.employee_id
                 else ""
+            ),
+            "operational_section": (
+                self.operational_section
+            ),
+            "operational_section_label": (
+                self.operational_section_label
             ),
             "shift_type_id": self.shift_type_id,
             "shift_type_name": (

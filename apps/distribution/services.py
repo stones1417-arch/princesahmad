@@ -6,8 +6,10 @@ from datetime import date
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
+from django.contrib.auth import get_user_model
 
 from apps.breaks.models import Break
+from apps.core.notification_service import NotificationService
 from apps.hr.models import Employee
 from apps.locations.models import Door
 
@@ -182,6 +184,19 @@ class DistributionService:
         """
         errors = []
 
+        employee_section = str(
+            getattr(employee, "operational_section", "")
+            or ""
+        ).strip().lower()
+
+        if employee_section not in {
+            DoorAssignment.AssignmentSection.MALE,
+            DoorAssignment.AssignmentSection.FEMALE,
+        }:
+            errors.append(
+                "يجب تحديد القسم التشغيلي للموظف قبل التوزيع."
+            )
+
         if not getattr(
             shift_plan,
             "is_active",
@@ -236,6 +251,38 @@ class DistributionService:
                 "الباب خارج النطاق التشغيلي المعتمد."
             )
 
+        door_section = getattr(
+            door,
+            "operational_section",
+            None,
+        )
+
+        if (
+            employee_section
+            == DoorAssignment.AssignmentSection.MALE
+            and door_section
+            not in {
+                Door.OperationalSection.MALE,
+                Door.OperationalSection.SHARED,
+            }
+        ):
+            errors.append(
+                "لا يمكن توزيع الموظف الرجالي على باب نسائي."
+            )
+
+        if (
+            employee_section
+            == DoorAssignment.AssignmentSection.FEMALE
+            and door_section
+            not in {
+                Door.OperationalSection.FEMALE,
+                Door.OperationalSection.SHARED,
+            }
+        ):
+            errors.append(
+                "لا يمكن توزيع الموظفة على باب رجالي."
+            )
+
         duplicate_assignment = (
             DoorAssignment.objects
             .filter(
@@ -263,6 +310,7 @@ class DistributionService:
                 .filter(
                     shift_plan=shift_plan,
                     door=door,
+                    section=employee_section,
                     is_active=True,
                     is_supervisor=True,
                 )
@@ -294,6 +342,7 @@ class DistributionService:
         employee,
         door,
         role,
+        section=None,
         assigned_by=None,
         notes="",
         history_reason="",
@@ -302,6 +351,20 @@ class DistributionService:
         """
         إنشاء توزيع جديد وتسجيله في audit.AssignmentHistory.
         """
+        employee_section = str(
+            section
+            or getattr(employee, "operational_section", "")
+            or ""
+        ).strip().lower()
+
+        if employee_section != str(
+            getattr(employee, "operational_section", "")
+            or ""
+        ).strip().lower():
+            raise ValidationError(
+                "قسم التسكين لا يطابق قسم الموظف."
+            )
+
         cls.validate_assignment(
             shift_plan=shift_plan,
             employee=employee,
@@ -314,6 +377,7 @@ class DistributionService:
                 shift_plan=shift_plan,
                 door=door,
                 employee=employee,
+                section=employee_section,
                 role=role,
                 is_supervisor=(
                     role
@@ -338,6 +402,21 @@ class DistributionService:
                 or notes
                 or "إنشاء توزيع موظف"
             ),
+        )
+
+        NotificationService.success(
+            title="تكليف جديد",
+            message=(
+                f"القسم: {assignment.get_section_display()} | "
+                f"الباب: {door.door_number} | "
+                f"الوردية: {shift_plan.shift_type.name} | "
+                f"الموظف: {employee.full_name} | "
+                f"الدور: {assignment.get_role_display()} | "
+                "الحالة: تم الإرسال"
+            ),
+            users=get_user_model().objects.filter(is_active=True),
+            url="/distribution/",
+            assignment=assignment,
         )
 
         return assignment
@@ -410,6 +489,10 @@ class DistributionService:
                 is_active=True,
                 work_status=Employee.WorkStatus.ACTIVE,
                 can_work_on_doors=True,
+                operational_section__in=(
+                    Employee.OperationalSection.MALE,
+                    Employee.OperationalSection.FEMALE,
+                ),
             )
             .exclude(
                 door_assignments__shift_plan=shift_plan,
@@ -510,6 +593,32 @@ class DistributionService:
             )
         )
 
+    @staticmethod
+    def _door_supports_employee(
+        *,
+        door,
+        employee,
+    ) -> bool:
+        """تقييد التوزيع الآلي بقسم الموظف وتصنيف الباب."""
+        employee_section = str(
+            getattr(employee, "operational_section", "")
+            or ""
+        ).strip().lower()
+
+        if employee_section == DoorAssignment.AssignmentSection.MALE:
+            return door.operational_section in {
+                Door.OperationalSection.MALE,
+                Door.OperationalSection.SHARED,
+            }
+
+        if employee_section == DoorAssignment.AssignmentSection.FEMALE:
+            return door.operational_section in {
+                Door.OperationalSection.FEMALE,
+                Door.OperationalSection.SHARED,
+            }
+
+        return False
+
     @classmethod
     @transaction.atomic
     def auto_assign(
@@ -543,15 +652,37 @@ class DistributionService:
             )
 
             if role == DoorAssignment.Role.SUPERVISOR:
+                supervisor_door_ids = set(
+                    DoorAssignment.objects.filter(
+                        shift_plan=shift_plan,
+                        section=employee.operational_section,
+                        is_active=True,
+                        is_supervisor=True,
+                    ).values_list(
+                        "door_id",
+                        flat=True,
+                    )
+                )
                 candidates = [
                     door
                     for door in doors
-                    if door.supervisor_count == 0
+                    if door.pk not in supervisor_door_ids
+                    and cls._door_supports_employee(
+                        door=door,
+                        employee=employee,
+                    )
                 ]
 
             elif role == DoorAssignment.Role.MONITOR:
                 candidates = sorted(
-                    doors,
+                    [
+                        door
+                        for door in doors
+                        if cls._door_supports_employee(
+                            door=door,
+                            employee=employee,
+                        )
+                    ],
                     key=lambda door: (
                         door.monitor_count > 0,
                         door.monitor_count,
@@ -562,7 +693,14 @@ class DistributionService:
 
             else:
                 candidates = sorted(
-                    doors,
+                    [
+                        door
+                        for door in doors
+                        if cls._door_supports_employee(
+                            door=door,
+                            employee=employee,
+                        )
+                    ],
                     key=lambda door: (
                         door.total_count,
                         door.door_number,
@@ -583,6 +721,7 @@ class DistributionService:
                     employee=employee,
                     door=selected_door,
                     role=role,
+                    section=employee.operational_section,
                     assigned_by=performed_by,
                     history_reason=(
                         "تنفيذ محرك التوزيع التلقائي"
@@ -891,8 +1030,20 @@ class DistributionService:
         for index, assignment in enumerate(
             supervisors,
         ):
-            door = target_doors[
-                index % len(target_doors)
+            compatible_doors = [
+                door
+                for door in target_doors
+                if cls._door_supports_employee(
+                    door=door,
+                    employee=assignment.employee,
+                )
+            ]
+
+            if not compatible_doors:
+                continue
+
+            door = compatible_doors[
+                index % len(compatible_doors)
             ]
 
             planned[
@@ -910,8 +1061,20 @@ class DistributionService:
         }
 
         for assignment in monitors:
+            compatible_doors = [
+                door
+                for door in target_doors
+                if cls._door_supports_employee(
+                    door=door,
+                    employee=assignment.employee,
+                )
+            ]
+
+            if not compatible_doors:
+                continue
+
             door = min(
-                target_doors,
+                compatible_doors,
                 key=lambda item: (
                     item.id
                     not in supervisor_door_ids,
@@ -932,8 +1095,20 @@ class DistributionService:
             technicians
             + support
         ):
+            compatible_doors = [
+                door
+                for door in target_doors
+                if cls._door_supports_employee(
+                    door=door,
+                    employee=assignment.employee,
+                )
+            ]
+
+            if not compatible_doors:
+                continue
+
             door = min(
-                target_doors,
+                compatible_doors,
                 key=lambda item: (
                     loads[item.id],
                     item.door_number,
@@ -1224,11 +1399,22 @@ def auto_assign_employee_to_door(
             door
             for door in doors
             if door.supervisor_count == 0
+            and DistributionService._door_supports_employee(
+                door=door,
+                employee=employee,
+            )
         ]
 
     elif role == DoorAssignment.Role.MONITOR:
         candidates = sorted(
-            doors,
+            [
+                door
+                for door in doors
+                if DistributionService._door_supports_employee(
+                    door=door,
+                    employee=employee,
+                )
+            ],
             key=lambda door: (
                 door.monitor_count > 0,
                 door.monitor_count,
@@ -1239,7 +1425,14 @@ def auto_assign_employee_to_door(
 
     else:
         candidates = sorted(
-            doors,
+            [
+                door
+                for door in doors
+                if DistributionService._door_supports_employee(
+                    door=door,
+                    employee=employee,
+                )
+            ],
             key=lambda door: (
                 door.total_count,
                 door.door_number,

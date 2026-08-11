@@ -54,11 +54,13 @@ def can_manage_section(user, section: str) -> bool:
 
 
 def filter_employees_for_user(queryset: QuerySet, user) -> QuerySet:
-    """Restrict employees by their operational gender."""
+    """Restrict employees by their operational section."""
     allowed_sections = get_allowed_sections(user)
     if not has_institutional_scope(user):
         return queryset
-    return queryset.filter(gender__in=allowed_sections)
+    return queryset.filter(
+        operational_section__in=allowed_sections
+    )
 
 
 def filter_doors_for_user(queryset: QuerySet, user) -> QuerySet:

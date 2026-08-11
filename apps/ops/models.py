@@ -3,7 +3,81 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
+from apps.distribution.models import DoorAssignment
+from apps.locations.models import Door
 from apps.scheduling.models import ShiftPlan
+
+
+def _validate_operational_context(
+    *,
+    door_shift,
+    assignment,
+    section,
+    errors,
+):
+    """Resolve and validate the section for a door operation record."""
+    normalized_section = str(section or "").strip().lower()
+
+    if assignment:
+        if not door_shift:
+            errors["assignment"] = (
+                "لا يمكن ربط التسكين دون تحديد حالة الباب."
+            )
+        elif (
+            assignment.shift_plan_id
+            != door_shift.shift_plan_id
+            or assignment.door.door_number
+            != door_shift.door_number
+        ):
+            errors["assignment"] = (
+                "التسكين لا يطابق الباب أو الوردية المحددة."
+            )
+
+        expected_section = assignment.section
+    else:
+        expected_section = getattr(
+            door_shift,
+            "section",
+            "",
+        ) if door_shift else ""
+
+        if not expected_section and door_shift:
+            door = (
+                Door.objects
+                .filter(
+                    door_number=door_shift.door_number,
+                )
+                .first()
+            )
+
+            if door and door.operational_section != (
+                Door.OperationalSection.SHARED
+            ):
+                expected_section = (
+                    door.operational_section
+                )
+
+    if normalized_section and expected_section:
+        if normalized_section != expected_section:
+            errors["section"] = (
+                "القسم المحدد لا يطابق قسم التسكين أو الباب."
+            )
+
+    if not normalized_section and expected_section:
+        normalized_section = expected_section
+
+    if not door_shift and not assignment:
+        return normalized_section
+
+    if normalized_section not in {
+        "male",
+        "female",
+    }:
+        errors["section"] = (
+            "يجب تحديد القسم صراحةً للباب المشترك."
+        )
+
+    return normalized_section
 
 
 class DoorShift(models.Model):
@@ -15,6 +89,18 @@ class DoorShift(models.Model):
 
     door_number = models.PositiveIntegerField(
         verbose_name="رقم الباب",
+    )
+
+    section = models.CharField(
+        max_length=10,
+        choices=(
+            ("male", "رجالي"),
+            ("female", "نسائي"),
+        ),
+        blank=True,
+        default="",
+        db_index=True,
+        verbose_name="القسم التشغيلي",
     )
 
     shift_plan = models.ForeignKey(
@@ -93,6 +179,26 @@ class DoorShift(models.Model):
     def clean(self):
         super().clean()
 
+        door = (
+            Door.objects
+            .filter(door_number=self.door_number)
+            .first()
+        )
+
+        door_section = (
+            door.operational_section
+            if door
+            else Door.get_section_for_door_number(
+                self.door_number,
+            )
+        )
+
+        if door_section in {
+            Door.OperationalSection.MALE,
+            Door.OperationalSection.FEMALE,
+        }:
+            self.section = door_section
+
         if (
             self.shift_plan_id
             and not self.shift_plan.is_active
@@ -100,6 +206,25 @@ class DoorShift(models.Model):
             raise ValidationError(
                 "لا يمكن تعديل باب لوردية غير نشطة."
             )
+
+    def save(self, *args, **kwargs):
+        door = (
+            Door.objects
+            .filter(door_number=self.door_number)
+            .first()
+        )
+        door_section = (
+            door.operational_section
+            if door
+            else Door.get_section_for_door_number(
+                self.door_number,
+            )
+        )
+
+        if door_section != Door.OperationalSection.SHARED:
+            self.section = door_section
+
+        super().save(*args, **kwargs)
 
 
 
@@ -233,6 +358,27 @@ class MaintenanceRequest(models.Model):
         related_name="maintenance_requests",
         verbose_name="الباب",
         db_index=True,
+    )
+
+    assignment = models.ForeignKey(
+        DoorAssignment,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="maintenance_requests",
+        verbose_name="التسكين المرتبط",
+    )
+
+    section = models.CharField(
+        max_length=10,
+        choices=(
+            ("male", "رجالي"),
+            ("female", "نسائي"),
+        ),
+        blank=True,
+        default="",
+        db_index=True,
+        verbose_name="القسم التشغيلي",
     )
 
     description = models.TextField(
@@ -487,6 +633,18 @@ class MaintenanceRequest(models.Model):
     def clean(self):
         super().clean()
 
+        errors = {}
+
+        self.section = _validate_operational_context(
+            door_shift=self.door_shift,
+            assignment=self.assignment,
+            section=self.section,
+            errors=errors,
+        )
+
+        if errors:
+            raise ValidationError(errors)
+
         if not self.door_shift.is_active:
             raise ValidationError(
                 "الباب غير نشط."
@@ -656,6 +814,27 @@ class Incident(models.Model):
         related_name="incidents",
     )
 
+    assignment = models.ForeignKey(
+        DoorAssignment,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="incidents",
+        verbose_name="التسكين المرتبط",
+    )
+
+    section = models.CharField(
+        max_length=10,
+        choices=(
+            ("male", "رجالي"),
+            ("female", "نسائي"),
+        ),
+        blank=True,
+        default="",
+        db_index=True,
+        verbose_name="القسم التشغيلي",
+    )
+
     incident_type = models.CharField(
         max_length=40,
         choices=IncidentType.choices,
@@ -776,6 +955,15 @@ class Incident(models.Model):
     def clean(self):
         super().clean()
 
+        errors = {}
+
+        self.section = _validate_operational_context(
+            door_shift=self.door_shift,
+            assignment=self.assignment,
+            section=self.section,
+            errors=errors,
+        )
+
         if not self.description.strip():
             raise ValidationError(
                 "وصف البلاغ مطلوب."
@@ -785,9 +973,12 @@ class Incident(models.Model):
             self.status == self.Status.CLOSED
             and not self.closing_notes.strip()
         ):
-            raise ValidationError(
+            errors["closing_notes"] = (
                 "ملاحظات الإغلاق مطلوبة."
             )
+
+        if errors:
+            raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
 

@@ -28,12 +28,12 @@ class SectionAccessServiceTests(TestCase):
         self.male_employee = create_employee(
             full_name="موظف رجالي",
             employee_number="91001",
-            gender="male",
+            operational_section="male",
         )
         self.female_employee = create_employee(
             full_name="موظفة نسائية",
             employee_number="91002",
-            gender="female",
+            operational_section="female",
         )
         self.male_door = create_door(door_number=1)
         self.female_door = create_door(door_number=12)

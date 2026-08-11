@@ -17,6 +17,11 @@ from apps.core.permissions import require_staff
 from apps.dashboard.activity_logger import log_activity
 from apps.dashboard.models import SystemActivityLog
 from apps.hr.models import Employee
+from apps.roles.services.section_access import (
+    can_manage_section,
+    get_allowed_sections,
+    has_institutional_scope,
+)
 from apps.scheduling.models import ShiftType
 
 from .models import Break, BreakHistory
@@ -224,6 +229,10 @@ def _filtered_breaks_queryset(
         request,
         "active",
     )
+    section_filter = _post_value(
+        request,
+        "section",
+    )
 
     queryset = (
         Break.objects
@@ -233,6 +242,21 @@ def _filtered_breaks_queryset(
         )
         .all()
     )
+
+    if has_institutional_scope(request.user):
+        queryset = queryset.filter(
+            employee__operational_section__in=get_allowed_sections(
+                request.user,
+            )
+        )
+
+    if section_filter in {
+        Employee.OperationalSection.MALE,
+        Employee.OperationalSection.FEMALE,
+    }:
+        queryset = queryset.filter(
+            employee__operational_section=section_filter,
+        )
 
     if q:
         queryset = queryset.filter(
@@ -295,6 +319,7 @@ def _filtered_breaks_queryset(
         "selected_rest_days": rest_days,
         "selected_job_title": job_title,
         "selected_active": active_filter,
+        "selected_section": section_filter,
     }
 
     return queryset, filters
@@ -325,6 +350,13 @@ def breaks_list_view(
         )
     )
 
+    if has_institutional_scope(request.user):
+        employees = employees.filter(
+            operational_section__in=get_allowed_sections(
+                request.user,
+            )
+        )
+
     shift_types = (
         ShiftType.objects
         .all()
@@ -334,6 +366,13 @@ def breaks_list_view(
     )
 
     all_breaks = Break.objects.all()
+
+    if has_institutional_scope(request.user):
+        all_breaks = all_breaks.filter(
+            employee__operational_section__in=get_allowed_sections(
+                request.user,
+            )
+        )
     active_employee_count = employees.count()
     employees_with_active_breaks = (
         all_breaks.filter(is_active=True)
@@ -467,6 +506,14 @@ def break_create_view(
         employee = _get_active_employee(
             employee_id
         )
+
+        if not can_manage_section(
+            request.user,
+            employee.operational_section,
+        ):
+            raise ValidationError(
+                "لا تملك صلاحية إدارة راحة هذا القسم."
+            )
 
         shift_type = _get_shift_type(
             shift_type_id
@@ -618,6 +665,14 @@ def break_update_view(
         employee = _get_active_employee(
             employee_id
         )
+
+        if not can_manage_section(
+            request.user,
+            employee.operational_section,
+        ):
+            raise ValidationError(
+                "لا تملك صلاحية إدارة راحة هذا القسم."
+            )
 
         shift_type = _get_shift_type(
             shift_type_id

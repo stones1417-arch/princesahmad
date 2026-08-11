@@ -11,16 +11,37 @@ from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.models import User
 from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 from django.utils.http import url_has_allowed_host_and_scheme
 
+from apps.hr.forms import EmployeeForm
 from apps.hr.models import Employee
 
 from .forms import ProfilePhotoForm
 from .models import AccountProfile
 from .security import clear_login_failures, login_is_limited, record_login_failure
+
+
+def _normalize_saudi_phone_number(value):
+    value = (value or "").strip().replace(" ", "").replace("-", "")
+    if value.startswith("05") and len(value) == 10 and value.isdigit():
+        value = "+966" + value[1:]
+    if not value.startswith("+9665") or len(value) != 13 or not value[1:].isdigit():
+        raise ValidationError("رقم الجوال غير صالح.")
+    return value
+
+
+def _registration_context(photo_form, form_data=None):
+    return {
+        "job_title_choices": Employee.JobTitle.choices,
+        "operational_section_choices": Employee.OperationalSection.choices,
+        "female_job_title_labels": EmployeeForm.FEMALE_JOB_TITLE_LABELS,
+        "form_data": form_data,
+        "photo_form": photo_form,
+    }
 
 
 def register_view(request):
@@ -43,16 +64,31 @@ def register_view(request):
         employee_number = (request.POST.get("employee_number") or "").strip()
         username = (request.POST.get("username") or "").strip().lower()
         password = request.POST.get("password") or ""
+        email = (request.POST.get("email") or "").strip().lower()
+        phone_number = (request.POST.get("phone_number") or "").strip()
+        operational_section = (
+            request.POST.get("operational_section") or ""
+        ).strip()
         job_title = (request.POST.get("job_title") or "").strip()
 
-        context = {
-            "job_title_choices": Employee.JobTitle.choices,
-            "form_data": request.POST,
-            "photo_form": photo_form,
-        }
+        context = _registration_context(photo_form, request.POST)
 
-        if not all([full_name, employee_number, username, password, job_title]):
+        if not all([
+            full_name, employee_number, username, password, job_title,
+            email, phone_number, operational_section,
+        ]):
             messages.error(request, "أكمل جميع الحقول المطلوبة.")
+            return render(request, "accounts/register.html", context)
+
+        try:
+            validate_email(email)
+            normalized_phone = _normalize_saudi_phone_number(phone_number)
+        except ValidationError:
+            messages.error(request, "البريد الإلكتروني أو رقم الجوال غير صالح.")
+            return render(request, "accounts/register.html", context)
+
+        if operational_section not in Employee.OperationalSection.values:
+            messages.error(request, "اختر القسم التشغيلي: رجالي أو نسائي.")
             return render(request, "accounts/register.html", context)
 
         if job_title not in Employee.JobTitle.values:
@@ -74,6 +110,17 @@ def register_view(request):
             messages.error(request, "اسم المستخدم مستخدم مسبقًا.")
             return render(request, "accounts/register.html", context)
 
+        if User.objects.filter(email__iexact=email).exists():
+            messages.error(request, "البريد الإلكتروني مستخدم مسبقًا.")
+            return render(request, "accounts/register.html", context)
+
+        if (
+            Employee.objects.filter(phone_number=normalized_phone).exists()
+            or AccountProfile.objects.filter(phone_number=normalized_phone).exists()
+        ):
+            messages.error(request, "رقم الجوال مستخدم مسبقًا.")
+            return render(request, "accounts/register.html", context)
+
         if Employee.objects.filter(employee_number=employee_number).exists():
             messages.error(request, "الرقم الوظيفي مسجل مسبقًا.")
             return render(request, "accounts/register.html", context)
@@ -84,6 +131,7 @@ def register_view(request):
                 user = User.objects.create_user(
                     username=username,
                     password=password,
+                    email=email,
                     first_name=name_parts[0],
                     last_name=name_parts[1] if len(name_parts) > 1 else "",
                 )
@@ -91,10 +139,14 @@ def register_view(request):
                     user=user,
                     full_name=full_name,
                     employee_number=employee_number,
+                    operational_section=operational_section,
                     job_title=job_title,
+                    phone_number=normalized_phone,
+                    email=email,
                 )
                 AccountProfile.objects.create(
                     user=user,
+                    phone_number=normalized_phone,
                     photo=photo_form.cleaned_data.get("photo"),
                 )
         except IntegrityError:
@@ -107,10 +159,7 @@ def register_view(request):
         messages.success(request, "تم إنشاء الحساب بنجاح، يمكنك تسجيل الدخول الآن.")
         return redirect("accounts:login")
 
-    return render(request, "accounts/register.html", {
-        "job_title_choices": Employee.JobTitle.choices,
-        "photo_form": photo_form,
-    })
+    return render(request, "accounts/register.html", _registration_context(photo_form))
 
 
 def login_view(request):

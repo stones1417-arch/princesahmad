@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -36,7 +37,10 @@
           <div class="field-group full"><label for="fullName">الاسم الكامل <span class="required">مطلوب</span></label><input id="fullName" type="text" name="full_name" class="field" value="{{ form_data.full_name|default:'' }}" autocomplete="name" required></div>
           <div class="field-group"><label for="employeeNumber">الرقم الوظيفي <span class="required">مطلوب</span></label><input id="employeeNumber" type="text" name="employee_number" class="field" value="{{ form_data.employee_number|default:'' }}" inputmode="numeric" required></div>
           <div class="field-group"><label for="username">اسم المستخدم <span class="required">مطلوب</span></label><input id="username" type="text" name="username" class="field" value="{{ form_data.username|default:'' }}" autocomplete="username" required></div>
+          <div class="field-group full"><label for="operationalSection">القسم التشغيلي <span class="required">مطلوب</span></label><div class="select-wrap"><select id="operationalSection" name="operational_section" class="select-field" required><option value="">اختر القسم التشغيلي</option>{% for value, label in operational_section_choices %}<option value="{{ value }}" {% if form_data.operational_section == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><svg viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"></path></svg></div></div>
           <div class="field-group full"><label for="jobTitle">المسمى الوظيفي <span class="required">مطلوب</span></label><div class="select-wrap"><select id="jobTitle" name="job_title" class="select-field" required><option value="">اختر المسمى الوظيفي</option>{% for value, label in job_title_choices %}<option value="{{ value }}" {% if form_data.job_title == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><svg viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"></path></svg></div></div>
+          <div class="field-group"><label for="registerEmail">البريد الإلكتروني الشخصي <span class="required">مطلوب</span></label><input id="registerEmail" type="email" name="email" class="field" value="{{ form_data.email|default:'' }}" autocomplete="email" required></div>
+          <div class="field-group"><label for="registerPhone">رقم الجوال <span class="required">مطلوب</span></label><input id="registerPhone" type="tel" name="phone_number" class="field" value="{{ form_data.phone_number|default:'' }}" autocomplete="tel" inputmode="tel" dir="ltr" placeholder="+9665XXXXXXXX" required><small class="field-note">استخدم الصيغة الدولية مثل +9665XXXXXXXX.</small></div>
           <div class="field-group full"><label for="registerPassword">كلمة المرور <span class="required">مطلوب</span></label><div class="password-wrap"><input type="password" name="password" id="registerPassword" class="field" autocomplete="new-password" minlength="8" required><button type="button" class="password-toggle" id="passwordToggle" aria-label="إظهار كلمة المرور"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg></button></div></div>
         </section>
       </div>
@@ -44,6 +48,8 @@
       <footer class="form-footer"><div class="login-link">لديك حساب بالفعل؟ <a href="{% url 'accounts:login' %}">تسجيل الدخول</a></div><button type="submit" class="submit-button">إنشاء الحساب</button></footer>
     </form>
   </main>
+  {{ female_job_title_labels|json_script:"register-female-job-title-labels" }}
+  <script src="{% static 'js/accounts/register.js' %}"></script>
   <script>
     (()=>{const input=document.getElementById('id_photo'),preview=document.getElementById('registerPhotoPreview'),toggle=document.getElementById('passwordToggle'),password=document.getElementById('registerPassword');if(input&&preview){input.addEventListener('change',()=>{const file=input.files&&input.files[0];if(!file)return;const image=document.createElement('img');image.alt='معاينة الصورة الشخصية';image.src=URL.createObjectURL(file);image.onload=()=>URL.revokeObjectURL(image.src);preview.replaceChildren(image)})}if(toggle&&password){toggle.addEventListener('click',()=>{const show=password.type==='password';password.type=show?'text':'password';toggle.setAttribute('aria-label',show?'إخفاء كلمة المرور':'إظهار كلمة المرور')})}})();
   </script>

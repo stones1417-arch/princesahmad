@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from django.db import models
 
 
@@ -7,6 +8,12 @@ def validate_profile_photo_size(image):
     """منع رفع صور شخصية كبيرة بشكل غير مناسب."""
     if image.size > 5 * 1024 * 1024:
         raise ValidationError("حجم الصورة يجب ألا يتجاوز 5 ميجابايت.")
+
+
+phone_validator = RegexValidator(
+    regex=r"^\+[1-9]\d{7,14}$",
+    message="رقم الجوال يجب أن يكون بالصيغة الدولية E.164، مثال: +9665XXXXXXXX.",
+)
 
 
 class AccountProfile(models.Model):
@@ -24,11 +31,23 @@ class AccountProfile(models.Model):
         validators=[validate_profile_photo_size],
         verbose_name="الصورة الشخصية",
     )
+
+    phone_number = models.CharField(
+        max_length=16,
+        blank=True,
+        validators=[phone_validator],
+        verbose_name="رقم الجوال",
+        help_text="استخدم الصيغة الدولية، مثال: +9665XXXXXXXX.",
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = "ملف حساب"
         verbose_name_plural = "ملفات الحسابات"
+
+    def clean(self):
+        super().clean()
+        self.phone_number = (self.phone_number or "").strip()
 
     def __str__(self):
         return f"ملف {self.user.username}"

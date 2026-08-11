@@ -19,6 +19,10 @@ class Employee(models.Model):
     - الحذف الافتراضي حذف آمن، ولا يزيل السجل من قاعدة البيانات.
     """
 
+    class OperationalSection(models.TextChoices):
+        MALE = "male", "رجالي"
+        FEMALE = "female", "نسائي"
+
     class JobTitle(models.TextChoices):
         CHAIRMAN_OFFICE = (
             "chairman_office",
@@ -77,6 +81,15 @@ class Employee(models.Model):
         max_length=150,
         db_index=True,
         verbose_name="الاسم الكامل",
+    )
+
+    operational_section = models.CharField(
+        max_length=10,
+        choices=OperationalSection.choices,
+        null=True,
+        blank=True,
+        db_index=True,
+        verbose_name="القسم التشغيلي",
     )
 
     national_id = models.CharField(
@@ -210,12 +223,36 @@ class Employee(models.Model):
                 fields=["national_id"],
                 name="hr_employee_nid_idx",
             ),
+            models.Index(
+                fields=["operational_section", "is_active", "work_status"],
+                name="hr_emp_section_status_idx",
+            ),
+            models.Index(
+                fields=["operational_section", "can_work_on_doors", "is_active"],
+                name="hr_emp_section_door_idx",
+            ),
         ]
 
         permissions = [
             (
                 "can_view_employee_dashboard",
                 "يمكن عرض لوحة الموظفين",
+            ),
+            (
+                "can_view_male_employees",
+                "يمكن عرض موظفي القسم الرجالي",
+            ),
+            (
+                "can_view_female_employees",
+                "يمكن عرض موظفات القسم النسائي",
+            ),
+            (
+                "can_manage_male_employees",
+                "يمكن إدارة موظفي القسم الرجالي",
+            ),
+            (
+                "can_manage_female_employees",
+                "يمكن إدارة موظفات القسم النسائي",
             ),
             (
                 "can_activate_employee",
@@ -242,6 +279,24 @@ class Employee(models.Model):
         return self.get_work_status_display()
 
     @property
+    def operational_section_label(self) -> str:
+        if not self.operational_section:
+            return "غير محدد"
+        return self.get_operational_section_display()
+
+    @property
+    def is_male(self) -> bool:
+        return self.operational_section == self.OperationalSection.MALE
+
+    @property
+    def is_female(self) -> bool:
+        return self.operational_section == self.OperationalSection.FEMALE
+
+    @property
+    def assignment_section(self) -> str:
+        return self.operational_section
+
+    @property
     def is_available_for_assignment(self) -> bool:
         """
         الموظف متاح للتسكين فقط عندما تتحقق الشروط كلها.
@@ -251,6 +306,27 @@ class Employee(models.Model):
             self.is_active
             and self.work_status == self.WorkStatus.ACTIVE
             and self.can_work_on_doors
+        )
+
+    @property
+    def is_available_for_male_assignment(self) -> bool:
+        return (
+            self.is_available_for_assignment
+            and self.operational_section == self.OperationalSection.MALE
+        )
+
+    @property
+    def is_available_for_female_assignment(self) -> bool:
+        return (
+            self.is_available_for_assignment
+            and self.operational_section == self.OperationalSection.FEMALE
+        )
+
+    def can_be_assigned_to_section(self, section: str) -> bool:
+        normalized_section = str(section or "").strip().lower()
+        return (
+            self.is_available_for_assignment
+            and self.operational_section == normalized_section
         )
 
     @property
@@ -277,6 +353,11 @@ class Employee(models.Model):
             self.full_name or ""
         ).strip()
 
+        operational_section = str(
+            self.operational_section or ""
+        ).strip().lower()
+        self.operational_section = operational_section or None
+
         self.national_id = str(
             self.national_id or ""
         ).strip()
@@ -297,6 +378,14 @@ class Employee(models.Model):
         if not self.full_name:
             errors["full_name"] = (
                 "الاسم الكامل مطلوب."
+            )
+
+        if self.operational_section and self.operational_section not in {
+            self.OperationalSection.MALE,
+            self.OperationalSection.FEMALE,
+        }:
+            errors["operational_section"] = (
+                "يجب تحديد القسم التشغيلي: رجالي أو نسائي."
             )
 
         if self.national_id:

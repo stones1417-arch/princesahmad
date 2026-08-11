@@ -13,6 +13,11 @@ class Notification(models.Model):
         WARNING = "warning", "تنبيه"
         DANGER = "danger", "خطر"
 
+    class OperationalSection(models.TextChoices):
+        MALE = "male", "رجالي"
+        FEMALE = "female", "نسائي"
+        ALL = "all", "الكل"
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -35,6 +40,14 @@ class Notification(models.Model):
         default=Level.INFO,
         db_index=True,
         verbose_name="المستوى",
+    )
+
+    section = models.CharField(
+        max_length=10,
+        choices=OperationalSection.choices,
+        default=OperationalSection.ALL,
+        db_index=True,
+        verbose_name="القسم التشغيلي",
     )
 
     url = models.CharField(
@@ -70,6 +83,7 @@ class Notification(models.Model):
         indexes = [
             models.Index(fields=["user"]),
             models.Index(fields=["level"]),
+            models.Index(fields=["section"]),
             models.Index(fields=["is_read"]),
             models.Index(fields=["created_at"]),
         ]

@@ -41,12 +41,19 @@ class RegisterViewTests(TestCase):
                 "job_title": Employee.JobTitle.MONITOR,
                 "username": "register_test",
                 "password": "SafePass123!",
+                "operational_section": Employee.OperationalSection.MALE,
+                "email": "register@example.test",
+                "phone_number": "0551234567",
             },
         )
 
         self.assertRedirects(response, reverse("accounts:login"))
         user = User.objects.get(username="register_test")
         self.assertEqual(user.employee.job_title, Employee.JobTitle.MONITOR)
+        self.assertEqual(
+            user.employee.operational_section,
+            Employee.OperationalSection.MALE,
+        )
         self.assertFalse(bool(user.account_profile.photo))
 
     def test_invalid_job_title_does_not_create_account(self):

@@ -3,6 +3,8 @@ from django.core.exceptions import ValidationError
 from apps.core.notification_service import NotificationService
 from apps.core.services import BaseService
 from apps.dashboard.models import SystemActivityLog
+from apps.distribution.models import DoorAssignment
+from apps.locations.models import Door
 from apps.ops.models import DoorShift, MaintenanceRequest
 from apps.scheduling.models import ShiftAssignment
 
@@ -35,9 +37,26 @@ class ReportService(BaseService):
         door_shifts = DoorShift.objects.filter(
             shift_plan=shift_plan
         )
+        door_map = {
+            door.door_number: door
+            for door in Door.objects.filter(
+                door_number__in=door_shifts.values_list(
+                    "door_number",
+                    flat=True,
+                )
+            )
+        }
 
         assignments = ShiftAssignment.objects.filter(
             shift_plan=shift_plan
+        )
+        door_assignments = (
+            DoorAssignment.objects.filter(
+                shift_plan=shift_plan,
+            ).select_related(
+                "door",
+                "employee",
+            )
         )
 
         maintenance_requests = MaintenanceRequest.objects.filter(
@@ -60,11 +79,22 @@ class ReportService(BaseService):
                 "id": shift_plan.id,
                 "date": str(shift_plan.date),
                 "type": shift_plan.shift_type.name,
-                "status": shift_plan.get_status_display(),
+                "status": (
+                    "منتهية"
+                    if shift_plan.is_finished
+                    else "نشطة"
+                    if shift_plan.is_active
+                    else "غير نشطة"
+                ),
             },
             "doors": [
                 {
                     "door_number": d.door_number,
+                    "operational_section": getattr(
+                        door_map.get(d.door_number),
+                        "operational_section",
+                        "",
+                    ),
                     "state": d.get_state_display(),
                     "supervisor": str(d.supervisor) if d.supervisor else None,
                     "notes": d.notes,
@@ -87,6 +117,16 @@ class ReportService(BaseService):
                 }
                 for a in assignments
             ],
+            "door_assignments": [
+                {
+                    "door_number": a.door.door_number,
+                    "employee": a.employee.full_name,
+                    "section": a.section,
+                    "role": a.role,
+                    "is_active": a.is_active,
+                }
+                for a in door_assignments
+            ],
         }
 
         with cls.atomic():
@@ -102,7 +142,7 @@ class ReportService(BaseService):
                 completed_maintenance_requests=completed_maintenance_requests,
                 snapshot_data=snapshot_data,
                 created_by=user,
-                status=ShiftReport.ReportStatus.FINAL,
+                status=ShiftReport.ReportStatus.DRAFT,
             )
 
             report.summary = build_executive_summary(report)
@@ -116,6 +156,7 @@ class ReportService(BaseService):
                     "recommendations",
                 ]
             )
+            report.finalize()
 
             cls.log(
                 request=request,

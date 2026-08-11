@@ -335,6 +335,8 @@ class MaintenanceService:
         description: str,
         priority: str,
         technician_name: str = "",
+        section: str = "",
+        assignment=None,
     ):
         """
         إنشاء طلب صيانة جديد وتحويل
@@ -449,6 +451,8 @@ class MaintenanceService:
 
         maintenance = MaintenanceRequest(
             door_shift=locked_door,
+            assignment=assignment,
+            section=section,
             description=clean_description,
             priority=normalized_priority,
             status=(

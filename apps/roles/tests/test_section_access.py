@@ -25,12 +25,12 @@ class SectionAccessIsolationTests(TestCase):
         self.male_employee = create_employee(
             full_name="اختبار موظف رجالي",
             employee_number="93001",
-            gender=Employee.Gender.MALE,
+            operational_section=Employee.OperationalSection.MALE,
         )
         self.female_employee = create_employee(
             full_name="اختبار موظفة نسائية",
             employee_number="93002",
-            gender=Employee.Gender.FEMALE,
+            operational_section=Employee.OperationalSection.FEMALE,
         )
         self.male_door = create_door(door_number=1)
         self.female_door = create_door(door_number=12)
@@ -160,7 +160,7 @@ class SectionAccessIsolationTests(TestCase):
 
         response = self.client.get(
             reverse("hr:list"),
-            {"section": "female", "gender": "female"},
+            {"section": "female", "operational_section": "female"},
         )
 
         self.assertEqual(response.status_code, 200)
@@ -176,7 +176,7 @@ class SectionAccessIsolationTests(TestCase):
 
         response = self.client.get(
             reverse("hr:list"),
-            {"section": "female", "gender": "female"},
+            {"section": "female", "operational_section": "female"},
         )
 
         self.assertEqual(response.status_code, 200)
