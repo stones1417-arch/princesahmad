@@ -4,6 +4,8 @@ from collections.abc import Iterable
 
 from django.contrib.auth.models import AnonymousUser
 
+from apps.roles.models import Role
+
 from .permission_registry import normalize_permission_code
 
 
@@ -148,4 +150,63 @@ def user_has_role(
             is_active=True,
         )
         .exists()
+    )
+
+
+def get_user_operational_sections(
+    user,
+) -> set[str]:
+    """
+    إرجاع نطاقات الأقسام المسموحة للمستخدم.
+
+    القيمة ``all`` تمنح الوصول للقسمين، بينما قيمتا
+    ``male`` و``female`` تقيدان الوصول بالقسم المطابق.
+    """
+    if (
+        not user
+        or not user.is_authenticated
+        or not user.is_active
+    ):
+        return set()
+
+    if user.is_superuser:
+        return {
+            Role.OperationalSection.ALL,
+        }
+
+    return set(
+        get_user_active_roles(user)
+        .values_list(
+            "role__operational_section",
+            flat=True,
+        )
+    )
+
+
+def user_can_access_operational_section(
+    user,
+    section: str,
+) -> bool:
+    """
+    التحقق من وصول المستخدم إلى قسم تشغيلي محدد.
+    """
+    normalized_section = str(
+        section
+        or ""
+    ).strip().lower()
+
+    if normalized_section not in {
+        Role.OperationalSection.MALE,
+        Role.OperationalSection.FEMALE,
+    }:
+        return False
+
+    scopes = get_user_operational_sections(
+        user
+    )
+
+    return (
+        Role.OperationalSection.ALL
+        in scopes
+        or normalized_section in scopes
     )

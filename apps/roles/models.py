@@ -11,6 +11,22 @@ class Role(models.Model):
     دور مؤسسي داخل المنصة.
     """
 
+    class OperationalSection(models.TextChoices):
+        ALL = (
+            "all",
+            "الكل",
+        )
+
+        MALE = (
+            "male",
+            "رجالي",
+        )
+
+        FEMALE = (
+            "female",
+            "نسائي",
+        )
+
     code = models.SlugField(
         max_length=80,
         unique=True,
@@ -27,6 +43,18 @@ class Role(models.Model):
     description = models.TextField(
         blank=True,
         verbose_name="وصف الدور",
+    )
+
+    operational_section = models.CharField(
+        max_length=10,
+        choices=OperationalSection.choices,
+        default=OperationalSection.ALL,
+        db_index=True,
+        verbose_name="نطاق القسم التشغيلي",
+        help_text=(
+            "يحدد القسم الذي يستطيع صاحب الدور "
+            "الوصول إلى بياناته."
+        ),
     )
 
     group = models.OneToOneField(
@@ -162,6 +190,22 @@ class Role(models.Model):
 
     def __str__(self):
         return self.name
+
+    def can_access_section(
+        self,
+        section: str,
+    ) -> bool:
+        normalized_section = str(
+            section
+            or ""
+        ).strip().lower()
+
+        return (
+            self.operational_section
+            == self.OperationalSection.ALL
+            or self.operational_section
+            == normalized_section
+        )
 
 
 class UserRole(models.Model):
