@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -12,7 +13,7 @@
 <body>
   <main class="login-shell">
     <section class="login-form-side" aria-labelledby="loginTitle">
-      <div class="mobile-brand"><img src="/media/abwaab-logo.jpeg" alt="شعار منصة أبواب"><div><strong>منصة أبواب</strong><small>نظام إدارة العمليات التشغيلية</small></div></div>
+      <div class="mobile-brand"><img src="{% static 'images/abwaab-logo.png' %}" alt="شعار منصة أبواب"><div><strong>منصة أبواب</strong><small>نظام إدارة العمليات التشغيلية</small></div></div>
       <span class="eyebrow">الدخول الآمن</span>
       <h1 id="loginTitle">تسجيل الدخول</h1>
       <p class="lead">أدخل بيانات حسابك للوصول إلى لوحة العمليات والخدمات المصرح بها.</p>
@@ -37,7 +38,7 @@
     </section>
 
     <aside class="login-brand-side" aria-label="تعريف منصة أبواب">
-      <div class="brand-logo-wrap"><img src="/media/abwaab-logo.jpeg" alt="شعار منصة أبواب" class="brand-logo"></div>
+      <div class="brand-logo-wrap"><img src="{% static 'images/abwaab-logo.png' %}" alt="شعار منصة أبواب" class="brand-logo"></div>
       <h2>منصة أبواب التشغيلية</h2>
       <p>بيئة مؤسسية موحدة لإدارة القوى العاملة والورديات والأبواب والعمليات الميدانية بكفاءة وموثوقية.</p>
       <div class="brand-features"><div class="brand-feature">إدارة تشغيلية متكاملة</div><div class="brand-feature">صلاحيات وحماية مؤسسية</div><div class="brand-feature">متابعة مباشرة للعمليات</div><div class="brand-feature">تقارير تنفيذية دقيقة</div></div>
