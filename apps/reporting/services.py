@@ -22,6 +22,20 @@ class ReportService(BaseService):
 
     module_name = "التقارير"
 
+    @staticmethod
+    def report_section_for_shift(shift_plan):
+        sections = set(
+            DoorAssignment.objects.filter(
+                shift_plan=shift_plan,
+                is_active=True,
+            ).values_list("section", flat=True)
+        )
+        if sections == {"male"}:
+            return ShiftReport.OperationalSection.MALE
+        if sections == {"female"}:
+            return ShiftReport.OperationalSection.FEMALE
+        return ShiftReport.OperationalSection.ALL
+
     @classmethod
     def generate_shift_report(cls, *, request=None, shift_plan, user):
         """
@@ -132,6 +146,7 @@ class ReportService(BaseService):
         with cls.atomic():
             report = ShiftReport.objects.create(
                 report_type=ShiftReport.ReportType.OPERATIONAL,
+                operational_section=cls.report_section_for_shift(shift_plan),
                 shift_plan=shift_plan,
                 total_doors=total_doors,
                 open_doors=open_doors,

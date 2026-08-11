@@ -9,6 +9,7 @@ class RoleAdmin(admin.ModelAdmin):
     list_display = [
         "name",
         "code",
+        "operational_section",
         "is_system_role",
         "is_active",
         "permissions_count",
@@ -18,6 +19,7 @@ class RoleAdmin(admin.ModelAdmin):
     list_filter = [
         "is_system_role",
         "is_active",
+        "operational_section",
     ]
 
     search_fields = [
@@ -39,6 +41,7 @@ class RoleAdmin(admin.ModelAdmin):
                     "code",
                     "name",
                     "description",
+                    "operational_section",
                     "group",
                 ],
             },

@@ -3,7 +3,18 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any, Callable, Mapping
 
-from django.db.models import Count, Q, QuerySet
+from django.db.models import (
+    Case,
+    CharField,
+    Count,
+    Exists,
+    F,
+    OuterRef,
+    Q,
+    QuerySet,
+    Value,
+    When,
+)
 from django.utils import timezone
 
 from apps.breaks.models import Break
@@ -19,6 +30,13 @@ from apps.reporting.models import ShiftReport
 from apps.scheduling.models import (
     ShiftAssignment,
     ShiftPlan,
+)
+from apps.roles.services.section_access import (
+    filter_assignments_for_user,
+    filter_doors_for_user,
+    filter_employees_for_user,
+    get_allowed_sections,
+    has_institutional_scope,
 )
 
 from .registry import (
@@ -36,6 +54,17 @@ SelectorFunction = Callable[
     [FilterMapping],
     QuerySet,
 ]
+
+
+SECTION_ALL_VALUES = {
+    "",
+    "all",
+}
+
+SECTION_ALLOWED_VALUES = {
+    DoorAssignment.AssignmentSection.MALE,
+    DoorAssignment.AssignmentSection.FEMALE,
+}
 
 
 # ==================================================
@@ -93,6 +122,41 @@ def _filter_object(
         return None
 
     return filters.get(key)
+
+
+def _normalize_section_filter(
+    filters: FilterMapping,
+) -> str:
+    """
+    استخراج فلتر القسم التشغيلي وتطبيعه.
+
+    يدعم المفاتيح:
+    - section
+    - operational_section
+
+    القيم المدعومة:
+    - all (أو فارغ)
+    - male
+    - female
+    """
+    section_value = (
+        _filter_value(
+            filters,
+            "section",
+        )
+        or _filter_value(
+            filters,
+            "operational_section",
+        )
+    ).strip().lower()
+
+    if section_value in SECTION_ALL_VALUES:
+        return ""
+
+    if section_value in SECTION_ALLOWED_VALUES:
+        return section_value
+
+    return ""
 
 
 def _parse_date(
@@ -405,6 +469,322 @@ def _apply_zone_filter(
     return queryset
 
 
+def _apply_employee_section_filter(
+    queryset: QuerySet,
+    filters: FilterMapping,
+    field_name: str,
+) -> QuerySet:
+    """
+    تطبيق فلتر القسم على الحقول المرتبطة بجنس الموظف.
+    """
+    section_value = _normalize_section_filter(
+        filters
+    )
+
+    if not section_value:
+        return queryset
+
+    return queryset.filter(
+        **{
+            field_name: section_value,
+        }
+    )
+
+
+def _apply_assignment_section_filter(
+    queryset: QuerySet,
+    filters: FilterMapping,
+    field_name: str = "section",
+) -> QuerySet:
+    """
+    تطبيق فلتر القسم على تسكينات الأبواب.
+    """
+    section_value = _normalize_section_filter(
+        filters
+    )
+
+    if not section_value:
+        return queryset
+
+    return queryset.filter(
+        **{
+            field_name: section_value,
+        }
+    )
+
+
+def _apply_operational_section_filter(
+    queryset: QuerySet,
+    filters: FilterMapping,
+    field_name: str = "operational_section",
+) -> QuerySet:
+    """
+    تطبيق فلتر القسم التشغيلي للأبواب.
+    """
+    section_value = _filter_value(
+        filters,
+        "operational_section",
+    ).strip().lower()
+
+    if section_value in SECTION_ALL_VALUES:
+        return queryset
+
+    valid_values = {
+        Door.OperationalSection.MALE,
+        Door.OperationalSection.FEMALE,
+        Door.OperationalSection.SHARED,
+    }
+
+    if section_value not in valid_values:
+        return queryset
+
+    return queryset.filter(
+        **{
+            field_name: section_value,
+        }
+    )
+
+
+def _incident_section_q(
+    section_value: str,
+) -> Q:
+    """
+    شرط ربط البلاغ بقسم التسكين الفعلي للباب داخل الوردية.
+    """
+    return Q(section=section_value) | (
+        Q(section="")
+        & Q(
+            shift_plan__door_assignments__section=(
+                section_value
+            ),
+            shift_plan__door_assignments__is_active=True,
+            shift_plan__door_assignments__door__door_number=F(
+                "door_shift__door_number"
+            ),
+        )
+    )
+
+
+def _maintenance_section_q(
+    section_value: str,
+) -> Q:
+    """
+    شرط ربط طلب الصيانة بقسم التسكين الفعلي للباب داخل الوردية.
+    """
+    return Q(section=section_value) | (
+        Q(section="")
+        & Q(
+            door_shift__shift_plan__door_assignments__section=(
+                section_value
+            ),
+            door_shift__shift_plan__door_assignments__is_active=True,
+            door_shift__shift_plan__door_assignments__door__door_number=F(
+                "door_shift__door_number"
+            ),
+        )
+    )
+
+
+def _reports_section_q(
+    section_value: str,
+) -> Q:
+    """
+    شرط ربط تقرير الوردية بقسم التسكين داخل الوردية نفسها.
+    """
+    return Q(
+        shift_plan__door_assignments__section=(
+            section_value
+        ),
+        shift_plan__door_assignments__is_active=True,
+    )
+
+
+def _annotate_incident_section(
+    queryset: QuerySet,
+) -> QuerySet:
+    """
+    إضافة حقل section للبلاغات اعتمادًا على DoorAssignment.section.
+    """
+    male_exists = DoorAssignment.objects.filter(
+        shift_plan_id=OuterRef(
+            "shift_plan_id"
+        ),
+        is_active=True,
+        section=DoorAssignment.AssignmentSection.MALE,
+        door__door_number=OuterRef(
+            "door_shift__door_number"
+        ),
+    )
+
+    female_exists = DoorAssignment.objects.filter(
+        shift_plan_id=OuterRef(
+            "shift_plan_id"
+        ),
+        is_active=True,
+        section=DoorAssignment.AssignmentSection.FEMALE,
+        door__door_number=OuterRef(
+            "door_shift__door_number"
+        ),
+    )
+
+    return (
+        queryset
+        .annotate(
+            _has_male_section=Exists(
+                male_exists
+            ),
+            _has_female_section=Exists(
+                female_exists
+            ),
+        )
+        .annotate(
+            resolved_section=Case(
+                When(
+                    _has_male_section=True,
+                    _has_female_section=True,
+                    then=Value("shared"),
+                ),
+                When(
+                    _has_male_section=True,
+                    then=Value(
+                        DoorAssignment.AssignmentSection.MALE
+                    ),
+                ),
+                When(
+                    _has_female_section=True,
+                    then=Value(
+                        DoorAssignment.AssignmentSection.FEMALE
+                    ),
+                ),
+                default=Value(""),
+                output_field=CharField(),
+            ),
+        )
+    )
+
+
+def _annotate_maintenance_section(
+    queryset: QuerySet,
+) -> QuerySet:
+    """
+    إضافة حقل section لطلبات الصيانة اعتمادًا على DoorAssignment.section.
+    """
+    male_exists = DoorAssignment.objects.filter(
+        shift_plan_id=OuterRef(
+            "door_shift__shift_plan_id"
+        ),
+        is_active=True,
+        section=DoorAssignment.AssignmentSection.MALE,
+        door__door_number=OuterRef(
+            "door_shift__door_number"
+        ),
+    )
+
+    female_exists = DoorAssignment.objects.filter(
+        shift_plan_id=OuterRef(
+            "door_shift__shift_plan_id"
+        ),
+        is_active=True,
+        section=DoorAssignment.AssignmentSection.FEMALE,
+        door__door_number=OuterRef(
+            "door_shift__door_number"
+        ),
+    )
+
+    return (
+        queryset
+        .annotate(
+            _has_male_section=Exists(
+                male_exists
+            ),
+            _has_female_section=Exists(
+                female_exists
+            ),
+        )
+        .annotate(
+            resolved_section=Case(
+                When(
+                    _has_male_section=True,
+                    _has_female_section=True,
+                    then=Value("shared"),
+                ),
+                When(
+                    _has_male_section=True,
+                    then=Value(
+                        DoorAssignment.AssignmentSection.MALE
+                    ),
+                ),
+                When(
+                    _has_female_section=True,
+                    then=Value(
+                        DoorAssignment.AssignmentSection.FEMALE
+                    ),
+                ),
+                default=Value(""),
+                output_field=CharField(),
+            ),
+        )
+    )
+
+
+def _annotate_reports_section(
+    queryset: QuerySet,
+) -> QuerySet:
+    """
+    إضافة حقل section لتقارير الورديات اعتمادًا على DoorAssignment.section.
+    """
+    male_exists = DoorAssignment.objects.filter(
+        shift_plan_id=OuterRef(
+            "shift_plan_id"
+        ),
+        is_active=True,
+        section=DoorAssignment.AssignmentSection.MALE,
+    )
+
+    female_exists = DoorAssignment.objects.filter(
+        shift_plan_id=OuterRef(
+            "shift_plan_id"
+        ),
+        is_active=True,
+        section=DoorAssignment.AssignmentSection.FEMALE,
+    )
+
+    return (
+        queryset
+        .annotate(
+            _has_male_section=Exists(
+                male_exists
+            ),
+            _has_female_section=Exists(
+                female_exists
+            ),
+        )
+        .annotate(
+            section=Case(
+                When(
+                    _has_male_section=True,
+                    _has_female_section=True,
+                    then=Value("shared"),
+                ),
+                When(
+                    _has_male_section=True,
+                    then=Value(
+                        DoorAssignment.AssignmentSection.MALE
+                    ),
+                ),
+                When(
+                    _has_female_section=True,
+                    then=Value(
+                        DoorAssignment.AssignmentSection.FEMALE
+                    ),
+                ),
+                default=Value(""),
+                output_field=CharField(),
+            ),
+        )
+    )
+
+
 # ==================================================
 # تحديد أرقام الأبواب حسب الجهة
 # ==================================================
@@ -655,6 +1035,15 @@ def employees_selector(
             work_status=work_status
         )
 
+    operational_section = _normalize_section_filter(
+        filters
+    )
+
+    if operational_section in dict(Employee.OperationalSection.choices):
+        queryset = queryset.filter(
+            operational_section=operational_section
+        )
+
     is_active = _parse_boolean(
         _filter_object(
             filters,
@@ -719,6 +1108,28 @@ def shift_assignments_selector(
         queryset,
         filters,
         "employee_id",
+    )
+
+    operational_section = _filter_value(
+        filters,
+        "operational_section",
+    ) or _filter_value(
+        filters,
+        "section",
+    )
+
+    if operational_section in {
+        "male",
+        "female",
+    }:
+        queryset = queryset.filter(
+            employee__operational_section=operational_section,
+        )
+
+    queryset = _apply_employee_section_filter(
+        queryset,
+        filters,
+        "employee__operational_section",
     )
 
     role = _filter_value(
@@ -799,6 +1210,11 @@ def door_distribution_selector(
         queryset,
         filters,
         "employee_id",
+    )
+
+    queryset = _apply_assignment_section_filter(
+        queryset,
+        filters,
     )
 
     queryset = _apply_zone_filter(
@@ -906,6 +1322,12 @@ def locations_selector(
         queryset,
         filters,
         "zone_id",
+    )
+
+    queryset = _apply_operational_section_filter(
+        queryset,
+        filters,
+        "operational_section",
     )
 
     queryset = _apply_door_direction_filter(
@@ -1085,6 +1507,17 @@ def incidents_selector(
         "shift_plan_id",
     )
 
+    section_value = _normalize_section_filter(
+        filters
+    )
+
+    if section_value:
+        queryset = queryset.filter(
+            _incident_section_q(
+                section_value
+            )
+        ).distinct()
+
     status = (
         _filter_value(
             filters,
@@ -1131,6 +1564,10 @@ def incidents_selector(
         queryset,
         filters,
         "created_at",
+    )
+
+    queryset = _annotate_incident_section(
+        queryset
     )
 
     return queryset
@@ -1205,6 +1642,17 @@ def maintenance_selector(
         "door_shift__shift_plan_id",
     )
 
+    section_value = _normalize_section_filter(
+        filters
+    )
+
+    if section_value:
+        queryset = queryset.filter(
+            _maintenance_section_q(
+                section_value
+            )
+        ).distinct()
+
     status = (
         _filter_value(
             filters,
@@ -1261,6 +1709,10 @@ def maintenance_selector(
         queryset,
         filters,
         "created_at",
+    )
+
+    queryset = _annotate_maintenance_section(
+        queryset
     )
 
     return queryset
@@ -1332,6 +1784,17 @@ def reports_selector(
         "shift_plan_id",
     )
 
+    section_value = _normalize_section_filter(
+        filters
+    )
+
+    if section_value:
+        queryset = queryset.filter(
+            _reports_section_q(
+                section_value
+            )
+        ).distinct()
+
     status = (
         _filter_value(
             filters,
@@ -1362,6 +1825,10 @@ def reports_selector(
         queryset,
         filters,
         "created_at",
+    )
+
+    queryset = _annotate_reports_section(
+        queryset
     )
 
     return queryset
@@ -1523,6 +1990,7 @@ def get_selector_or_none(
 def select_report_queryset(
     report_key: str,
     filters: FilterMapping | None = None,
+    user=None,
 ) -> QuerySet:
     """
     جلب QuerySet لتقرير مسجل في registry.py.
@@ -1544,9 +2012,70 @@ def select_report_queryset(
         report_definition.selector_key
     )
 
-    return selector(
+    queryset = selector(
         filters or {}
     )
+
+    return _apply_user_operational_scope(
+        queryset=queryset,
+        report_key=report_key,
+        user=user,
+    )
+
+
+def _apply_user_operational_scope(
+    *,
+    queryset: QuerySet,
+    report_key: str,
+    user,
+) -> QuerySet:
+    """Apply the active institutional role scope to report data."""
+    if not has_institutional_scope(user):
+        return queryset
+
+    allowed_sections = get_allowed_sections(user)
+
+    normalized_report_key = str(
+        report_key or ""
+    ).strip().lower()
+
+    if normalized_report_key in {
+        "employees",
+        "shift_assignments",
+    }:
+        return filter_employees_for_user(
+            queryset,
+            user,
+        )
+
+    if normalized_report_key == "breaks":
+        return queryset.filter(
+            employee__operational_section__in=allowed_sections,
+        )
+
+    if normalized_report_key == "door_distribution":
+        return filter_assignments_for_user(
+            queryset,
+            user,
+        )
+
+    if normalized_report_key == "locations":
+        return filter_doors_for_user(
+            queryset,
+            user,
+        )
+
+    if normalized_report_key in {
+        "incidents",
+        "maintenance",
+        "reports",
+    }:
+        return queryset.filter(
+            Q(section__in=allowed_sections)
+            | Q(section="shared")
+        )
+
+    return queryset
 
 
 # ==================================================
@@ -1592,6 +2121,16 @@ def build_report_indicators(
                         is_active=False
                     ).count()
                 ),
+                "male_count": (
+                    queryset.filter(
+                        operational_section=Employee.OperationalSection.MALE
+                    ).count()
+                ),
+                "female_count": (
+                    queryset.filter(
+                        operational_section=Employee.OperationalSection.FEMALE
+                    ).count()
+                ),
             }
         )
 
@@ -1606,6 +2145,16 @@ def build_report_indicators(
                 "unconfirmed_count": (
                     queryset.filter(
                         is_confirmed=False
+                    ).count()
+                ),
+                "male_count": (
+                    queryset.filter(
+                        employee__operational_section=Employee.OperationalSection.MALE
+                    ).count()
+                ),
+                "female_count": (
+                    queryset.filter(
+                        employee__operational_section=Employee.OperationalSection.FEMALE
                     ).count()
                 ),
             }
@@ -1632,6 +2181,48 @@ def build_report_indicators(
                     queryset.values(
                         "shift_plan_id"
                     )
+                    .distinct()
+                    .count()
+                ),
+                "male_assignments_count": (
+                    queryset.filter(
+                        section=DoorAssignment.AssignmentSection.MALE
+                    ).count()
+                ),
+                "female_assignments_count": (
+                    queryset.filter(
+                        section=DoorAssignment.AssignmentSection.FEMALE
+                    ).count()
+                ),
+                "male_employees_count": (
+                    queryset.filter(
+                        section=DoorAssignment.AssignmentSection.MALE
+                    )
+                    .values("employee_id")
+                    .distinct()
+                    .count()
+                ),
+                "female_employees_count": (
+                    queryset.filter(
+                        section=DoorAssignment.AssignmentSection.FEMALE
+                    )
+                    .values("employee_id")
+                    .distinct()
+                    .count()
+                ),
+                "male_doors_count": (
+                    queryset.filter(
+                        section=DoorAssignment.AssignmentSection.MALE
+                    )
+                    .values("door_id")
+                    .distinct()
+                    .count()
+                ),
+                "female_doors_count": (
+                    queryset.filter(
+                        section=DoorAssignment.AssignmentSection.FEMALE
+                    )
+                    .values("door_id")
                     .distinct()
                     .count()
                 ),
@@ -1680,6 +2271,18 @@ def build_report_indicators(
         )
 
     elif normalized_key == "incidents":
+        male_incident_count = queryset.filter(
+            _incident_section_q(
+                DoorAssignment.AssignmentSection.MALE
+            )
+        ).distinct().count()
+
+        female_incident_count = queryset.filter(
+            _incident_section_q(
+                DoorAssignment.AssignmentSection.FEMALE
+            )
+        ).distinct().count()
+
         indicators.update(
             {
                 "status_totals": list(
@@ -1700,10 +2303,24 @@ def build_report_indicators(
                     )
                     .order_by("priority")
                 ),
+                "male_count": male_incident_count,
+                "female_count": female_incident_count,
             }
         )
 
     elif normalized_key == "maintenance":
+        male_maintenance_count = queryset.filter(
+            _maintenance_section_q(
+                DoorAssignment.AssignmentSection.MALE
+            )
+        ).distinct().count()
+
+        female_maintenance_count = queryset.filter(
+            _maintenance_section_q(
+                DoorAssignment.AssignmentSection.FEMALE
+            )
+        ).distinct().count()
+
         indicators.update(
             {
                 "status_totals": list(
@@ -1724,10 +2341,24 @@ def build_report_indicators(
                     )
                     .order_by("priority")
                 ),
+                "male_count": male_maintenance_count,
+                "female_count": female_maintenance_count,
             }
         )
 
     elif normalized_key == "reports":
+        male_report_count = queryset.filter(
+            _reports_section_q(
+                DoorAssignment.AssignmentSection.MALE
+            )
+        ).distinct().count()
+
+        female_report_count = queryset.filter(
+            _reports_section_q(
+                DoorAssignment.AssignmentSection.FEMALE
+            )
+        ).distinct().count()
+
         indicators.update(
             {
                 "status_totals": list(
@@ -1766,6 +2397,8 @@ def build_report_indicators(
                     or 0
                     for report in queryset
                 ),
+                "male_count": male_report_count,
+                "female_count": female_report_count,
             }
         )
 

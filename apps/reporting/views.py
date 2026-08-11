@@ -18,6 +18,7 @@ from django.shortcuts import (
 )
 from django.template.loader import render_to_string
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from playwright.sync_api import sync_playwright
 from openpyxl import Workbook
@@ -34,6 +35,7 @@ from apps.roles.decorators import permission_required
 from apps.roles.services.permission_registry import (
     PlatformPermissions,
 )
+from apps.roles.services.section_access import get_allowed_sections, has_institutional_scope
 from apps.scheduling.models import ShiftPlan
 
 from .ai_summary import (
@@ -238,6 +240,18 @@ def _can_approve_report(
     )
 
 
+def _scoped_reports(user):
+    queryset = ShiftReport.objects
+    if user.is_superuser:
+        return queryset
+    if not has_institutional_scope(user):
+        return queryset.none()
+    allowed_sections = get_allowed_sections(user)
+    if allowed_sections == {"male", "female"}:
+        return queryset
+    return queryset.filter(operational_section__in=allowed_sections)
+
+
 # ==================================================
 # تحريك الشهر السابق أو التالي
 # ==================================================
@@ -293,7 +307,7 @@ def report_list_view(
     مع إحصاءات حالات التقارير والوردية النشطة.
     """
     all_reports = (
-        ShiftReport.objects
+        _scoped_reports(request.user)
         .select_related(
             "shift_plan",
             "shift_plan__shift_type",
@@ -1326,6 +1340,7 @@ def report_create_view(
         "إنشاء تقارير الورديات."
     ),
 )
+@require_POST
 def generate_report_view(
     request,
     pk,
@@ -1384,6 +1399,7 @@ def generate_report_view(
         "إنشاء تقرير الوردية النشطة."
     ),
 )
+@require_POST
 def generate_active_shift_report_view(
     request,
 ):
@@ -1467,7 +1483,7 @@ def report_detail_view(
     شاملاً الأبواب والتوزيع والصيانة والمؤشرات.
     """
     report = get_object_or_404(
-        ShiftReport.objects.select_related(
+        _scoped_reports(request.user).select_related(
             "shift_plan",
             "shift_plan__shift_type",
             "created_by",
@@ -1653,6 +1669,7 @@ def report_detail_view(
         "اعتماد التقارير."
     ),
 )
+@require_POST
 def approve_report_view(
     request,
     pk,
@@ -1661,7 +1678,7 @@ def approve_report_view(
     اعتماد التقرير رسميًا.
     """
     report = get_object_or_404(
-        ShiftReport,
+        _scoped_reports(request.user),
         pk=pk,
     )
 
@@ -1701,6 +1718,7 @@ def approve_report_view(
         "تحديث ملخص التقرير."
     ),
 )
+@require_POST
 def regenerate_report_summary_view(
     request,
     pk,
@@ -1710,7 +1728,7 @@ def regenerate_report_summary_view(
     ثم إعادة إنشاء الملخص والتوصيات.
     """
     report = get_object_or_404(
-        ShiftReport,
+        _scoped_reports(request.user),
         pk=pk,
     )
 
@@ -1840,7 +1858,7 @@ def export_report_pdf_view(
     تصدير تقرير تشغيلي واحد إلى PDF.
     """
     report = get_object_or_404(
-        ShiftReport.objects.select_related(
+        _scoped_reports(request.user).select_related(
             "shift_plan",
             "shift_plan__shift_type",
             "created_by",
@@ -2121,7 +2139,7 @@ def export_report_pdf_view(
 def export_report_excel_view(request, pk):
     """تصدير تقرير تشغيلي متعدد الأوراق بصيغة Excel مؤسسية."""
     report = get_object_or_404(
-        ShiftReport.objects.select_related(
+        _scoped_reports(request.user).select_related(
             "shift_plan", "shift_plan__shift_type", "created_by", "approved_by"
         ),
         pk=pk,
@@ -2361,7 +2379,7 @@ def refresh_and_export_report_pdf_view(
     ثم تصديره إلى PDF.
     """
     report = get_object_or_404(
-        ShiftReport,
+        _scoped_reports(request.user),
         pk=pk,
     )
 

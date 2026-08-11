@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import time
 
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, Permission
 from django.core.exceptions import ValidationError
 from django.test import Client, TestCase
 from django.urls import reverse
@@ -379,6 +379,12 @@ class GenderSectionsCycleE2ETests(TestCase):
             name=f"{username} role",
             group=Group.objects.create(name=f"{username}-group"),
             operational_section=section,
+        )
+        role.group.permissions.add(
+            Permission.objects.get(
+                content_type__app_label="roles",
+                codename="view_doors",
+            )
         )
         UserRole.objects.create(user=user, role=role)
         return user

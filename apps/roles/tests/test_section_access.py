@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, Permission
 from django.test import TestCase
 from django.urls import reverse
 
@@ -79,6 +79,12 @@ class SectionAccessIsolationTests(TestCase):
             name=f"{username} role",
             group=Group.objects.create(name=f"{username} group"),
             operational_section=section,
+        )
+        role.group.permissions.add(
+            Permission.objects.get(
+                content_type__app_label="roles",
+                codename="view_employees",
+            )
         )
         UserRole.objects.create(user=user, role=role)
         return user
@@ -179,8 +185,7 @@ class SectionAccessIsolationTests(TestCase):
             {"section": "female", "operational_section": "female"},
         )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["employees"].count(), 0)
+        self.assertEqual(response.status_code, 403)
 
     def test_all_scope_can_extract_complete_employee_report(self):
         user = self._user("all_export", Role.OperationalSection.ALL)

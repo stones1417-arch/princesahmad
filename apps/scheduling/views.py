@@ -4,7 +4,7 @@ from datetime import datetime, time, timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import Count, Q
 from django.http import JsonResponse
@@ -21,6 +21,13 @@ from apps.distribution.services import (
 )
 from apps.hr.models import Employee
 from apps.roles.decorators import permission_required
+from apps.roles.services.access_control import user_has_permission
+from apps.roles.services.permission_registry import PlatformPermissions
+from apps.roles.services.section_access import (
+    filter_employees_for_user,
+    get_allowed_sections,
+    has_institutional_scope,
+)
 
 from .models import (
     Season,
@@ -36,41 +43,34 @@ from .services import activate_shift
 # صلاحيات تطبيق الورديات
 # ==================================================
 
-VIEW_SHIFT_PERMISSION = (
-    "scheduling.view_shiftplan"
-)
+VIEW_SHIFT_PERMISSION = PlatformPermissions.VIEW_SHIFTS
+ADD_SHIFT_PERMISSION = PlatformPermissions.CREATE_SHIFT
+CHANGE_SHIFT_PERMISSION = PlatformPermissions.CREATE_SHIFT
+ACTIVATE_SHIFT_PERMISSION = PlatformPermissions.ACTIVATE_SHIFT
+VIEW_ASSIGNMENT_PERMISSION = PlatformPermissions.VIEW_SHIFTS
+ADD_ASSIGNMENT_PERMISSION = PlatformPermissions.ASSIGN_EMPLOYEES
+CHANGE_ASSIGNMENT_PERMISSION = PlatformPermissions.ASSIGN_EMPLOYEES
+DELETE_ASSIGNMENT_PERMISSION = PlatformPermissions.ASSIGN_EMPLOYEES
+ADD_SEASONAL_SCHEDULE_PERMISSION = PlatformPermissions.CREATE_SHIFT
 
-ADD_SHIFT_PERMISSION = (
-    "scheduling.add_shiftplan"
-)
 
-CHANGE_SHIFT_PERMISSION = (
-    "scheduling.change_shiftplan"
-)
+def _require_scheduling_scope(request, permission):
+    if request.user.is_superuser:
+        return
+    if (
+        not user_has_permission(request.user, permission)
+        or not has_institutional_scope(request.user)
+    ):
+        raise PermissionDenied("لا تملك صلاحية الوصول إلى إدارة الورديات.")
 
-ACTIVATE_SHIFT_PERMISSION = (
-    "scheduling.can_activate_shift"
-)
 
-VIEW_ASSIGNMENT_PERMISSION = (
-    "scheduling.view_shiftassignment"
-)
-
-ADD_ASSIGNMENT_PERMISSION = (
-    "scheduling.add_shiftassignment"
-)
-
-CHANGE_ASSIGNMENT_PERMISSION = (
-    "scheduling.change_shiftassignment"
-)
-
-DELETE_ASSIGNMENT_PERMISSION = (
-    "scheduling.delete_shiftassignment"
-)
-
-ADD_SEASONAL_SCHEDULE_PERMISSION = (
-    "scheduling.add_seasonalshiftschedule"
-)
+def _scoped_assignments(user):
+    queryset = ShiftAssignment.objects.select_related("employee")
+    if user.is_superuser:
+        return queryset
+    return queryset.filter(
+        employee__operational_section__in=get_allowed_sections(user)
+    )
 
 
 @login_required
@@ -80,8 +80,9 @@ ADD_SEASONAL_SCHEDULE_PERMISSION = (
 )
 def workforce_center_view(request):
     """مركز موحد للموظفين والتسكين والورديات الاعتيادية والموسمية."""
+    _require_scheduling_scope(request, PlatformPermissions.VIEW_SHIFTS)
     today = timezone.localdate()
-    employees = Employee.objects.all()
+    employees = filter_employees_for_user(Employee.objects, request.user) if not request.user.is_superuser else Employee.objects.all()
     ready_filter = Q(
         is_active=True,
         work_status=Employee.WorkStatus.ACTIVE,
@@ -380,6 +381,7 @@ def activate_shift_ajax(
     """
     تفعيل وردية محددة.
     """
+    _require_scheduling_scope(request, PlatformPermissions.ACTIVATE_SHIFT)
     shift = get_object_or_404(
         ShiftPlan.objects.select_related(
             "shift_type",
@@ -477,6 +479,7 @@ def upsert_shift_plan_ajax(request):
     """
     إنشاء خطة وردية يومية أو تحديثها.
     """
+    _require_scheduling_scope(request, PlatformPermissions.CREATE_SHIFT)
     ensure_default_shift_types()
 
     date_str = (
@@ -724,6 +727,7 @@ def shift_assignment_list_view(
     عرض الموظفين المسكنين
     في الوردية النشطة.
     """
+    _require_scheduling_scope(request, PlatformPermissions.VIEW_SHIFTS)
     active_shift = (
         ShiftPlan.objects
         .select_related(
@@ -749,7 +753,7 @@ def shift_assignment_list_view(
 
     if active_shift:
         assignments = (
-            ShiftAssignment.objects
+            _scoped_assignments(request.user)
             .select_related(
                 "employee",
                 "shift_plan",
@@ -765,7 +769,7 @@ def shift_assignment_list_view(
         )
 
         available_employees = (
-            Employee.objects
+            (filter_employees_for_user(Employee.objects, request.user) if not request.user.is_superuser else Employee.objects)
             .filter(
                 is_active=True
             )
@@ -831,6 +835,7 @@ def shift_assignment_create_view(
     """
     تسكين موظف في الوردية النشطة.
     """
+    _require_scheduling_scope(request, PlatformPermissions.ASSIGN_EMPLOYEES)
     active_shift = (
         ShiftPlan.objects
         .select_related(
@@ -896,7 +901,7 @@ def shift_assignment_create_view(
         )
 
     employee = get_object_or_404(
-        Employee,
+        filter_employees_for_user(Employee.objects, request.user) if not request.user.is_superuser else Employee.objects,
         pk=int(employee_id),
         is_active=True,
     )
@@ -1007,19 +1012,6 @@ def shift_assignment_create_view(
             "scheduling:assignments"
         )
 
-    except Exception:
-        messages.error(
-            request,
-            (
-                "حدث خطأ غير متوقع "
-                "أثناء التسكين"
-            ),
-        )
-
-        return redirect(
-            "scheduling:assignments"
-        )
-
     messages.success(
         request,
         (
@@ -1055,8 +1047,9 @@ def shift_assignment_confirm_view(
     """
     تأكيد تسكين موظف.
     """
+    _require_scheduling_scope(request, PlatformPermissions.ASSIGN_EMPLOYEES)
     assignment = get_object_or_404(
-        ShiftAssignment.objects
+        _scoped_assignments(request.user)
         .select_related(
             "employee"
         ),
@@ -1105,8 +1098,9 @@ def shift_assignment_delete_view(
     """
     حذف تسكين موظف.
     """
+    _require_scheduling_scope(request, PlatformPermissions.ASSIGN_EMPLOYEES)
     assignment = get_object_or_404(
-        ShiftAssignment.objects
+        _scoped_assignments(request.user)
         .select_related(
             "employee",
             "shift_plan",
@@ -1159,6 +1153,7 @@ def create_seasonal_schedule_ajax(
     - SeasonalShiftTemplate
     - ShiftPlan
     """
+    _require_scheduling_scope(request, PlatformPermissions.CREATE_SHIFT)
     ensure_default_shift_types()
 
     season_type = (

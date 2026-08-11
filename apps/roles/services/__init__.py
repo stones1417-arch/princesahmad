@@ -9,8 +9,8 @@ from .access_control import (
 from .permission_registry import (
     ALL_PLATFORM_PERMISSIONS,
     PERMISSION_LABELS,
-    ROLE_DEFINITIONS,
     PlatformPermissions,
+    get_role_definitions,
 )
 from .role_manager import (
     assign_role_to_user,
@@ -20,13 +20,22 @@ from .role_manager import (
     remove_role_from_user,
     setup_default_roles,
 )
+from .section_access import (
+    can_manage_section,
+    can_view_section,
+    filter_assignments_for_user,
+    filter_doors_for_user,
+    filter_employees_for_user,
+    get_allowed_sections,
+    has_institutional_scope,
+)
 
 
 __all__ = [
     "PlatformPermissions",
     "PERMISSION_LABELS",
     "ALL_PLATFORM_PERMISSIONS",
-    "ROLE_DEFINITIONS",
+    "get_role_definitions",
     "user_has_permission",
     "user_has_any_permission",
     "user_has_all_permissions",
@@ -39,4 +48,11 @@ __all__ = [
     "remove_role_from_user",
     "deactivate_user_role",
     "get_users_by_role",
+    "has_institutional_scope",
+    "get_allowed_sections",
+    "can_view_section",
+    "can_manage_section",
+    "filter_employees_for_user",
+    "filter_doors_for_user",
+    "filter_assignments_for_user",
 ]

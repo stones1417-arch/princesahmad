@@ -10,7 +10,7 @@ from apps.roles.models import Role, UserRole
 
 from .permission_registry import (
     PERMISSION_APP_LABEL,
-    ROLE_DEFINITIONS,
+    get_role_definitions,
     permission_codename,
 )
 
@@ -86,6 +86,7 @@ def create_or_update_role(
     permission_codes: list[str] | None = None,
     is_system_role: bool = True,
     is_active: bool = True,
+    operational_section: str | None = None,
 ) -> Role:
     """
     إنشاء دور أو تحديثه وربطه بمجموعة Django.
@@ -93,27 +94,37 @@ def create_or_update_role(
     code = code.strip().lower()
     name = name.strip()
 
-    group, _ = Group.objects.get_or_create(
-        name=name
-    )
+    role = Role.objects.select_related("group").filter(code=code).first()
 
-    role, _ = Role.objects.update_or_create(
-        code=code,
-        defaults={
-            "name": name,
-            "description": description,
-            "group": group,
-            "is_system_role": is_system_role,
-            "is_active": is_active,
-        },
-    )
+    if role:
+        role.name = name
+        role.description = description
+        role.is_system_role = is_system_role
+        role.is_active = is_active
+        if operational_section is not None:
+            role.operational_section = operational_section
+        role.save()
+    else:
+        group, _ = Group.objects.get_or_create(name=name)
+        role = Role.objects.create(
+            code=code,
+            name=name,
+            description=description,
+            group=group,
+            is_system_role=is_system_role,
+            is_active=is_active,
+            operational_section=(
+                operational_section
+                or Role.OperationalSection.ALL
+            ),
+        )
 
     if permission_codes is not None:
         permissions = get_platform_permissions(
             permission_codes
         )
 
-        group.permissions.set(permissions)
+        role.group.permissions.set(permissions)
 
     return role
 
@@ -125,7 +136,7 @@ def setup_default_roles() -> list[Role]:
     """
     roles = []
 
-    for role_code, definition in ROLE_DEFINITIONS.items():
+    for role_code, definition in get_role_definitions().items():
         role = create_or_update_role(
             code=role_code,
             name=definition["name"],
@@ -138,6 +149,7 @@ def setup_default_roles() -> list[Role]:
             ],
             is_system_role=True,
             is_active=True,
+            operational_section=None,
         )
 
         roles.append(role)

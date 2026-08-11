@@ -1,5 +1,5 @@
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Case, Count, IntegerField, Q, Value, When
 from django.http import JsonResponse
@@ -10,12 +10,17 @@ from io import BytesIO
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
-from apps.core.permissions import require_staff
 from apps.dashboard.models import SystemActivityLog
 from apps.audit.models import DoorStateHistory
 from apps.scheduling.models import ShiftPlan
 from apps.breaks.models import Break
 from apps.distribution.models import DoorAssignment
+from apps.roles.services.section_access import (
+    get_allowed_sections,
+    has_institutional_scope,
+)
+from apps.roles.services.access_control import user_has_permission
+from apps.roles.services.permission_registry import PlatformPermissions
 
 from .command_center_service import CommandCenterService
 from .door_service import DoorService
@@ -79,6 +84,25 @@ def _validation_error_message(error):
         )
 
     return str(error)
+
+
+def _require_ops_permission(request, permission):
+    """Require both a platform permission and an institutional role scope."""
+    if request.user.is_superuser:
+        return
+    if (
+        not user_has_permission(request.user, permission)
+        or not has_institutional_scope(request.user)
+    ):
+        raise PermissionDenied("لا تملك صلاحية الوصول إلى هذه العملية.")
+
+
+def _scoped_by_section(queryset, user, field_name="section"):
+    if user.is_superuser:
+        return queryset
+    return queryset.filter(
+        **{f"{field_name}__in": get_allowed_sections(user)}
+    )
 
 
 # =========================================================
@@ -215,13 +239,14 @@ def door_status_view(request):
     عرض الحالات الحالية للأبواب.
     """
 
+    _require_ops_permission(request, PlatformPermissions.VIEW_DOORS)
     active_shift = _get_active_shift()
 
     door_shifts = DoorShift.objects.none()
 
     if active_shift:
         door_shifts = (
-            DoorShift.objects
+            _scoped_by_section(DoorShift.objects, request.user)
             .filter(
                 shift_plan=active_shift,
                 is_active=True,
@@ -327,8 +352,18 @@ def update_door_status_ajax(request, pk):
     تحديث حالة باب ضمن الوردية النشطة.
     """
 
+    state = (
+        request.POST.get("state", request.POST.get("status", "")) or ""
+    ).strip()
+    permission = {
+        DoorShift.DoorState.OPEN: PlatformPermissions.OPEN_DOOR,
+        DoorShift.DoorState.CLOSED: PlatformPermissions.CLOSE_DOOR,
+        DoorShift.DoorState.MAINTENANCE: PlatformPermissions.MOVE_DOOR_TO_MAINTENANCE,
+    }.get(state, PlatformPermissions.VIEW_DOORS)
+    _require_ops_permission(request, permission)
+
     door = get_object_or_404(
-        DoorShift.objects.select_related(
+        _scoped_by_section(DoorShift.objects, request.user).select_related(
             "shift_plan",
             "supervisor",
         ),
@@ -336,17 +371,6 @@ def update_door_status_ajax(request, pk):
         shift_plan__is_active=True,
         is_active=True,
     )
-
-    state = (
-        request.POST.get(
-            "state",
-            request.POST.get(
-                "status",
-                "",
-            ),
-        )
-        or ""
-    ).strip()
 
     notes = (
         request.POST.get(
@@ -419,8 +443,11 @@ def create_maintenance_request_ajax(
     إنشاء طلب صيانة مرتبط بباب في الوردية النشطة.
     """
 
+    _require_ops_permission(
+        request, PlatformPermissions.CREATE_MAINTENANCE_REQUEST
+    )
     door = get_object_or_404(
-        DoorShift.objects.select_related(
+        _scoped_by_section(DoorShift.objects, request.user).select_related(
             "shift_plan",
         ),
         pk=pk,
@@ -452,6 +479,25 @@ def create_maintenance_request_ajax(
         or ""
     ).strip()
 
+    section = str(
+        request.POST.get("section", "") or ""
+    ).strip().lower()
+    assignment = None
+    assignment_id = str(
+        request.POST.get("assignment_id", "") or ""
+    ).strip()
+
+    if assignment_id.isdigit():
+        assignment = get_object_or_404(
+            _scoped_by_section(DoorAssignment.objects, request.user).select_related(
+                "door",
+            ),
+            pk=int(assignment_id),
+            shift_plan=door.shift_plan,
+            door__door_number=door.door_number,
+            is_active=True,
+        )
+
     try:
         maintenance = (
             MaintenanceService.create_request(
@@ -460,6 +506,8 @@ def create_maintenance_request_ajax(
                 description=description,
                 priority=priority,
                 technician_name=technician_name,
+                section=section,
+                assignment=assignment,
             )
         )
 
@@ -496,6 +544,7 @@ def create_maintenance_request_ajax(
                     maintenance.technician_name
                     or "غير محدد"
                 ),
+                "section": maintenance.section,
                 "created_at": (
                     maintenance.created_at.strftime(
                         "%Y-%m-%d %H:%M"
@@ -514,6 +563,9 @@ def maintenance_requests_view(request):
     عرض طلبات الصيانة مع البحث والتصفية.
     """
 
+    _require_ops_permission(
+        request, PlatformPermissions.VIEW_MAINTENANCE_REQUESTS
+    )
     active_shift = _get_active_shift()
 
     status_filter = (
@@ -532,6 +584,10 @@ def maintenance_requests_view(request):
         or ""
     ).strip()
 
+    section_filter = str(
+        request.GET.get("section", "") or ""
+    ).strip().lower()
+
     query = (
         request.GET.get(
             "q",
@@ -541,7 +597,7 @@ def maintenance_requests_view(request):
     ).strip()
 
     maintenance_requests = (
-        MaintenanceRequest.objects
+        _scoped_by_section(MaintenanceRequest.objects, request.user)
         .select_related(
             "door_shift",
             "door_shift__shift_plan",
@@ -583,6 +639,11 @@ def maintenance_requests_view(request):
             maintenance_requests.filter(
                 priority=priority_filter,
             )
+        )
+
+    if section_filter in {"male", "female"}:
+        maintenance_requests = maintenance_requests.filter(
+            section=section_filter,
         )
 
     if query:
@@ -636,6 +697,7 @@ def maintenance_requests_view(request):
 
         "selected_status": status_filter,
         "selected_priority": priority_filter,
+        "selected_section": section_filter,
         "q": query,
 
         "total_requests": (
@@ -692,22 +754,21 @@ def update_maintenance_status_ajax(
     تحديث حالة طلب الصيانة.
     """
 
+    new_status = (request.POST.get("status", "") or "").strip()
+    permission = (
+        PlatformPermissions.CLOSE_MAINTENANCE_REQUEST
+        if new_status in {MaintenanceRequest.Status.CLOSED, MaintenanceRequest.Status.DONE}
+        else PlatformPermissions.APPROVE_MAINTENANCE_REQUEST
+    )
+    _require_ops_permission(request, permission)
     maintenance = get_object_or_404(
-        MaintenanceRequest.objects
+        _scoped_by_section(MaintenanceRequest.objects, request.user)
         .select_related(
             "door_shift",
             "door_shift__shift_plan",
         ),
         pk=pk,
     )
-
-    new_status = (
-        request.POST.get(
-            "status",
-            "",
-        )
-        or ""
-    ).strip()
 
     closing_notes = (
         request.POST.get(
@@ -825,6 +886,7 @@ def incidents_view(request):
     عرض البلاغات التشغيلية مع البحث والتصفية.
     """
 
+    _require_ops_permission(request, PlatformPermissions.VIEW_DOORS)
     active_shift = _get_active_shift()
 
     status_filter = (
@@ -843,6 +905,10 @@ def incidents_view(request):
         or ""
     ).strip()
 
+    section_filter = str(
+        request.GET.get("section", "") or ""
+    ).strip().lower()
+
     type_filter = (
         request.GET.get(
             "type",
@@ -860,7 +926,7 @@ def incidents_view(request):
     ).strip()
 
     incidents = (
-        Incident.objects
+        _scoped_by_section(Incident.objects, request.user)
         .select_related(
             "door_shift",
             "door_shift__shift_plan",
@@ -904,6 +970,9 @@ def incidents_view(request):
         incidents = incidents.filter(
             priority=priority_filter,
         )
+
+    if section_filter in {"male", "female"}:
+        incidents = incidents.filter(section=section_filter)
 
     if (
         type_filter
@@ -979,6 +1048,7 @@ def incidents_view(request):
 
         "selected_status": status_filter,
         "selected_priority": priority_filter,
+        "selected_section": section_filter,
         "selected_type": type_filter,
         "q": query,
 
@@ -1035,6 +1105,7 @@ def create_incident_ajax(
     إنشاء بلاغ تشغيلي جديد.
     """
 
+    _require_ops_permission(request, PlatformPermissions.CREATE_INCIDENT)
     active_shift = _get_active_shift()
 
     if not active_shift:
@@ -1065,7 +1136,7 @@ def create_incident_ajax(
 
     if selected_door_id:
         door_shift = get_object_or_404(
-            DoorShift.objects.select_related(
+            _scoped_by_section(DoorShift.objects, request.user).select_related(
                 "shift_plan",
             ),
             pk=selected_door_id,
@@ -1113,11 +1184,32 @@ def create_incident_ajax(
         or ""
     ).strip()
 
+    section = str(
+        request.POST.get("section", "") or ""
+    ).strip().lower()
+    assignment = None
+    assignment_id = str(
+        request.POST.get("assignment_id", "") or ""
+    ).strip()
+
+    if assignment_id.isdigit() and door_shift:
+        assignment = get_object_or_404(
+            _scoped_by_section(DoorAssignment.objects, request.user).select_related(
+                "door",
+            ),
+            pk=int(assignment_id),
+            shift_plan=door_shift.shift_plan,
+            door__door_number=door_shift.door_number,
+            is_active=True,
+        )
+
     try:
         incident = IncidentService.create(
             request=request,
             active_shift=active_shift,
             door_shift=door_shift,
+            assignment=assignment,
+            section=section,
             description=description,
             incident_type=incident_type,
             priority=priority,
@@ -1181,6 +1273,7 @@ def create_incident_ajax(
                     if incident.door_shift_id
                     else None
                 ),
+                "section": incident.section,
                 "created_at": (
                     incident.created_at.strftime(
                         "%Y-%m-%d %H:%M"
@@ -1203,8 +1296,9 @@ def update_incident_status_ajax(
     تحديث حالة بلاغ تشغيلي.
     """
 
+    _require_ops_permission(request, PlatformPermissions.UPDATE_INCIDENT)
     incident = get_object_or_404(
-        Incident.objects.select_related(
+        _scoped_by_section(Incident.objects, request.user).select_related(
             "door_shift",
             "door_shift__shift_plan",
             "shift_plan",
@@ -1364,7 +1458,7 @@ def activity_log_view(request):
     عرض سجل عمليات الأبواب والصيانة والبلاغات والتوزيع.
     """
 
-    require_staff(request.user)
+    _require_ops_permission(request, PlatformPermissions.VIEW_SYSTEM_LOGS)
 
     query = (
         request.GET.get(
@@ -1595,7 +1689,7 @@ def activity_log_view(request):
 @login_required
 def export_activity_log_excel_view(request):
     """تصدير سجل العمليات المباشرة إلى Excel مع تطبيق الفلاتر الحالية."""
-    require_staff(request.user)
+    _require_ops_permission(request, PlatformPermissions.VIEW_SYSTEM_LOGS)
     logs = SystemActivityLog.objects.select_related("user").filter(
         module__in=LIVE_OPERATION_MODULES
     ).order_by("-created_at")

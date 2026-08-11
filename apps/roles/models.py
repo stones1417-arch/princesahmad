@@ -135,6 +135,9 @@ class Role(models.Model):
                 "يمكن إغلاق طلب صيانة",
             ),
 
+            ("create_incident", "يمكن إنشاء بلاغ تشغيلي"),
+            ("update_incident", "يمكن تحديث بلاغ تشغيلي"),
+
             ("view_reports", "يمكن عرض التقارير"),
             ("create_report", "يمكن إنشاء تقرير"),
             ("update_report", "يمكن تعديل تقرير"),

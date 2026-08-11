@@ -34,12 +34,25 @@ class ShiftReport(models.Model):
         OPERATIONAL = "operational", "تقرير تشغيلي"
         MANUAL = "manual", "تقرير إداري"
 
+    class OperationalSection(models.TextChoices):
+        ALL = "all", "الكل"
+        MALE = "male", "رجالي"
+        FEMALE = "female", "نسائي"
+
     report_type = models.CharField(
         max_length=20,
         choices=ReportType.choices,
         default=ReportType.OPERATIONAL,
         db_index=True,
         verbose_name="نوع التقرير",
+    )
+
+    operational_section = models.CharField(
+        max_length=10,
+        choices=OperationalSection.choices,
+        default=OperationalSection.ALL,
+        db_index=True,
+        verbose_name="نطاق القسم التشغيلي",
     )
 
     shift_plan = models.OneToOneField(

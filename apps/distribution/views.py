@@ -2,20 +2,29 @@ from __future__ import annotations
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
-from django.db.models import Count, Q
+from django.db.models import Count, Prefetch, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from apps.core.notification_service import NotificationService
-from apps.core.permissions import require_staff
-from apps.core.sms_service import SmsService
+from apps.core.tasks import send_sms_task
+from apps.communications.models import CommunicationLog
 from apps.dashboard.activity_logger import log_activity
 from apps.dashboard.models import SystemActivityLog
 from apps.hr.models import Employee
 from apps.locations.models import Door
+from apps.roles.services.section_access import (
+    can_manage_section,
+    filter_assignments_for_user,
+    filter_doors_for_user,
+    get_allowed_sections,
+    has_institutional_scope,
+)
+from apps.roles.services.access_control import user_has_permission
+from apps.roles.services.permission_registry import PlatformPermissions
 from apps.scheduling.models import ShiftPlan
 from apps.audit.models import AssignmentHistory
 
@@ -39,11 +48,41 @@ def _active_shift():
     )
 
 
+def _can_manage_assignment_section(user, section: str) -> bool:
+    return user.is_superuser or (
+        has_institutional_scope(user)
+        and can_manage_section(user, section)
+    )
+
+
+def _require_distribution_permission(request, permission):
+    if request.user.is_superuser:
+        return
+    if (
+        not user_has_permission(request.user, permission)
+        or not has_institutional_scope(request.user)
+    ):
+        raise PermissionDenied("لا تملك صلاحية الوصول إلى التوزيع.")
+
+
+def _require_all_sections(request):
+    _require_distribution_permission(request, PlatformPermissions.ASSIGN_EMPLOYEES)
+    if not request.user.is_superuser and get_allowed_sections(request.user) != {"male", "female"}:
+        raise PermissionDenied("تتطلب العملية نطاق الأقسام كافة.")
+
+
 @login_required
 def distribution_dashboard_view(request):
-    require_staff(request.user)
+    _require_distribution_permission(request, PlatformPermissions.VIEW_DISTRIBUTION)
     active_shift = _active_shift()
     doors = _available_doors_queryset()
+
+    scoped_user = has_institutional_scope(request.user)
+    allowed_sections = get_allowed_sections(request.user)
+    has_all_sections = (
+        not scoped_user
+        or "all" in allowed_sections
+    )
 
     assignments = DoorAssignment.objects.none()
     available_employees = Employee.objects.none()
@@ -52,6 +91,9 @@ def distribution_dashboard_view(request):
     query = (request.GET.get("q") or "").strip()
     role_filter = (request.GET.get("role") or "").strip()
     door_filter = (request.GET.get("door") or "").strip()
+    operational_section_filter = (
+        request.GET.get("operational_section") or ""
+    ).strip()
 
     if active_shift:
         doors = doors.annotate(
@@ -107,6 +149,15 @@ def distribution_dashboard_view(request):
                 "employee",
                 "assigned_by",
             )
+            .prefetch_related(
+                Prefetch(
+                    "communication_logs",
+                    queryset=CommunicationLog.objects.filter(
+                        channel__in=("sms", "whatsapp"),
+                    ).order_by("-created_at"),
+                    to_attr="assignment_message_logs",
+                )
+            )
             .filter(
                 shift_plan=active_shift,
                 is_active=True,
@@ -117,6 +168,16 @@ def distribution_dashboard_view(request):
             .exclude(door__name__iexact="السلام")
             .order_by("door__door_number", "-is_supervisor", "employee__employee_number")
         )
+
+        if scoped_user and not has_all_sections:
+            assignments = filter_assignments_for_user(
+                assignments,
+                request.user,
+            )
+            doors = filter_doors_for_user(
+                doors,
+                request.user,
+            )
 
         if query:
             assignments = assignments.filter(
@@ -130,13 +191,54 @@ def distribution_dashboard_view(request):
             assignments = assignments.filter(role=role_filter)
         if door_filter.isdigit():
             assignments = assignments.filter(door_id=int(door_filter))
+        if operational_section_filter in dict(Employee.OperationalSection.choices):
+            assignments = assignments.filter(
+            employee__operational_section=operational_section_filter
+            )
+
+        assignments = list(assignments)
+        for assignment in assignments:
+            assignment.assignment_message_statuses = {
+                log.channel: log.get_status_display()
+                for log in assignment.assignment_message_logs
+            }
 
         available_ids = [
             employee.id
             for employee in DistributionService.eligible_employees(shift_plan=active_shift)
         ]
-        available_employees = Employee.objects.filter(id__in=available_ids).order_by("employee_number")
+        available_employees = (
+            Employee.objects
+            .filter(id__in=available_ids)
+            .order_by("employee_number")
+        )
+
+        if scoped_user and not has_all_sections:
+            available_employees = available_employees.filter(
+                operational_section__in=allowed_sections,
+            )
+
+        if operational_section_filter in dict(Employee.OperationalSection.choices):
+            available_employees = available_employees.filter(
+            operational_section=operational_section_filter
+            )
+
         report = DistributionService.report(shift_plan=active_shift)
+
+    recent_history = AssignmentHistory.objects.select_related(
+        "employee", "door", "changed_by"
+    ).filter(
+        shift_plan=active_shift,
+    ).order_by("-changed_at") if active_shift else AssignmentHistory.objects.none()
+
+    if (
+        scoped_user
+        and not has_all_sections
+        and active_shift
+    ):
+        recent_history = recent_history.filter(
+            assignment__section__in=allowed_sections,
+        )
 
     context = {
         "active_shift": active_shift,
@@ -146,19 +248,18 @@ def distribution_dashboard_view(request):
         "q": query,
         "selected_role": role_filter,
         "selected_door": door_filter,
+        "selected_operational_section": operational_section_filter,
         "role_choices": DoorAssignment.Role.choices,
+        "operational_section_choices": Employee.OperationalSection.choices,
         "distribution_report": report,
         "total_assignments": report.total_assignments if report else 0,
-        "supervisor_count": assignments.filter(role=DoorAssignment.Role.SUPERVISOR).count() if active_shift else 0,
-        "monitor_count": assignments.filter(role=DoorAssignment.Role.MONITOR).count() if active_shift else 0,
-        "support_count": assignments.filter(role=DoorAssignment.Role.SUPPORT).count() if active_shift else 0,
-        "technician_count": assignments.filter(role=DoorAssignment.Role.TECHNICIAN).count() if active_shift else 0,
+        "supervisor_count": sum(assignment.role == DoorAssignment.Role.SUPERVISOR for assignment in assignments),
+        "monitor_count": sum(assignment.role == DoorAssignment.Role.MONITOR for assignment in assignments),
+        "support_count": sum(assignment.role == DoorAssignment.Role.SUPPORT for assignment in assignments),
+        "technician_count": sum(assignment.role == DoorAssignment.Role.TECHNICIAN for assignment in assignments),
         "covered_doors": report.covered_doors if report else 0,
         "uncovered_doors": report.uncovered_doors if report else doors.count(),
-        "recent_history": AssignmentHistory.objects.select_related(
-            "employee", "door", "changed_by"
-        ).filter(shift_plan=active_shift).order_by("-changed_at")[:6]
-        if active_shift else AssignmentHistory.objects.none(),
+        "recent_history": recent_history[:6],
     }
     return render(request, "distribution/dashboard.html", context)
 
@@ -166,7 +267,7 @@ def distribution_dashboard_view(request):
 @login_required
 def assignment_history_view(request):
     """سجل التدقيق المؤسسي لجميع تغييرات التوزيع الميداني."""
-    require_staff(request.user)
+    _require_distribution_permission(request, PlatformPermissions.VIEW_DISTRIBUTION)
     query = (request.GET.get("q") or "").strip()
     shift_id = (request.GET.get("shift") or "").strip()
     user_id = (request.GET.get("user") or "").strip()
@@ -174,6 +275,15 @@ def assignment_history_view(request):
         "assignment", "employee", "door", "shift_plan",
         "shift_plan__shift_type", "changed_by",
     ).order_by("-changed_at")
+    scoped_user = has_institutional_scope(request.user)
+    allowed_sections = get_allowed_sections(request.user)
+    if (
+        scoped_user
+        and "all" not in allowed_sections
+    ):
+        histories = histories.filter(
+            assignment__section__in=allowed_sections,
+        )
     if query:
         histories = histories.filter(
             Q(employee__full_name__icontains=query)
@@ -212,7 +322,11 @@ def assignment_history_view(request):
 @login_required
 @require_POST
 def assignment_create_view(request):
-    require_staff(request.user)
+    requested_role = (
+        request.POST.get("role")
+        or DoorAssignment.Role.MONITOR
+    ).strip()
+    _require_distribution_permission(request, PlatformPermissions.ASSIGN_EMPLOYEES)
     active_shift = _active_shift()
     if not active_shift:
         messages.error(request, "لا توجد وردية نشطة للتوزيع.")
@@ -230,8 +344,26 @@ def assignment_create_view(request):
     if role not in dict(DoorAssignment.Role.choices):
         role = DoorAssignment.Role.MONITOR
 
-    employee = get_object_or_404(Employee, pk=int(employee_id))
-    door = get_object_or_404(_available_doors_queryset(), pk=int(door_id))
+    employee = get_object_or_404(
+        filter_employees_for_user(Employee.objects, request.user)
+        if not request.user.is_superuser else Employee.objects,
+        pk=int(employee_id),
+    )
+    door = get_object_or_404(
+        filter_doors_for_user(_available_doors_queryset(), request.user)
+        if not request.user.is_superuser else _available_doors_queryset(),
+        pk=int(door_id),
+    )
+
+    if not _can_manage_assignment_section(
+        request.user,
+        employee.operational_section,
+    ):
+        messages.error(
+            request,
+            "لا تملك صلاحية إدارة تسكين هذا القسم التشغيلي.",
+        )
+        return redirect("distribution:dashboard")
 
     try:
         assignment = DistributionService.create_assignment(
@@ -272,11 +404,23 @@ def assignment_create_view(request):
 @login_required
 @require_POST
 def assignment_deactivate_view(request, pk):
-    require_staff(request.user)
+    _require_distribution_permission(request, PlatformPermissions.ASSIGN_EMPLOYEES)
     assignment = get_object_or_404(
-        DoorAssignment.objects.select_related("employee", "door", "shift_plan"),
+        filter_assignments_for_user(DoorAssignment.objects, request.user).select_related("employee", "door", "shift_plan")
+        if not request.user.is_superuser else DoorAssignment.objects.select_related("employee", "door", "shift_plan"),
         pk=pk,
     )
+
+    if not _can_manage_assignment_section(
+        request.user,
+        assignment.section,
+    ):
+        messages.error(
+            request,
+            "لا تملك صلاحية إدارة تسكين هذا القسم التشغيلي.",
+        )
+        return redirect("distribution:dashboard")
+
     try:
         DistributionService.deactivate_assignment(
             assignment=assignment,
@@ -309,7 +453,7 @@ def assignment_deactivate_view(request, pk):
 @login_required
 @require_POST
 def assignment_validate_view(request):
-    require_staff(request.user)
+    _require_distribution_permission(request, PlatformPermissions.VIEW_DISTRIBUTION)
     active_shift = _active_shift()
     if not active_shift:
         return JsonResponse({"success": False, "error": "لا توجد وردية نشطة."}, status=400)
@@ -332,7 +476,7 @@ def assignment_validate_view(request):
 @login_required
 @require_POST
 def assignment_auto_assign_view(request):
-    require_staff(request.user)
+    _require_all_sections(request)
     active_shift = _active_shift()
     if not active_shift:
         messages.error(request, "لا توجد وردية نشطة.")
@@ -354,7 +498,7 @@ def assignment_rebalance_preview_view(request):
     """
     إرجاع معاينة خطة إعادة التوازن دون حفظ أي تغيير.
     """
-    require_staff(request.user)
+    _require_all_sections(request)
 
     active_shift = _active_shift()
     if not active_shift:
@@ -397,7 +541,7 @@ def assignment_rebalance_view(request):
     """
     تنفيذ خطة إعادة التوازن بعد موافقة المستخدم.
     """
-    require_staff(request.user)
+    _require_all_sections(request)
 
     active_shift = _active_shift()
     if not active_shift:
@@ -470,49 +614,11 @@ def assignment_rebalance_view(request):
 @login_required
 @require_POST
 def assignment_send_sms_view(request):
-    require_staff(request.user)
-    employee_id = (request.POST.get("employee_id") or "").strip()
-    message_text = (request.POST.get("message") or "").strip()
-
-    if not employee_id.isdigit():
-        return JsonResponse({"success": False, "error": "لم يتم تحديد الموظف بصورة صحيحة."}, status=400)
-    if not message_text:
-        return JsonResponse({"success": False, "error": "رسالة التكليف فارغة."}, status=400)
-
-    employee = get_object_or_404(Employee, pk=int(employee_id), is_active=True)
-    phone_number = (employee.phone_number or "").strip()
-    if not phone_number:
-        return JsonResponse(
-            {"success": False, "error": f"رقم جوال الموظف {employee.full_name} غير مسجل."},
-            status=400,
-        )
-
-    result = SmsService.send(
-        recipient=phone_number,
-        message=message_text,
-        correlation_id=f"door-assignment-employee-{employee.id}",
+    _require_distribution_permission(request, PlatformPermissions.ASSIGN_EMPLOYEES)
+    return JsonResponse(
+        {
+            "success": False,
+            "error": "رسائل التكليف التشغيلية غير مفعلة.",
+        },
+        status=503,
     )
-    if not result.success:
-        return JsonResponse(
-            {"success": False, "error": result.error or "تعذر إرسال الرسالة."},
-            status=400,
-        )
-
-    log_activity(
-        user=request.user,
-        module="توزيع الأبواب",
-        action=SystemActivityLog.ActionType.CREATE,
-        description=f"تم إرسال رسالة تكليف SMS إلى {employee.full_name} على الرقم {phone_number}",
-        request=request,
-    )
-    NotificationService.success(
-        title="تم إرسال رسالة التكليف",
-        message=f"تم إرسال رسالة SMS إلى الموظف {employee.full_name}",
-        user=request.user,
-        url="/distribution/",
-    )
-    return JsonResponse({
-        "success": True,
-        "message": "تم إرسال رسالة التكليف بنجاح.",
-        "message_id": result.message_id,
-    })
