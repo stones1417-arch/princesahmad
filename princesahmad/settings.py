@@ -255,7 +255,7 @@ def normalize_hostname(
 
 DEBUG = env_bool(
     "DJANGO_DEBUG",
-    True,
+    env_bool("DEBUG", False),
 )
 
 SECRET_KEY = os.getenv(
