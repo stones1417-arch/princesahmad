@@ -2,8 +2,15 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from django.contrib.auth import logout
 from django.http import HttpRequest, HttpResponse
+from django.shortcuts import redirect
 
+from apps.accounts.security import (
+    clear_two_factor_verification,
+    has_completed_two_factor,
+    requires_two_factor,
+)
 from apps.core.monitoring import record_response_status
 from apps.roles.services.section_context import (
     get_effective_section,
@@ -26,6 +33,23 @@ class OperationalSectionMiddleware:
         query["section"] = get_effective_section(request)
         request.GET = query
 
+        return self.get_response(request)
+
+
+class AdministrativeTwoFactorMiddleware:
+    """Fail closed for staff/superuser access unless 2FA has been completed."""
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]):
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        if request.path.startswith("/admin/") and request.user.is_authenticated:
+            user = request.user
+            if (user.is_superuser or user.is_staff) and requires_two_factor(user):
+                if not has_completed_two_factor(request, user):
+                    clear_two_factor_verification(request)
+                    logout(request)
+                    return redirect("accounts:login")
         return self.get_response(request)
 
 
