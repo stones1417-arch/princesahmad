@@ -4346,7 +4346,7 @@ header > .user-menu{
     inset:0;
     z-index:1;
 
-    background-image:url("/media/abwaab-footer.jpeg");
+    background-image:url("/static/images/abwaab-footer.jpeg");
     background-repeat:no-repeat;
     background-position:center;
 background-position:center center;
@@ -4565,7 +4565,7 @@ filter:brightness(1.05) contrast(1.08);
     inset:0;
     z-index:1;
 
-    background-image:url("/media/abwaab-footer.jpeg");
+    background-image:url("/static/images/abwaab-footer.jpeg");
     background-repeat:no-repeat;
     background-position:center;
     background-size:cover;
