@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from django.core.management import call_command
 from django.test import TestCase, override_settings
+from django.urls import reverse
 from django.utils import timezone
 
 from apps.accounts.models import AccountProfile
@@ -73,6 +74,14 @@ class PilotTwoFactorLoginTests(TestCase):
         self.assertEqual(self.provider.requests[0][0], "sms")
         self.assertNotIn("_auth_user_id", self.client.session)
         self.assertIn(TWO_FACTOR_SESSION_KEY, self.client.session)
+
+    def test_login_redirect_uses_canonical_two_factor_url_name(self):
+        response = self._login()
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, "/accounts/two-factor/")
+        self.assertEqual(reverse("accounts:two-factor"), "/accounts/two-factor/")
+        self.assertEqual(reverse("accounts:two-factor"), self.client.get("/accounts/login/").context["next"] or "/accounts/two-factor/")
 
     def test_incorrect_password_does_not_send_otp(self):
         response = self._login(password="not-the-password")

@@ -14,6 +14,12 @@ urlpatterns = [
     ),
 
     path(
+        "two-factor/",
+        views.two_factor_view,
+        name="two-factor",
+    ),
+
+    path(
         "register/",
         views.register_view,
         name="register",
