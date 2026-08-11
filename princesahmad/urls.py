@@ -10,6 +10,7 @@ from apps.core.health import health_check
 
 urlpatterns = [
     path("health/", health_check, name="health-check"),
+    path("", include("apps.core.urls")),
     # ==========================================================
     # لوحة التحكم الرئيسية
     # ==========================================================

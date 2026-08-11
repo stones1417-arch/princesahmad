@@ -2,3 +2,4 @@
 gunicorn>=23,<24
 psycopg[binary]>=3.2,<4
 redis>=5,<7
+whitenoise>=6.8,<7
