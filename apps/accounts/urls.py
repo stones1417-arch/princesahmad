@@ -20,6 +20,12 @@ urlpatterns = [
     ),
 
     path(
+        "admin/users/create/",
+        views.admin_user_create_view,
+        name="admin-user-create",
+    ),
+
+    path(
         "register/",
         views.register_view,
         name="register",

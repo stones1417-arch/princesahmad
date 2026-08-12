@@ -41,6 +41,10 @@ from apps.communications.services.otp_validation import (
 )
 from apps.hr.forms import EmployeeForm
 from apps.hr.models import Employee
+from apps.roles.models import Role
+from apps.roles.services.access_control import user_has_permission
+from apps.roles.services.role_manager import assign_role_to_user
+from apps.roles.services.section_access import get_allowed_sections
 
 from .forms import (
     ProfileContactForm,
@@ -55,6 +59,7 @@ from .services.two_factor_readiness import (
 from .security import (
     clear_login_failures,
     clear_two_factor_verification,
+    has_completed_two_factor,
     login_is_limited,
     mark_two_factor_verified,
     record_login_failure,
@@ -655,6 +660,11 @@ def _complete_login(
         "next",
         "",
     )
+    if not next_url:
+        next_url = request.session.pop(
+            "admin_user_create_next",
+            "",
+        )
 
     if (
         next_url
@@ -1078,6 +1088,126 @@ def register_view(
             photo_form
         ),
     )
+
+
+@login_required
+def admin_user_create_view(request):
+    """Endpoint إداري موحد لإنشاء الحسابات للأدوار المصرح لها فقط."""
+    if not request.user.is_active:
+        raise PermissionDenied("حساب المستخدم غير نشط.")
+
+    if not request.user.has_perm("roles.manage_users"):
+        raise PermissionDenied("ليس لديك صلاحية إدارة المستخدمين.")
+
+    if requires_two_factor(request.user) and not has_completed_two_factor(request, request.user):
+        request.session["admin_user_create_next"] = request.get_full_path()
+        request.session.modified = True
+        return redirect("accounts:two-factor")
+
+    if request.method == "POST":
+        full_name = (request.POST.get("full_name") or "").strip()
+        employee_number = (request.POST.get("employee_number") or "").strip()
+        username = (request.POST.get("username") or "").strip().lower()
+        email = (request.POST.get("email") or "").strip().lower()
+        password = request.POST.get("password") or ""
+        operational_section = (request.POST.get("operational_section") or "").strip()
+        job_title = (request.POST.get("job_title") or "").strip()
+        role_code = (request.POST.get("role") or "").strip().lower()
+        phone_number = (request.POST.get("phone_number") or "").strip()
+
+        if not all([full_name, employee_number, username, email, password, operational_section, job_title, role_code, phone_number]):
+            messages.error(request, "أكمل جميع الحقول المطلوبة.")
+            return render(request, "accounts/admin_user_create.html", {"is_admin_create": True, "form_data": request.POST, "job_title_choices": Employee.JobTitle.choices, "role_options": Role.objects.filter(is_active=True).order_by("name")})
+
+        if operational_section not in Employee.OperationalSection.values:
+            raise PermissionDenied("القسم التشغيلي غير صالح.")
+
+        if job_title not in Employee.JobTitle.values:
+            raise PermissionDenied("المسمى الوظيفي غير صالح.")
+
+        allowed_sections = get_allowed_sections(request.user)
+        if not allowed_sections:
+            raise PermissionDenied("ليس لديك صلاحية لإدارة أي قسم تشغيلي.")
+        if operational_section not in allowed_sections:
+            raise PermissionDenied("لا يسمح لك إنشاء مستخدم خارج نطاق قسمك التشغيلي.")
+
+        try:
+            validate_email(email)
+        except ValidationError:
+            messages.error(request, "البريد الإلكتروني غير صالح.")
+            return render(request, "accounts/admin_user_create.html", {"is_admin_create": True, "form_data": request.POST, "job_title_choices": Employee.JobTitle.choices, "role_options": Role.objects.filter(is_active=True).order_by("name")})
+
+        try:
+            normalized_phone = normalize_saudi_phone_number(phone_number)
+        except OTPRecipientValidationError:
+            messages.error(request, "رقم الجوال غير صالح. استخدم رقمًا سعوديًا صحيحًا مثل +9665XXXXXXXX.")
+            return render(request, "accounts/admin_user_create.html", {"is_admin_create": True, "form_data": request.POST, "job_title_choices": Employee.JobTitle.choices, "role_options": Role.objects.filter(is_active=True).order_by("name")})
+
+        try:
+            validate_password(password, user=User(username=username))
+        except ValidationError as error:
+            for message_text in error.messages:
+                messages.error(request, message_text)
+            return render(request, "accounts/admin_user_create.html", {"is_admin_create": True, "form_data": request.POST, "job_title_choices": Employee.JobTitle.choices, "role_options": Role.objects.filter(is_active=True).order_by("name")})
+
+        if User.objects.filter(username__iexact=username).exists():
+            messages.error(request, "اسم المستخدم مستخدم مسبقًا.")
+            return render(request, "accounts/admin_user_create.html", {"is_admin_create": True, "form_data": request.POST, "job_title_choices": Employee.JobTitle.choices, "role_options": Role.objects.filter(is_active=True).order_by("name")})
+
+        if User.objects.filter(email__iexact=email).exists():
+            messages.error(request, "البريد الإلكتروني مستخدم مسبقًا.")
+            return render(request, "accounts/admin_user_create.html", {"is_admin_create": True, "form_data": request.POST, "job_title_choices": Employee.JobTitle.choices, "role_options": Role.objects.filter(is_active=True).order_by("name")})
+
+        if Employee.objects.filter(employee_number=employee_number).exists():
+            messages.error(request, "الرقم الوظيفي مستخدم مسبقًا.")
+            return render(request, "accounts/admin_user_create.html", {"is_admin_create": True, "form_data": request.POST, "job_title_choices": Employee.JobTitle.choices, "role_options": Role.objects.filter(is_active=True).order_by("name")})
+
+        if Employee.objects.filter(phone_number=normalized_phone).exists() or AccountProfile.objects.filter(phone_number=normalized_phone).exists():
+            messages.error(request, "رقم الجوال مستخدم مسبقًا.")
+            return render(request, "accounts/admin_user_create.html", {"is_admin_create": True, "form_data": request.POST, "job_title_choices": Employee.JobTitle.choices, "role_options": Role.objects.filter(is_active=True).order_by("name")})
+
+        role = Role.objects.filter(code=role_code, is_active=True).first()
+        if not role:
+            messages.error(request, "الدور المحدد غير موجود أو غير نشط.")
+            return render(request, "accounts/admin_user_create.html", {"is_admin_create": True, "form_data": request.POST, "job_title_choices": Employee.JobTitle.choices, "role_options": Role.objects.filter(is_active=True).order_by("name")})
+
+        if not user_has_permission(request.user, "roles.manage_users"):
+            raise PermissionDenied("ليس لديك صلاحية إدارة المستخدمين.")
+
+        if role.operational_section != Role.OperationalSection.ALL and operational_section not in {role.operational_section}:
+            raise PermissionDenied("لا يمكن إنشاء مستخدم في قسم لا يندرج ضمن نطاق الدور المحدد.")
+
+        try:
+            with transaction.atomic():
+                name_parts = full_name.split(maxsplit=1)
+                new_user = User.objects.create_user(
+                    username=username,
+                    password=password,
+                    email=email,
+                    first_name=name_parts[0],
+                    last_name=name_parts[1] if len(name_parts) > 1 else "",
+                    is_staff=False,
+                    is_superuser=False,
+                )
+                Employee.objects.create(
+                    user=new_user,
+                    full_name=full_name,
+                    employee_number=employee_number,
+                    operational_section=operational_section,
+                    job_title=job_title,
+                    phone_number=normalized_phone,
+                    email=email,
+                )
+                AccountProfile.objects.create(user=new_user, phone_number=normalized_phone)
+                assign_role_to_user(user=new_user, role_code=role.code)
+        except IntegrityError:
+            messages.error(request, "تعذر إنشاء الحساب لأن بعض البيانات مستخدمة مسبقًا.")
+            return render(request, "accounts/admin_user_create.html", {"is_admin_create": True, "form_data": request.POST, "job_title_choices": Employee.JobTitle.choices, "role_options": Role.objects.filter(is_active=True).order_by("name")})
+
+        messages.success(request, f"تم إنشاء الحساب بنجاح: {new_user.username}")
+        return redirect("accounts:admin-user-create")
+
+    return render(request, "accounts/admin_user_create.html", {"is_admin_create": True, "job_title_choices": Employee.JobTitle.choices, "role_options": Role.objects.filter(is_active=True).order_by("name")})
 
 
 # ============================================================
