@@ -12,7 +12,7 @@ from apps.accounts.models import TwoFactorAuditLog
 from apps.accounts.security import requires_two_factor
 from apps.communications.models import OTPVerification
 from apps.communications.providers.base import ProviderResult
-from apps.communications.services.otp_service import AuthenticaOTPService
+from apps.communications.services.otp_service import AuthenticaOTPService, OTPReplayError
 from apps.core.tests.factories import create_employee, create_user
 from apps.roles.services.role_manager import assign_role_to_user
 
@@ -25,11 +25,13 @@ class FakeOTPProvider:
         self.requests = []
         self.verifications = []
 
-    def request_otp(self, *, channel, recipient, purpose, template_id=None):
+    def request_otp(self, *, channel, recipient, purpose, template_id=None, provider_request_id=None):
+        del template_id, provider_request_id
         self.requests.append((channel, recipient, purpose))
         return ProviderResult(status=OTPVerification.Status.SENT, provider_message_id="test-message")
 
-    def verify_otp(self, *, channel, recipient, otp):
+    def verify_otp(self, *, channel, recipient, otp, provider_request_id=None):
+        del provider_request_id
         self.verifications.append((channel, recipient, otp))
         return ProviderResult(status=self.verification_status)
 
@@ -54,7 +56,7 @@ class PilotTwoFactorLoginTests(TestCase):
             email="pilot@example.test",
         )
         self.provider = FakeOTPProvider()
-        self.provider_patch = patch("apps.accounts.views.get_provider", return_value=self.provider)
+        self.provider_patch = patch("apps.accounts.views.get_otp_provider", return_value=self.provider)
         self.provider_patch.start()
         self.addCleanup(self.provider_patch.stop)
 
@@ -324,13 +326,38 @@ class PilotTwoFactorLoginTests(TestCase):
         verification.status = OTPVerification.Status.VERIFIED
         verification.save(update_fields=["status"])
 
-        AuthenticaOTPService(self.provider).verify_otp(
-            verification=verification,
-            otp="123456",
-            recipient=self.employee.phone_number,
-        )
+        with self.assertRaises(OTPReplayError):
+            AuthenticaOTPService(self.provider).verify_otp(
+                verification=verification,
+                otp="123456",
+                recipient=self.employee.phone_number,
+            )
 
         self.assertEqual(self.provider.verifications, [])
+        self.assertNotIn("_auth_user_id", self.client.session)
+        self.assertTrue(
+            TwoFactorAuditLog.objects.filter(
+                user=self.user,
+                event="2fa_replay_blocked",
+            ).exists()
+        )
+        verification.refresh_from_db()
+        self.assertEqual(verification.status, OTPVerification.Status.VERIFIED)
+
+    def test_verified_otp_replay_does_not_complete_login(self):
+        self._login()
+        verification = self._verification()
+        verification.status = OTPVerification.Status.VERIFIED
+        verification.save(update_fields=["status"])
+
+        response = self.client.post(
+            "/accounts/two-factor/",
+            {"action": "verify", "otp": "123456"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("_auth_user_id", self.client.session)
+        self.assertContains(response, "رمز التحقق غير صالح")
         self.assertTrue(
             TwoFactorAuditLog.objects.filter(
                 user=self.user,

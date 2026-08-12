@@ -28,10 +28,11 @@ from apps.communications.providers.authentica import (
     ProviderConnectionError,
     ProviderResponseError,
 )
-from apps.communications.services.delivery_service import get_provider
+from apps.communications.services.delivery_service import get_otp_provider
 from apps.communications.services.otp_service import (
     AuthenticaOTPService,
     OTPRateLimitedError,
+    OTPReplayError,
     OTPResendCooldownError,
     VerificationNotConfiguredError,
 )
@@ -540,7 +541,7 @@ def _request_login_otp(
 
     verification = (
         AuthenticaOTPService(
-            get_provider()
+            get_otp_provider(channel)
         )
         .request_otp(
             user=user,
@@ -1764,7 +1765,7 @@ def two_factor_view(
 
                 verification = (
                     AuthenticaOTPService(
-                        get_provider()
+                        get_otp_provider(verification.channel)
                     )
                     .resend_otp(
                         verification=verification,
@@ -1849,16 +1850,40 @@ def two_factor_view(
                     metadata={"verification_id": verification.pk},
                 )
 
-                verification = (
-                    AuthenticaOTPService(
-                        get_provider()
+                try:
+                    verification = (
+                        AuthenticaOTPService(
+                            get_otp_provider(verification.channel)
+                        )
+                        .verify_otp(
+                            verification=verification,
+                            otp=otp,
+                            recipient=recipient,
+                        )
                     )
-                    .verify_otp(
-                        verification=verification,
-                        otp=otp,
-                        recipient=recipient,
+                except OTPReplayError:
+                    security_logger.warning(
+                        "Two-factor replay attempt blocked.",
+                        extra={
+                            "event": "two_factor_replay_blocked",
+                            "user_id": user.pk,
+                        },
                     )
-                )
+                    messages.error(
+                        request,
+                        (
+                            "رمز التحقق غير صالح "
+                            "أو مستخدم بالفعل."
+                        ),
+                    )
+                    return render(
+                        request,
+                        "accounts/two_factor.html",
+                        _two_factor_context(
+                            user,
+                            pending,
+                        ),
+                    )
 
                 if (
                     verification.status
@@ -1914,6 +1939,30 @@ def two_factor_view(
                 raise VerificationNotConfiguredError(
                     "طلب التحقق غير صالح."
                 )
+
+        except OTPReplayError:
+            security_logger.warning(
+                "Two-factor replay attempt blocked in view.",
+                extra={
+                    "event": "two_factor_replay_blocked",
+                    "user_id": user.pk,
+                },
+            )
+            messages.error(
+                request,
+                (
+                    "رمز التحقق غير صالح "
+                    "أو مستخدم بالفعل."
+                ),
+            )
+            return render(
+                request,
+                "accounts/two_factor.html",
+                _two_factor_context(
+                    user,
+                    pending,
+                ),
+            )
 
         except OTPResendCooldownError:
             messages.error(
