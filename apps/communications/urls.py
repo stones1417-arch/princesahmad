@@ -7,6 +7,14 @@ app_name = "communications"
 
 
 urlpatterns = [
+    path("dashboard/", views.communications_dashboard_view, name="dashboard"),
+    path("logs/", views.communication_logs_view, name="logs"),
+    path("logs/<int:pk>/", views.communication_log_detail_view, name="log-detail"),
+    path("assignment-messages/", views.assignment_messages_view, name="assignment-messages"),
+    path("assignment-messages/<int:pk>/", views.assignment_message_detail_view, name="assignment-message-detail"),
+    path("assignment-messages/<int:pk>/retry/", views.assignment_message_retry_view, name="assignment-message-retry"),
+    path("provider/", views.authentica_provider_view, name="provider"),
+    path("webhooks/authentica/", views.authentica_webhook_view, name="authentica-webhook"),
     path(
         "",
         views.announcement_list_view,

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import shutil
 import tempfile
-from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile

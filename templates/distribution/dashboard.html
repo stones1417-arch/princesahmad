@@ -637,6 +637,11 @@
                     {% for value,label in role_choices %}<option value="{{ value }}" {% if selected_role == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
                 </select>
 
+                <select name="operational_section" aria-label="تصفية حسب القسم التشغيلي">
+                    <option value="">كل الأقسام</option>
+                    {% for value,label in operational_section_choices %}<option value="{{ value }}" {% if selected_operational_section == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                </select>
+
                 <select name="door" aria-label="تصفية حسب الباب">
                     <option value="">كل الأبواب</option>
                     {% for door in doors %}<option value="{{ door.id }}" {% if selected_door == door.id|stringformat:'s' %}selected{% endif %}>باب {{ door.door_number }}</option>{% endfor %}
@@ -801,6 +806,10 @@
                             <td>
 
                                 <div class="distribution-actions">
+
+                                    <a href="{% url 'communications:assignment-messages' %}?q={{ assignment.employee.employee_number|urlencode }}" class="btn-view-assignment">رسائل التكليف</a>
+                                    <span class="badge badge-gray">SMS: {{ assignment.assignment_message_statuses.sms|default:"—" }}</span>
+                                    <span class="badge badge-gray">WhatsApp: {{ assignment.assignment_message_statuses.whatsapp|default:"—" }}</span>
 
                                     <button
                                         type="button"
