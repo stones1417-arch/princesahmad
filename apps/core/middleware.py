@@ -19,12 +19,15 @@ from apps.roles.services.section_context import (
 
 
 class OperationalSectionMiddleware:
-    """Make the session-backed operational section available to every view."""
+    """Make the session-backed operational section available to non-admin views."""
 
     def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]):
         self.get_response = get_response
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
+        if request.path.startswith("/admin/"):
+            return self.get_response(request)
+
         requested_section = request.GET.get("section")
         if requested_section is not None:
             set_current_section(request, requested_section)
