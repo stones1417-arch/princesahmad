@@ -1,18 +1,30 @@
-from importlib import import_module
-
-from django.apps import apps as django_apps
 from datetime import timedelta
+from importlib import import_module
+from types import SimpleNamespace
+from unittest.mock import patch
 
+from django.db import connection
+from django.db.migrations.executor import MigrationExecutor
 from django.test import TestCase
 from django.utils import timezone
 
 from apps.core.tests.factories import create_door, create_employee, create_shift_plan, create_shift_type
 from apps.distribution.models import DoorAssignment
 
-
 populate_operational_sections = import_module(
     "apps.hr.migrations.0010_employee_operational_section"
 ).populate_operational_sections
+
+
+def get_historical_apps_for_0010():
+    executor = MigrationExecutor(connection)
+    return executor.loader.project_state(
+        nodes=[
+            ("hr", "0009_alter_employee_options_employee_gender_and_more"),
+            ("distribution", "0006_alter_doorassignment_options"),
+            ("locations", "0004_alter_door_options_and_more"),
+        ]
+    ).apps
 
 
 class OperationalSectionBackfillTests(TestCase):
@@ -64,7 +76,34 @@ class OperationalSectionBackfillTests(TestCase):
             self.other_shift_plan,
         )
 
-        populate_operational_sections(django_apps, None)
+        historical_apps = get_historical_apps_for_0010()
+        real_get_model = historical_apps.get_model
+        door_numbers_by_employee = {
+            male_employee.pk: [1],
+            female_employee.pk: [12],
+            conflict_employee.pk: [1, 12],
+            unassigned_employee.pk: [],
+        }
+
+        def fake_get_model(app_label, model_name):
+            if app_label == "distribution" and model_name == "DoorAssignment":
+                class FakeDoorAssignment:
+                    class _Manager:
+                        @staticmethod
+                        def filter(**kwargs):
+                            employee_id = kwargs.get("employee_id")
+                            values = door_numbers_by_employee.get(employee_id, [])
+                            return SimpleNamespace(
+                                values_list=lambda *args, **kwargs: values,
+                            )
+
+                    objects = _Manager()
+
+                return FakeDoorAssignment
+            return real_get_model(app_label, model_name)
+
+        with patch.object(historical_apps, "get_model", side_effect=fake_get_model):
+            populate_operational_sections(historical_apps, None)
 
         male_employee.refresh_from_db()
         female_employee.refresh_from_db()

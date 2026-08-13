@@ -4,6 +4,7 @@ from django.db import models
 from django.utils import timezone
 
 from apps.distribution.models import DoorAssignment
+from apps.locations.door_directions import get_door_sort_order, normalize_door_code
 from apps.locations.models import Door
 from apps.scheduling.models import ShiftPlan
 
@@ -87,8 +88,17 @@ class DoorShift(models.Model):
         MAINTENANCE = "maintenance", "تحت صيانة"
         SECURED = "secured", "مؤمّن"
 
-    door_number = models.PositiveIntegerField(
+    door_number = models.CharField(
+        max_length=10,
+        db_index=True,
         verbose_name="رقم الباب",
+    )
+
+    sort_order = models.PositiveSmallIntegerField(
+        default=0,
+        db_index=True,
+        editable=False,
+        verbose_name="ترتيب الباب الرسمي",
     )
 
     section = models.CharField(
@@ -146,7 +156,7 @@ class DoorShift(models.Model):
 
 
     class Meta:
-        ordering = ["door_number"]
+        ordering = ["sort_order", "door_number"]
         unique_together = ("door_number", "shift_plan")
 
         verbose_name = "حالة باب"
@@ -179,6 +189,10 @@ class DoorShift(models.Model):
     def clean(self):
         super().clean()
 
+        if self.door_number:
+            self.door_number = normalize_door_code(self.door_number)
+            self.sort_order = get_door_sort_order(self.door_number)
+
         door = (
             Door.objects
             .filter(door_number=self.door_number)
@@ -208,6 +222,10 @@ class DoorShift(models.Model):
             )
 
     def save(self, *args, **kwargs):
+        if self.door_number:
+            self.door_number = normalize_door_code(self.door_number)
+            self.sort_order = get_door_sort_order(self.door_number)
+
         door = (
             Door.objects
             .filter(door_number=self.door_number)
