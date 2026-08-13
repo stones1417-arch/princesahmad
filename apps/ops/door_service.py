@@ -93,9 +93,6 @@ def change_door_state(
     locked_door_shift = (
         DoorShift.objects
         .select_for_update()
-        .select_related(
-            "shift_plan",
-        )
         .get(
             pk=door_shift.pk,
         )

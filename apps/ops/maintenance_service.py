@@ -240,10 +240,6 @@ def change_maintenance_status(
     locked_request = (
         MaintenanceRequest.objects
         .select_for_update()
-        .select_related(
-            "door_shift",
-            "door_shift__shift_plan",
-        )
         .get(
             pk=maintenance_request.pk,
         )
@@ -376,9 +372,6 @@ class MaintenanceService:
         locked_door = (
             DoorShift.objects
             .select_for_update()
-            .select_related(
-                "shift_plan",
-            )
             .get(
                 pk=door.pk,
             )
@@ -536,10 +529,6 @@ class MaintenanceService:
         maintenance = (
             MaintenanceRequest.objects
             .select_for_update()
-            .select_related(
-                "door_shift",
-                "door_shift__shift_plan",
-            )
             .get(
                 pk=maintenance.pk,
             )
@@ -632,9 +621,6 @@ class MaintenanceService:
             door_shift = (
                 DoorShift.objects
                 .select_for_update()
-                .select_related(
-                    "shift_plan",
-                )
                 .get(
                     pk=(
                         updated_maintenance

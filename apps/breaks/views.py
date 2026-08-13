@@ -683,10 +683,6 @@ def break_update_view(
                 (
                     Break.objects
                     .select_for_update()
-                    .select_related(
-                        "employee",
-                        "shift_type",
-                    )
                 ),
                 pk=pk,
             )

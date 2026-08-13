@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 
 if TYPE_CHECKING:
-    from apps.ops.models import DoorShift
+    pass
 
 
 def _normalize_reason(reason: Any) -> str:
@@ -95,9 +95,6 @@ def change_door_state(
     locked_door_shift = (
         DoorShift.objects
         .select_for_update()
-        .select_related(
-            "shift_plan",
-        )
         .get(
             pk=door_shift.pk,
         )

@@ -114,12 +114,7 @@ def activate_shift(
 
     shift = (
         ShiftPlan.objects
-        .select_for_update()
-        .select_related(
-            "shift_type",
-            "season",
-            "seasonal_template",
-        )
+        .select_for_update(of=("self",))
         .get(
             pk=shift.pk
         )
@@ -132,7 +127,7 @@ def activate_shift(
 
     other_active_shifts = (
         ShiftPlan.objects
-        .select_for_update()
+        .select_for_update(of=("self",))
         .filter(
             is_active=True
         )

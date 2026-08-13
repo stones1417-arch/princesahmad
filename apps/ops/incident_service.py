@@ -233,12 +233,6 @@ def change_incident_status(
     locked_incident = (
         Incident.objects
         .select_for_update()
-        .select_related(
-            "shift_plan",
-            "door_shift",
-            "created_by",
-            "closed_by",
-        )
         .get(
             pk=incident.pk,
         )
