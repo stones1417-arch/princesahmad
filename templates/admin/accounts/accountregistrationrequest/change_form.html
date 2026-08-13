@@ -1,0 +1,57 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls %}
+
+{% block object-tools-items %}
+  {{ block.super }}
+  {% if original and can_review_actions %}
+    <li>
+      <form method="post" action="{% url 'admin:accounts_accountregistrationrequest_approve' original.pk %}" class="inline-action-form" id="approve-action-form">
+        {% csrf_token %}
+        <input type="hidden" name="role" id="approve-role-input" value="{{ selected_review_role }}">
+        <input type="hidden" name="operational_section" id="approve-section-input" value="{{ selected_review_section }}">
+        <button type="submit" class="button default">اعتماد وإنشاء الحساب</button>
+      </form>
+    </li>
+    <li>
+      <form method="post" action="{% url 'admin:accounts_accountregistrationrequest_reject' original.pk %}" class="inline-action-form">
+        {% csrf_token %}
+        <button type="submit" class="button">رفض الطلب</button>
+      </form>
+    </li>
+    <li>
+      <form method="post" action="{% url 'admin:accounts_accountregistrationrequest_needs_edit' original.pk %}" class="inline-action-form">
+        {% csrf_token %}
+        <button type="submit" class="button">يحتاج مراجعة</button>
+      </form>
+    </li>
+  {% endif %}
+{% endblock %}
+
+{% block extrahead %}
+  {{ block.super }}
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const roleField = document.getElementById('id_role');
+      const sectionField = document.getElementById('id_operational_section');
+      const approveRole = document.getElementById('approve-role-input');
+      const approveSection = document.getElementById('approve-section-input');
+
+      function syncApprovalInputs() {
+        if (approveRole && roleField) {
+          approveRole.value = roleField.value || '';
+        }
+        if (approveSection && sectionField) {
+          approveSection.value = sectionField.value || '';
+        }
+      }
+
+      if (roleField) {
+        roleField.addEventListener('change', syncApprovalInputs);
+      }
+      if (sectionField) {
+        sectionField.addEventListener('change', syncApprovalInputs);
+      }
+      syncApprovalInputs();
+    });
+  </script>
+{% endblock %}

@@ -53,10 +53,7 @@ from .forms import (
 )
 from .models import AccountProfile, AccountRegistrationRequest
 from .services.two_factor_audit_service import record_2fa_event
-from .services.two_factor_readiness import (
-    get_user_otp_channels,
-    is_user_2fa_ready,
-)
+from .services.two_factor_readiness import get_user_otp_channels
 from .security import (
     clear_login_failures,
     clear_two_factor_verification,
