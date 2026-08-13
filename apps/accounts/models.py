@@ -87,6 +87,118 @@ class AccountProfile(models.Model):
         )
 
 
+class AccountRegistrationRequest(models.Model):
+    """طلب إنشاء حساب جديد يخضع للمراجعة الإدارية قبل التفعيل."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "قيد المراجعة"
+        NEEDS_EDIT = "needs_edit", "تحتاج مراجعة"
+        APPROVED = "approved", "موافق عليه"
+        REJECTED = "rejected", "مرفوض"
+        CANCELLED = "cancelled", "ملغي"
+
+    class Gender(models.TextChoices):
+        MALE = "male", "ذكر"
+        FEMALE = "female", "أنثى"
+
+    full_name = models.CharField(
+        max_length=150,
+        verbose_name="الاسم الكامل",
+    )
+    employee_number = models.CharField(
+        max_length=20,
+        db_index=True,
+        verbose_name="الرقم الوظيفي",
+    )
+    requested_username = models.CharField(
+        max_length=150,
+        db_index=True,
+        verbose_name="اسم المستخدم المطلوب",
+    )
+    email = models.EmailField(
+        max_length=255,
+        db_index=True,
+        verbose_name="البريد الإلكتروني",
+    )
+    phone_number = models.CharField(
+        max_length=16,
+        validators=[phone_validator],
+        verbose_name="رقم الجوال",
+    )
+    gender = models.CharField(
+        max_length=10,
+        choices=Gender.choices,
+        default=Gender.MALE,
+        db_index=True,
+        verbose_name="الجنس",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+        verbose_name="حالة الطلب",
+    )
+    review_notes = models.TextField(
+        blank=True,
+        verbose_name="ملاحظات المراجعة",
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_account_registration_requests",
+        verbose_name="راجع الطلب بواسطة",
+    )
+    reviewed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="تاريخ المراجعة",
+    )
+    created_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_account_requests",
+        verbose_name="المستخدم الذي تم إنشاؤه",
+    )
+    linked_employee = models.OneToOneField(
+        "hr.Employee",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="account_registration_request",
+        verbose_name="سجل الموظف المرتبط",
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="تاريخ الطلب",
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name="آخر تحديث",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "طلب إنشاء حساب"
+        verbose_name_plural = "طلبات إنشاء الحساب"
+
+    def clean(self):
+        super().clean()
+        self.full_name = (self.full_name or "").strip()
+        self.employee_number = (self.employee_number or "").strip()
+        self.requested_username = (self.requested_username or "").strip().lower()
+        self.email = (self.email or "").strip().lower()
+        self.phone_number = (self.phone_number or "").strip()
+        self.review_notes = (self.review_notes or "").strip()
+
+    def __str__(self):
+        return f"{self.full_name} ({self.requested_username})"
+
+
 class TwoFactorAuditLog(models.Model):
     class Event(models.TextChoices):
         REQUIRED = "2fa_required", "2FA required"

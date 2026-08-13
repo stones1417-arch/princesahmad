@@ -1,14 +1,13 @@
-from unittest.mock import patch
-
 from django.contrib.auth.models import User
 from django.core.management import call_command
-from django.db import IntegrityError
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 
-from apps.accounts.models import AccountProfile
+from apps.accounts.models import AccountProfile, AccountRegistrationRequest
 from apps.accounts.security import has_completed_two_factor, requires_two_factor
-from apps.accounts.views import _employee_otp_channels
+from apps.accounts.services.registration_request_service import (
+    approve_account_registration_request,
+)
 from apps.core.tests.factories import create_user
 from apps.hr.models import Employee
 from apps.roles.models import Role, UserRole
@@ -19,19 +18,20 @@ from apps.roles.services.role_manager import assign_role_to_user
     ALLOW_PUBLIC_REGISTRATION=True,
     AUTHENTICA_OTP_ALLOWED_CHANNELS=("sms", "whatsapp", "email"),
 )
-class RegistrationTwoFactorReadinessTests(TestCase):
+class RegistrationRequestFlowTests(TestCase):
     password = "StrongTestPassword123!"
+
+    def setUp(self):
+        call_command("setup_roles")
 
     def _payload(self, **overrides):
         payload = {
             "full_name": "مستخدم تجريبي",
             "employee_number": "EMP-1001",
-            "username": "new-user",
-            "password": self.password,
-            "operational_section": Employee.OperationalSection.MALE,
-            "job_title": Employee.JobTitle.SECURITY,
+            "requested_username": "new-user",
             "email": "new.user@example.test",
             "phone_number": "0551234567",
+            "gender": AccountRegistrationRequest.Gender.MALE,
         }
         payload.update(overrides)
         return payload
@@ -39,133 +39,101 @@ class RegistrationTwoFactorReadinessTests(TestCase):
     def _register(self, **overrides):
         return self.client.post("/accounts/register/", self._payload(**overrides))
 
-    def test_registration_persists_2fa_contact_details_and_channels(self):
+    def test_public_registration_creates_a_pending_request_only(self):
         response = self._register()
 
         self.assertRedirects(response, "/accounts/login/")
-        user = User.objects.get(username="new-user")
-        employee = Employee.objects.get(user=user)
-        profile = AccountProfile.objects.get(user=user)
-        self.assertEqual(user.email, "new.user@example.test")
-        self.assertEqual(employee.email, user.email)
-        self.assertEqual(employee.phone_number, "+966551234567")
-        self.assertEqual(profile.phone_number, "+966551234567")
-        self.assertEqual(
-            employee.operational_section,
-            Employee.OperationalSection.MALE,
-        )
-        self.assertEqual(_employee_otp_channels(user), ["sms", "whatsapp", "email"])
+        self.assertEqual(AccountRegistrationRequest.objects.count(), 1)
 
-    def test_registration_does_not_grant_roles_or_administrative_access(self):
-        self._register()
+        request = AccountRegistrationRequest.objects.get(requested_username="new-user")
+        self.assertEqual(request.status, AccountRegistrationRequest.Status.PENDING)
+        self.assertIsNone(request.created_user)
+        self.assertFalse(User.objects.filter(username="new-user").exists())
+        self.assertFalse(Employee.objects.filter(employee_number="EMP-1001").exists())
+        self.assertFalse(AccountProfile.objects.filter(phone_number="+966551234567").exists())
 
-        user = User.objects.get(username="new-user")
-        self.assertFalse(user.is_staff)
-        self.assertFalse(user.is_superuser)
-        self.assertFalse(user.groups.exists())
-        self.assertFalse(user.platform_role_assignments.exists())
-
-    def test_saudi_phone_formats_are_normalized(self):
-        for index, value in enumerate(("0551234567", "551234567", "+966551234567"), 1):
-            response = self._register(
-                username=f"phone-user-{index}",
-                employee_number=f"EMP-{index}",
-                email=f"phone-{index}@example.test",
-                phone_number=value,
-            )
-
-            self.assertRedirects(response, "/accounts/login/")
-            self.assertEqual(
-                Employee.objects.get(employee_number=f"EMP-{index}").phone_number,
-                "+966551234567",
-            )
-            AccountProfile.objects.filter(
-                user__username=f"phone-user-{index}"
-            ).delete()
-            Employee.objects.filter(employee_number=f"EMP-{index}").delete()
-
-    def test_registration_accepts_the_female_operational_section(self):
-        response = self._register(
-            employee_number="EMP-1002",
-            username="female-user",
-            email="female.user@example.test",
-            phone_number="0551234568",
-            operational_section=Employee.OperationalSection.FEMALE,
-        )
-
-        self.assertRedirects(response, "/accounts/login/")
-        self.assertEqual(
-            Employee.objects.get(employee_number="EMP-1002").operational_section,
-            Employee.OperationalSection.FEMALE,
-        )
-
-    def test_invalid_phone_and_email_are_rejected_without_creating_user(self):
+    def test_invalid_phone_and_email_are_rejected_without_creating_request(self):
         phone_response = self._register(phone_number="0411234567")
         email_response = self._register(
-            username="invalid-email",
+            requested_username="invalid-email",
             employee_number="EMP-1002",
             email="invalid-email",
         )
 
         self.assertContains(phone_response, "رقم الجوال غير صالح")
         self.assertContains(email_response, "البريد الإلكتروني غير صالح")
-        self.assertFalse(User.objects.filter(username="new-user").exists())
-        self.assertFalse(User.objects.filter(username="invalid-email").exists())
+        self.assertFalse(AccountRegistrationRequest.objects.filter(requested_username="new-user").exists())
+        self.assertFalse(AccountRegistrationRequest.objects.filter(requested_username="invalid-email").exists())
 
-    def test_invalid_operational_section_is_rejected_without_creating_user(self):
-        response = self._register(operational_section="all")
-
-        self.assertContains(response, "اختر القسم التشغيلي: رجالي أو نسائي.")
-        self.assertFalse(User.objects.filter(username="new-user").exists())
-
-    def test_duplicate_email_and_phone_are_rejected(self):
-        User.objects.create_user(
-            username="existing-email",
-            password=self.password,
-            email="new.user@example.test",
-        )
-        email_response = self._register()
-        self.assertContains(email_response, "البريد الإلكتروني مستخدم مسبقًا.")
-
-        existing_user = User.objects.create_user(
-            username="existing-phone",
-            password=self.password,
-            email="existing.phone@example.test",
-        )
-        Employee.objects.create(
-            user=existing_user,
+    def test_duplicate_pending_request_data_is_rejected(self):
+        AccountRegistrationRequest.objects.create(
             full_name="مستخدم قائم",
-            employee_number="EMP-EXISTING",
-            operational_section=Employee.OperationalSection.MALE,
-            job_title=Employee.JobTitle.SECURITY,
+            employee_number="EMP-1001",
+            requested_username="new-user",
+            email="new.user@example.test",
             phone_number="+966551234567",
-            email=existing_user.email,
+            gender=AccountRegistrationRequest.Gender.MALE,
         )
-        phone_response = self._register(
-            username="duplicate-phone",
-            employee_number="EMP-1003",
-            email="duplicate.phone@example.test",
+
+        response = self._register()
+
+        self.assertContains(response, "اسم المستخدم مستخدم مسبقًا.")
+        self.assertEqual(AccountRegistrationRequest.objects.filter(requested_username__iexact="new-user").count(), 1)
+
+    def test_approval_service_requires_pending_or_needs_edit_and_uses_unusable_password(self):
+        approver = create_user(
+            username="approver-2",
+            password=self.password,
+            email="approver-2@example.test",
         )
-        self.assertContains(phone_response, "رقم الجوال مستخدم مسبقًا.")
+        assign_role_to_user(user=approver, role_code="system_admin")
 
-    def test_password_is_not_rendered_after_validation_error(self):
-        response = self._register(phone_number="invalid", password="SecretPassword987!")
-
-        self.assertNotContains(response, "SecretPassword987!")
-
-    def test_employee_creation_failure_rolls_back_user_and_profile(self):
-        with patch(
-            "apps.accounts.views.Employee.objects.create",
-            side_effect=IntegrityError,
-        ):
-            response = self._register()
-
-        self.assertContains(
-            response,
-            "تعذر إنشاء الحساب لأن بعض البيانات مستخدمة مسبقًا.",
+        request_obj = AccountRegistrationRequest.objects.create(
+            full_name="مستخدم يحتاج مراجعة",
+            employee_number="EMP-APPROVED-2",
+            requested_username="needs-edit-user",
+            email="needs.edit@example.test",
+            phone_number="+966551234569",
+            gender=AccountRegistrationRequest.Gender.MALE,
+            status=AccountRegistrationRequest.Status.NEEDS_EDIT,
         )
-        self.assertFalse(User.objects.filter(username="new-user").exists())
-        self.assertFalse(AccountProfile.objects.exists())
+
+        created = approve_account_registration_request(request_obj, reviewer=approver)
+
+        self.assertTrue(created.is_active)
+        self.assertFalse(created.is_staff)
+        self.assertFalse(created.is_superuser)
+        self.assertFalse(created.has_usable_password())
+        self.assertEqual(request_obj.status, AccountRegistrationRequest.Status.APPROVED)
+
+    def test_approval_service_creates_user_and_assigns_employee_role(self):
+        request_obj = AccountRegistrationRequest.objects.create(
+            full_name="مستخدم معتمد",
+            employee_number="EMP-APPROVED-1",
+            requested_username="approved-user",
+            email="approved.user@example.test",
+            phone_number="+966551234568",
+            gender=AccountRegistrationRequest.Gender.FEMALE,
+        )
+
+        approver = create_user(
+            username="approver",
+            password=self.password,
+            email="approver@example.test",
+        )
+        assign_role_to_user(user=approver, role_code="system_admin")
+
+        created = approve_account_registration_request(request_obj, reviewer=approver)
+
+        self.assertEqual(request_obj.status, AccountRegistrationRequest.Status.APPROVED)
+        self.assertEqual(request_obj.created_user, created)
+        self.assertFalse(created.is_staff)
+        self.assertFalse(created.is_superuser)
+        self.assertTrue(
+            UserRole.objects.filter(user=created, role__code="employee", is_active=True).exists()
+        )
+        self.assertEqual(created.employee.operational_section, Employee.OperationalSection.FEMALE)
+        self.assertEqual(created.employee.job_title, Employee.JobTitle.MONITOR)
 
 
 @override_settings(ALLOW_PUBLIC_REGISTRATION=False)

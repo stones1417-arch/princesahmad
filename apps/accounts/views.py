@@ -51,7 +51,7 @@ from .forms import (
     ProfileContactForm,
     ProfilePhotoForm,
 )
-from .models import AccountProfile
+from .models import AccountProfile, AccountRegistrationRequest
 from .services.two_factor_audit_service import record_2fa_event
 from .services.two_factor_readiness import (
     get_user_otp_channels,
@@ -719,9 +719,7 @@ def _registration_context(
 def register_view(
     request,
 ):
-    """
-    إنشاء حساب مستخدم جديد وربطه بسجل موظف.
-    """
+    """إرسال طلب إنشاء حساب جديد للمراجعة الإدارية قبل التفعيل."""
 
     if request.user.is_authenticated:
         return redirect(
@@ -733,96 +731,53 @@ def register_view(
             "التسجيل العام غير متاح."
         )
 
-    photo_form = ProfilePhotoForm(
-        request.POST or None,
-        request.FILES or None,
-    )
-
     if request.method == "POST":
         full_name = (
-            request.POST.get(
-                "full_name"
-            )
+            request.POST.get("full_name")
             or ""
         ).strip()
 
         employee_number = (
-            request.POST.get(
-                "employee_number"
-            )
+            request.POST.get("employee_number")
             or ""
         ).strip()
 
-        username = (
-            request.POST.get(
-                "username"
-            )
+        requested_username = (
+            request.POST.get("requested_username")
             or ""
         ).strip().lower()
 
-        password = (
-            request.POST.get(
-                "password"
-            )
-            or ""
-        )
-
         email = (
-            request.POST.get(
-                "email"
-            )
+            request.POST.get("email")
             or ""
         ).strip().lower()
 
         phone_number = (
-            request.POST.get(
-                "phone_number"
-            )
+            request.POST.get("phone_number")
             or ""
         ).strip()
 
-        operational_section = (
-            request.POST.get(
-                "operational_section"
-            )
+        gender = (
+            request.POST.get("gender")
             or ""
         ).strip()
 
-        job_title = (
-            request.POST.get(
-                "job_title"
-            )
-            or ""
-        ).strip()
-
-        context = (
-            _registration_context(
-                photo_form,
-                request.POST,
-            )
-        )
-
-        if not all(
-            [
-                full_name,
-                employee_number,
-                username,
-                password,
-                operational_section,
-                job_title,
-                email,
-                phone_number,
-            ]
-        ):
+        if not all([
+            full_name,
+            employee_number,
+            requested_username,
+            email,
+            phone_number,
+            gender,
+        ]):
             messages.error(
                 request,
                 "أكمل جميع الحقول المطلوبة.",
             )
-
             return render(
                 request,
                 "accounts/register.html",
-                context,
+                {"form_data": request.POST},
             )
 
         try:
@@ -832,262 +787,178 @@ def register_view(
                 request,
                 "البريد الإلكتروني غير صالح.",
             )
-
             return render(
                 request,
                 "accounts/register.html",
-                context,
+                {"form_data": request.POST},
             )
 
         try:
-            normalized_phone = normalize_saudi_phone_number(
-                phone_number
-            )
+            normalized_phone = normalize_saudi_phone_number(phone_number)
         except OTPRecipientValidationError:
             messages.error(
                 request,
                 "رقم الجوال غير صالح. استخدم رقمًا سعوديًا صحيحًا مثل +9665XXXXXXXX.",
             )
-
             return render(
                 request,
                 "accounts/register.html",
-                context,
+                {"form_data": request.POST},
             )
 
-        if (
-            operational_section
-            not in Employee.OperationalSection.values
-        ):
+        if gender not in AccountRegistrationRequest.Gender.values:
             messages.error(
                 request,
-                (
-                    "اختر القسم التشغيلي: "
-                    "رجالي أو نسائي."
-                ),
+                "اختر الجنس المناسب.",
             )
-
             return render(
                 request,
                 "accounts/register.html",
-                context,
+                {"form_data": request.POST},
             )
 
-        if (
-            job_title
-            not in Employee.JobTitle.values
-        ):
+        if User.objects.filter(username__iexact=requested_username).exists():
             messages.error(
                 request,
-                (
-                    "المسمى الوظيفي "
-                    "المحدد غير صالح."
-                ),
+                "اسم المستخدم مستخدم مسبقًا.",
             )
-
             return render(
                 request,
                 "accounts/register.html",
-                context,
+                {"form_data": request.POST},
             )
 
-        try:
-            validate_password(
-                password,
-                user=User(
-                    username=username
-                ),
-            )
-
-        except ValidationError as error:
-            for message in error.messages:
-                messages.error(
-                    request,
-                    message,
-                )
-
-            return render(
-                request,
-                "accounts/register.html",
-                context,
-            )
-
-        if not photo_form.is_valid():
-            messages.error(
-                request,
-                (
-                    "تعذر رفع الصورة. "
-                    "راجع الصيغة والحجم."
-                ),
-            )
-
-            return render(
-                request,
-                "accounts/register.html",
-                context,
-            )
-
-        if User.objects.filter(
-            username=username
+        if AccountRegistrationRequest.objects.filter(
+            requested_username__iexact=requested_username,
+            status__in=(
+                AccountRegistrationRequest.Status.PENDING,
+                AccountRegistrationRequest.Status.APPROVED,
+            ),
         ).exists():
             messages.error(
                 request,
-                (
-                    "اسم المستخدم "
-                    "مستخدم مسبقًا."
-                ),
+                "اسم المستخدم مستخدم مسبقًا.",
             )
-
             return render(
                 request,
                 "accounts/register.html",
-                context,
+                {"form_data": request.POST},
             )
 
-        if User.objects.filter(
-            email__iexact=email
+        if User.objects.filter(email__iexact=email).exists():
+            messages.error(
+                request,
+                "البريد الإلكتروني مستخدم مسبقًا.",
+            )
+            return render(
+                request,
+                "accounts/register.html",
+                {"form_data": request.POST},
+            )
+
+        if AccountRegistrationRequest.objects.filter(
+            email__iexact=email,
+            status__in=(
+                AccountRegistrationRequest.Status.PENDING,
+                AccountRegistrationRequest.Status.APPROVED,
+            ),
         ).exists():
             messages.error(
                 request,
                 "البريد الإلكتروني مستخدم مسبقًا.",
             )
-
             return render(
                 request,
                 "accounts/register.html",
-                context,
+                {"form_data": request.POST},
             )
 
-        if (
-            Employee.objects.filter(
-                phone_number=normalized_phone
-            ).exists()
-            or AccountProfile.objects.filter(
-                phone_number=normalized_phone
-            ).exists()
-        ):
+        if Employee.objects.filter(employee_number=employee_number).exists():
+            messages.error(
+                request,
+                "الرقم الوظيفي مسجل مسبقًا.",
+            )
+            return render(
+                request,
+                "accounts/register.html",
+                {"form_data": request.POST},
+            )
+
+        if AccountRegistrationRequest.objects.filter(
+            employee_number=employee_number,
+            status__in=(
+                AccountRegistrationRequest.Status.PENDING,
+                AccountRegistrationRequest.Status.APPROVED,
+            ),
+        ).exists():
+            messages.error(
+                request,
+                "الرقم الوظيفي مسجل مسبقًا.",
+            )
+            return render(
+                request,
+                "accounts/register.html",
+                {"form_data": request.POST},
+            )
+
+        if Employee.objects.filter(phone_number=normalized_phone).exists() or AccountProfile.objects.filter(phone_number=normalized_phone).exists():
             messages.error(
                 request,
                 "رقم الجوال مستخدم مسبقًا.",
             )
-
             return render(
                 request,
                 "accounts/register.html",
-                context,
+                {"form_data": request.POST},
             )
 
-        if Employee.objects.filter(
-            employee_number=employee_number
+        if AccountRegistrationRequest.objects.filter(
+            phone_number=normalized_phone,
+            status__in=(
+                AccountRegistrationRequest.Status.PENDING,
+                AccountRegistrationRequest.Status.APPROVED,
+            ),
         ).exists():
             messages.error(
                 request,
-                (
-                    "الرقم الوظيفي "
-                    "مسجل مسبقًا."
-                ),
+                "رقم الجوال مستخدم مسبقًا.",
             )
-
             return render(
                 request,
                 "accounts/register.html",
-                context,
+                {"form_data": request.POST},
             )
 
         try:
-            with transaction.atomic():
-                name_parts = (
-                    full_name.split(
-                        maxsplit=1
-                    )
-                )
-
-                user = User.objects.create_user(
-                    username=username,
-                    password=password,
-                    email=email,
-                    first_name=(
-                        name_parts[0]
-                    ),
-                    last_name=(
-                        name_parts[1]
-                        if len(name_parts) > 1
-                        else ""
-                    ),
-                )
-
-                Employee.objects.create(
-                    user=user,
-                    full_name=full_name,
-                    employee_number=(
-                        employee_number
-                    ),
-                    operational_section=operational_section,
-                    job_title=job_title,
-                    phone_number=normalized_phone,
-                    email=email,
-                )
-
-                AccountProfile.objects.create(
-                    user=user,
-                    phone_number=normalized_phone,
-                    photo=(
-                        photo_form
-                        .cleaned_data
-                        .get(
-                            "photo"
-                        )
-                    ),
-                )
-
-                if not is_user_2fa_ready(user):
-                    raise ValidationError("لا توجد قناة تحقق ثنائي متاحة للحساب.")
-
+            AccountRegistrationRequest.objects.create(
+                full_name=full_name,
+                employee_number=employee_number,
+                requested_username=requested_username,
+                email=email,
+                phone_number=normalized_phone,
+                gender=gender,
+            )
         except IntegrityError:
             messages.error(
                 request,
-                "تعذر إنشاء الحساب لأن بعض البيانات مستخدمة مسبقًا.",
+                "تعذر إرسال طلب إنشاء الحساب لأن بعض البيانات مستخدمة مسبقًا.",
             )
-
             return render(
                 request,
                 "accounts/register.html",
-                context,
-            )
-
-        except Exception:
-            messages.error(
-                request,
-                (
-                    "حدث خطأ غير متوقع "
-                    "أثناء إنشاء الحساب."
-                ),
-            )
-
-            return render(
-                request,
-                "accounts/register.html",
-                context,
+                {"form_data": request.POST},
             )
 
         messages.success(
             request,
-            (
-                "تم إنشاء الحساب بنجاح، "
-                "يمكنك تسجيل الدخول الآن."
-            ),
+            "تم إرسال طلب إنشاء الحساب بنجاح، وسيتم مراجعته من قبل الإدارة.",
         )
-
-        return redirect(
-            "accounts:login"
-        )
+        return redirect("accounts:login")
 
     return render(
         request,
         "accounts/register.html",
-        _registration_context(
-            photo_form
-        ),
+        {"form_data": {}},
     )
 
 
