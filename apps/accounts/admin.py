@@ -40,9 +40,12 @@ class AccountRegistrationRequestReviewForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["status"].disabled = True
-        self.fields["status"].widget.attrs["readonly"] = True
-        self.fields["status"].required = False
+
+        status_field = self.fields.get("status")
+        if status_field is not None:
+            status_field.disabled = True
+            status_field.widget.attrs["readonly"] = True
+            status_field.required = False
 
         role_queryset = Role.objects.filter(is_active=True).order_by("name")
         self.fields["role"].queryset = role_queryset

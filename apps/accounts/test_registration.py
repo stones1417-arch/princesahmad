@@ -211,6 +211,36 @@ class AccountRegistrationAdminMenuTests(TestCase):
         permitted = self.client.get(reverse("admin:accounts_accountregistrationrequest_changelist"))
         self.assertEqual(permitted.status_code, 200)
 
+    def test_pending_registration_request_change_page_opens_for_authorized_admin(self):
+        user = create_user(
+            username="change-admin",
+            password=self.password,
+            email="change-admin@example.test",
+            is_staff=True,
+        )
+        assign_role_to_user(user=user, role_code="system_admin")
+        self.client.force_login(user)
+
+        session = self.client.session
+        session["admin_two_factor_verified"] = user.pk
+        session.save()
+
+        request_obj = AccountRegistrationRequest.objects.create(
+            full_name="طلب مراجعة",
+            employee_number="EMP-CHANGE-1",
+            requested_username="pending-change-user",
+            email="pending-change-user@example.test",
+            phone_number="+966551234560",
+            gender=AccountRegistrationRequest.Gender.MALE,
+            status=AccountRegistrationRequest.Status.PENDING,
+        )
+
+        response = self.client.get(
+            reverse("admin:accounts_accountregistrationrequest_change", args=[request_obj.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+
 
 @override_settings(ALLOW_PUBLIC_REGISTRATION=False)
 class AdminUserCreationSecurityTests(TestCase):
