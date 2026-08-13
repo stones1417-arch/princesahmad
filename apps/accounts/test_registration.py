@@ -137,6 +137,82 @@ class RegistrationRequestFlowTests(TestCase):
 
 
 @override_settings(ALLOW_PUBLIC_REGISTRATION=False)
+class AccountRegistrationAdminMenuTests(TestCase):
+    password = "StrongTestPassword123!"
+
+    def setUp(self):
+        call_command("setup_roles")
+
+    def test_system_admin_sees_registration_requests_menu_with_pending_count(self):
+        AccountRegistrationRequest.objects.create(
+            full_name="طلب معلق 1",
+            employee_number="EMP-LIST-1",
+            requested_username="pending-register-1",
+            email="pending-register-1@example.test",
+            phone_number="+966551234561",
+            gender=AccountRegistrationRequest.Gender.MALE,
+            status=AccountRegistrationRequest.Status.PENDING,
+        )
+        AccountRegistrationRequest.objects.create(
+            full_name="طلب معتمد",
+            employee_number="EMP-LIST-2",
+            requested_username="approved-register-1",
+            email="approved-register-1@example.test",
+            phone_number="+966551234562",
+            gender=AccountRegistrationRequest.Gender.FEMALE,
+            status=AccountRegistrationRequest.Status.APPROVED,
+        )
+
+        user = create_user(username="menu-admin", password=self.password, email="menu-admin@example.test")
+        assign_role_to_user(user=user, role_code="system_admin")
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("dashboard:index"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "طلبات إنشاء الحساب")
+        self.assertContains(response, "<b>1</b>", html=False)
+        self.assertNotContains(response, "<b>2</b>", html=False)
+
+    def test_regular_user_does_not_see_registration_requests_menu(self):
+        user = create_user(username="normal-user", password=self.password, email="normal-user@example.test")
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("dashboard:index"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "طلبات إنشاء الحساب")
+
+    def test_registration_request_admin_changelist_requires_manage_users_permission(self):
+        user = create_user(
+            username="non-manager",
+            password=self.password,
+            email="non-manager@example.test",
+            is_staff=True,
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("admin:accounts_accountregistrationrequest_changelist"))
+
+        self.assertEqual(response.status_code, 302)
+
+        user_with_permission = create_user(
+            username="manager-user",
+            password=self.password,
+            email="manager-user@example.test",
+            is_staff=True,
+        )
+        assign_role_to_user(user=user_with_permission, role_code="system_admin")
+        self.client.force_login(user_with_permission)
+        session = self.client.session
+        session["admin_two_factor_verified"] = user_with_permission.pk
+        session.save()
+
+        permitted = self.client.get(reverse("admin:accounts_accountregistrationrequest_changelist"))
+        self.assertEqual(permitted.status_code, 200)
+
+
+@override_settings(ALLOW_PUBLIC_REGISTRATION=False)
 class AdminUserCreationSecurityTests(TestCase):
     password = "StrongTestPassword123!"
 

@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from urllib.parse import urlencode
 
+from apps.accounts.models import AccountRegistrationRequest
+from apps.roles.services.access_control import user_has_permission
+from apps.roles.services.permission_registry import PlatformPermissions
 from apps.roles.services.section_context import (
     get_effective_section,
     set_current_section,
@@ -42,3 +45,18 @@ def operational_section_filter(request):
             ],
         ],
     }
+
+
+def account_registration_badges(request):
+    """إحصائيات الطلبات المعلقة لعرضها في القوائم الإدارية."""
+    if not request.user.is_authenticated:
+        return {"account_registration_pending_count": 0}
+
+    if not user_has_permission(request.user, PlatformPermissions.MANAGE_USERS):
+        return {"account_registration_pending_count": 0}
+
+    pending_count = AccountRegistrationRequest.objects.filter(
+        status=AccountRegistrationRequest.Status.PENDING,
+    ).count()
+
+    return {"account_registration_pending_count": pending_count}
