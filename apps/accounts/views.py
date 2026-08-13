@@ -720,6 +720,7 @@ def register_view(
     request,
 ):
     """إرسال طلب إنشاء حساب جديد للمراجعة الإدارية قبل التفعيل."""
+    gender_choices = AccountRegistrationRequest.Gender.choices
 
     if request.user.is_authenticated:
         return redirect(
@@ -958,7 +959,7 @@ def register_view(
     return render(
         request,
         "accounts/register.html",
-        {"form_data": {}},
+        {"form_data": {}, "gender_choices": gender_choices},
     )
 
 

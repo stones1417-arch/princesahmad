@@ -8,50 +8,75 @@
   <style>
     *{box-sizing:border-box}body{margin:0;min-height:100vh;padding:34px 18px;display:grid;place-items:center;font-family:"Segoe UI",Tahoma,sans-serif;background:linear-gradient(145deg,#f7f9f8,#edf2ef);color:#17253f}.register-card{width:min(940px,100%);overflow:hidden;border:1px solid #dce7e2;border-top:5px solid #c9a94e;border-radius:28px;background:#fff;box-shadow:0 24px 70px rgba(20,48,38,.13)}.register-head{padding:28px 34px 22px;display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid #e6ece9;background:linear-gradient(135deg,#fff,#f8fbf9)}.register-head span{color:#a1832d;font-size:11px;font-weight:900}.register-head h1{margin:5px 0;color:#07573f;font-size:28px}.register-head p{margin:0;color:#718078;font-size:12px}.secure-badge{padding:9px 12px;border-radius:999px;background:#eaf6f0;color:#147653;font-size:10px;font-weight:900;white-space:nowrap}.register-form{padding:28px 34px 32px}.form-layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:30px;align-items:start}.photo-section{padding:20px 16px;border:1px solid #dce7e2;border-radius:20px;background:#f8fbf9;text-align:center}.photo-section h2{margin:0 0 4px;color:#164738;font-size:15px}.photo-section>p{margin:0 0 16px;color:#7b8882;font-size:10px}.photo-frame{position:relative;width:120px;height:180px;margin:auto;overflow:hidden;border:4px solid #fff;outline:3px solid #c9a94e;border-radius:16px;background:linear-gradient(145deg,#a2c966,#43a969);box-shadow:0 12px 28px rgba(12,92,64,.18)}.photo-frame img{width:100%;height:100%;display:block;object-fit:cover;object-position:center top}.photo-placeholder{width:100%;height:100%;display:grid;place-items:center;color:#fff}.photo-placeholder svg{width:52px;height:52px;fill:none;stroke:currentColor;stroke-width:1.4}.photo-picker{margin:17px auto 9px;padding:9px 12px;display:flex;align-items:center;justify-content:center;gap:7px;border:1px solid #b9d8cb;border-radius:11px;background:#edf7f2;color:#08714f;font-size:11px;font-weight:900;cursor:pointer}.photo-picker svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8}.profile-photo-input{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important}.photo-note{display:block;color:#829089;font-size:9px;line-height:1.7}.photo-optional{display:inline-block;margin-top:9px;padding:4px 8px;border-radius:999px;background:#fff4d7;color:#8a6b16;font-size:9px;font-weight:900}.photo-error{margin-top:9px;padding:7px;border-radius:8px;background:#fff0ef;color:#b5362f;font-size:9px}.fields-section{display:grid;grid-template-columns:1fr 1fr;gap:17px 16px}.field-group{min-width:0}.field-group.full{grid-column:1/-1}.field-group label{display:flex;justify-content:space-between;margin-bottom:7px;color:#26374f;font-size:12px;font-weight:900}.required{color:#b23c34;font-size:9px}.field,.select-field{width:100%;height:50px;padding:0 14px;border:1px solid #cfdbd6;border-radius:12px;background:#fff;color:#17253f;font-family:inherit;font-size:13px;transition:border .18s ease,box-shadow .18s ease}.field:focus,.select-field:focus{outline:0;border-color:#18815f;box-shadow:0 0 0 4px rgba(24,129,95,.1)}.select-wrap,.password-wrap{position:relative}.select-field{appearance:none;padding-left:42px}.select-wrap svg,.password-toggle{position:absolute;left:14px;top:50%;transform:translateY(-50%)}.select-wrap svg{width:16px;height:16px;fill:none;stroke:#08714f;stroke-width:2;pointer-events:none}.password-wrap .field{padding-left:48px}.password-toggle{width:34px;height:34px;display:grid;place-items:center;border:0;border-radius:9px;background:#eef6f2;color:#08714f;cursor:pointer}.password-toggle svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8}.form-messages{margin-bottom:18px}.form-message{padding:11px 14px;border-radius:10px;background:#fff0ef;color:#a9342e;font-size:11px;font-weight:800}.form-footer{margin-top:25px;padding-top:22px;display:flex;align-items:center;justify-content:space-between;gap:18px;border-top:1px solid #e5ece8}.submit-button{min-width:240px;height:50px;border:0;border-radius:13px;background:linear-gradient(135deg,#08714f,#1f8769);color:#fff;font-family:inherit;font-size:14px;font-weight:950;cursor:pointer;box-shadow:0 10px 22px rgba(8,113,79,.2)}.login-link{color:#68766f;font-size:12px}.login-link a{color:#08714f;font-weight:900;text-decoration:none}@media(max-width:740px){body{padding:16px 10px}.register-head{padding:23px 20px}.secure-badge{display:none}.register-form{padding:22px 18px}.form-layout{grid-template-columns:1fr}.photo-section{max-width:260px;margin:auto;width:100%}.fields-section{grid-template-columns:1fr}.field-group.full{grid-column:auto}.form-footer{align-items:stretch;flex-direction:column}.submit-button{width:100%;min-width:0}.login-link{text-align:center}}
   </style>
+  <link rel="stylesheet" href="{% static 'css/accounts/register.css' %}">
 </head>
 <body>
   <main class="register-card">
     <header class="register-head">
-      <div><span>بوابة الحسابات</span><h1>إنشاء حساب جديد</h1><p>أدخل البيانات الوظيفية ومعلومات الدخول لإنشاء حسابك في منصة أبواب.</p></div>
+      <div>
+        <span>بوابة الحسابات</span>
+        <h1>طلب إنشاء حساب جديد</h1>
+        <p>أدخل بياناتك وسيتم مراجعتها من مدير النظام قبل تفعيل الحساب.</p>
+      </div>
       <div class="secure-badge">تسجيل آمن ومشفّر</div>
     </header>
 
-    <form method="post" enctype="multipart/form-data" class="register-form" novalidate>
+    <form method="post" class="register-form" novalidate>
       {% csrf_token %}
-      {% if messages %}<div class="form-messages">{% for message in messages %}<div class="form-message">{{ message }}</div>{% endfor %}</div>{% endif %}
+      {% if messages %}
+        <div class="form-messages">
+          {% for message in messages %}
+            <div class="form-message">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
 
-      <div class="form-layout">
-        <section class="photo-section" aria-labelledby="photoTitle">
-          <h2 id="photoTitle">الصورة الشخصية</h2><p>ستظهر في بطاقة الحساب والملف الشخصي</p>
-          <div class="photo-frame" id="registerPhotoPreview">
-            <div class="photo-placeholder"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-5 3.5-8 8-8s8 3 8 8"></path></svg></div>
+      <div class="fields-section">
+        <div class="field-group full">
+          <label for="fullName">الاسم الكامل <span class="required">مطلوب</span></label>
+          <input id="fullName" type="text" name="full_name" class="field" value="{{ form_data.full_name|default:'' }}" autocomplete="name" required>
+        </div>
+
+        <div class="field-group">
+          <label for="employeeNumber">الرقم الوظيفي <span class="required">مطلوب</span></label>
+          <input id="employeeNumber" type="text" name="employee_number" class="field" value="{{ form_data.employee_number|default:'' }}" inputmode="numeric" required>
+        </div>
+
+        <div class="field-group">
+          <label for="requestedUsername">اسم المستخدم <span class="required">مطلوب</span></label>
+          <input id="requestedUsername" type="text" name="requested_username" class="field" value="{{ form_data.requested_username|default:'' }}" autocomplete="username" required>
+        </div>
+
+        <div class="field-group">
+          <label for="registerEmail">البريد الإلكتروني <span class="required">مطلوب</span></label>
+          <input id="registerEmail" type="email" name="email" class="field" value="{{ form_data.email|default:'' }}" autocomplete="email" required>
+        </div>
+
+        <div class="field-group">
+          <label for="registerPhone">رقم الجوال <span class="required">مطلوب</span></label>
+          <input id="registerPhone" type="tel" name="phone_number" class="field" value="{{ form_data.phone_number|default:'' }}" autocomplete="tel" inputmode="tel" dir="ltr" placeholder="+9665XXXXXXXX" required>
+          <small class="field-note">استخدم الصيغة الدولية مثل +9665XXXXXXXX.</small>
+        </div>
+
+        <div class="field-group full">
+          <label for="gender">الجنس <span class="required">مطلوب</span></label>
+          <div class="select-wrap">
+            <select id="gender" name="gender" class="select-field" required>
+              <option value="">اختر الجنس</option>
+              {% for value, label in gender_choices %}
+                <option value="{{ value }}" {% if form_data.gender == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            <svg viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"></path></svg>
           </div>
-          <label class="photo-picker" for="id_photo"><svg viewBox="0 0 24 24"><path d="M4 7h3l2-3h6l2 3h3v13H4Z"></path><circle cx="12" cy="13" r="4"></circle></svg> اختيار صورة 4×6</label>
-          {{ photo_form.photo }}
-          <small class="photo-note">JPG أو PNG أو WEBP<br>الحد الأقصى 5 ميجابايت</small>
-          <span class="photo-optional">اختياري</span>
-          {% if photo_form.photo.errors %}<div class="photo-error">{{ photo_form.photo.errors|striptags }}</div>{% endif %}
-        </section>
-
-        <section class="fields-section">
-          <div class="field-group full"><label for="fullName">الاسم الكامل <span class="required">مطلوب</span></label><input id="fullName" type="text" name="full_name" class="field" value="{{ form_data.full_name|default:'' }}" autocomplete="name" required></div>
-          <div class="field-group"><label for="employeeNumber">الرقم الوظيفي <span class="required">مطلوب</span></label><input id="employeeNumber" type="text" name="employee_number" class="field" value="{{ form_data.employee_number|default:'' }}" inputmode="numeric" required></div>
-          <div class="field-group"><label for="username">اسم المستخدم <span class="required">مطلوب</span></label><input id="username" type="text" name="username" class="field" value="{{ form_data.username|default:'' }}" autocomplete="username" required></div>
-          <div class="field-group full"><label for="operationalSection">القسم التشغيلي <span class="required">مطلوب</span></label><div class="select-wrap"><select id="operationalSection" name="operational_section" class="select-field" required><option value="">اختر القسم التشغيلي</option>{% for value, label in operational_section_choices %}<option value="{{ value }}" {% if form_data.operational_section == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><svg viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"></path></svg></div></div>
-          <div class="field-group full"><label for="jobTitle">المسمى الوظيفي <span class="required">مطلوب</span></label><div class="select-wrap"><select id="jobTitle" name="job_title" class="select-field" required><option value="">اختر المسمى الوظيفي</option>{% for value, label in job_title_choices %}<option value="{{ value }}" {% if form_data.job_title == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><svg viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"></path></svg></div></div>
-          <div class="field-group"><label for="registerEmail">البريد الإلكتروني الشخصي <span class="required">مطلوب</span></label><input id="registerEmail" type="email" name="email" class="field" value="{{ form_data.email|default:'' }}" autocomplete="email" required></div>
-          <div class="field-group"><label for="registerPhone">رقم الجوال <span class="required">مطلوب</span></label><input id="registerPhone" type="tel" name="phone_number" class="field" value="{{ form_data.phone_number|default:'' }}" autocomplete="tel" inputmode="tel" dir="ltr" placeholder="+9665XXXXXXXX" required><small class="field-note">استخدم الصيغة الدولية مثل +9665XXXXXXXX.</small></div>
-          <div class="field-group full"><label for="registerPassword">كلمة المرور <span class="required">مطلوب</span></label><div class="password-wrap"><input type="password" name="password" id="registerPassword" class="field" autocomplete="new-password" minlength="8" required><button type="button" class="password-toggle" id="passwordToggle" aria-label="إظهار كلمة المرور"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg></button></div></div>
-        </section>
+        </div>
       </div>
 
-      <footer class="form-footer"><div class="login-link">لديك حساب بالفعل؟ <a href="{% url 'accounts:login' %}">تسجيل الدخول</a></div><button type="submit" class="submit-button">إنشاء الحساب</button></footer>
+      <footer class="form-footer">
+        <div class="login-link">لديك حساب بالفعل؟ <a href="{% url 'accounts:login' %}">تسجيل الدخول</a></div>
+        <button type="submit" class="submit-button">إرسال الطلب</button>
+      </footer>
     </form>
   </main>
-  {{ female_job_title_labels|json_script:"register-female-job-title-labels" }}
-  <script src="{% static 'js/accounts/register.js' %}"></script>
-  <script>
-    (()=>{const input=document.getElementById('id_photo'),preview=document.getElementById('registerPhotoPreview'),toggle=document.getElementById('passwordToggle'),password=document.getElementById('registerPassword');if(input&&preview){input.addEventListener('change',()=>{const file=input.files&&input.files[0];if(!file)return;const image=document.createElement('img');image.alt='معاينة الصورة الشخصية';image.src=URL.createObjectURL(file);image.onload=()=>URL.revokeObjectURL(image.src);preview.replaceChildren(image)})}if(toggle&&password){toggle.addEventListener('click',()=>{const show=password.type==='password';password.type=show?'text':'password';toggle.setAttribute('aria-label',show?'إخفاء كلمة المرور':'إظهار كلمة المرور')})}})();
-  </script>
 </body>
 </html>
