@@ -378,6 +378,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.core.middleware.AdministrativeTwoFactorMiddleware",
     "apps.core.middleware.OperationalSectionMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -1102,6 +1103,11 @@ if not DEBUG:
     SECURE_SSL_REDIRECT = env_bool(
         "DJANGO_SECURE_SSL_REDIRECT",
         True,
+    )
+
+    SECURE_PROXY_SSL_HEADER = (
+        "HTTP_X_FORWARDED_PROTO",
+        "https",
     )
 
     SECURE_HSTS_SECONDS = env_int(
