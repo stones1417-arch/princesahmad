@@ -1,8 +1,8 @@
+from pathlib import Path
+
 from django import forms
 
-from apps.core.file_security import (
-    validate_image_content,
-)
+from apps.core.file_security import safe_uploaded_basename, validate_image_content
 
 from .models import AccountProfile
 
@@ -16,7 +16,7 @@ class ProfilePhotoForm(forms.ModelForm):
         )
 
         widgets = {
-            "photo": forms.ClearableFileInput(
+            "photo": forms.FileInput(
                 attrs={
                     "accept": (
                         "image/jpeg,"
@@ -40,6 +40,25 @@ class ProfilePhotoForm(forms.ModelForm):
 
         if not photo:
             return photo
+
+        name = getattr(photo, "name", "") or ""
+        try:
+            name = safe_uploaded_basename(name)
+        except forms.ValidationError:
+            raise
+        except Exception as error:
+            raise forms.ValidationError("اسم الملف غير آمن.") from error
+
+        extension = Path(name).suffix.lower()
+        allowed_extensions = {".jpg", ".jpeg", ".png", ".webp"}
+
+        if extension not in allowed_extensions:
+            raise forms.ValidationError(
+                "الصيغ المسموحة: JPG أو JPEG أو PNG أو WEBP."
+            )
+
+        if photo.size > 5 * 1024 * 1024:
+            raise forms.ValidationError("حجم الصورة يجب ألا يتجاوز 5 ميجابايت.")
 
         content_type = getattr(
             photo,

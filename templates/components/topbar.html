@@ -20,9 +20,9 @@
         <details class="topbar-account-card">
             <summary class="topbar-account-trigger" aria-label="فتح قائمة الحساب">
                 <div class="topbar-account-avatar">
-                    {% if request.user.account_profile.photo %}
+                    {% if request.user.account_profile and request.user.account_profile.profile_image_url %}
                         <img
-                            src="{{ request.user.account_profile.photo.url }}"
+                            src="{{ request.user.account_profile.profile_image_url }}"
                             alt="الصورة الشخصية للمستخدم"
                             class="topbar-account-avatar-image"
                         >
@@ -48,7 +48,7 @@
                                 مدير النظام
                             {% elif request.user.is_staff %}
                                 موظف إداري
-                            {% elif request.user.employee.job_title %}
+                            {% elif request.user.employee and request.user.employee.job_title %}
                                 {{ request.user.employee.get_job_title_display }}
                             {% else %}
                                 مستخدم النظام

@@ -1,7 +1,28 @@
+from pathlib import Path
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
+
+
+def _normalize_uploaded_media_name(name: str | None) -> str:
+    """Normalize legacy storage names such as media/profiles/abc.png."""
+    if not name:
+        return ""
+
+    normalized = str(name).replace("\\", "/").lstrip("/")
+    if normalized.startswith("media/"):
+        normalized = normalized[len("media/") :]
+
+    cleaned = Path(normalized).as_posix()
+    if cleaned in {".", ""}:
+        return ""
+
+    if ".." in Path(cleaned).parts:
+        return ""
+
+    return cleaned
 
 
 def validate_profile_photo_size(image):
@@ -72,6 +93,24 @@ class AccountProfile(models.Model):
     class Meta:
         verbose_name = "ملف حساب"
         verbose_name_plural = "ملفات الحسابات"
+
+    @property
+    def profile_image_url(self) -> str:
+        """Return a storage-aware URL only when the image exists and is safe."""
+        if not self.photo:
+            return ""
+
+        photo_name = _normalize_uploaded_media_name(self.photo.name)
+        if not photo_name:
+            return ""
+
+        try:
+            storage = self.photo.storage
+            if hasattr(storage, "exists") and not storage.exists(photo_name):
+                return ""
+            return storage.url(photo_name)
+        except Exception:
+            return ""
 
     def clean(self):
         super().clean()

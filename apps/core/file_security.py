@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from zipfile import BadZipFile, ZipFile
 
 from django.core.exceptions import ValidationError
@@ -11,6 +11,36 @@ IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 OFFICE_ZIP_EXTENSIONS = {".docx", ".xlsx"}
 OLE_EXTENSIONS = {".doc", ".xls"}
 OLE_SIGNATURE = bytes.fromhex("D0CF11E0A1B11AE1")
+
+
+def safe_uploaded_basename(name: str | None) -> str:
+    """Reject traversal-like and directory-style uploaded filenames."""
+    raw_name = (name or "").strip()
+    if not raw_name:
+        return ""
+
+    normalized = raw_name.replace("\\", "/")
+    if normalized in {".", ".."}:
+        raise ValidationError("اسم الملف غير آمن.")
+
+    if (
+        normalized.startswith("/")
+        or normalized.startswith("./")
+        or normalized.startswith("../")
+        or normalized.endswith("/..")
+        or "/../" in normalized
+        or ".." in PurePosixPath(normalized).parts
+    ):
+        raise ValidationError("اسم الملف غير آمن.")
+
+    if "/" in normalized or "\\" in raw_name:
+        raise ValidationError("اسم الملف غير آمن.")
+
+    basename = PurePosixPath(normalized).name
+    if not basename or basename in {".", ".."}:
+        raise ValidationError("اسم الملف غير آمن.")
+
+    return basename
 
 
 def _rewind(upload) -> None:
@@ -36,7 +66,8 @@ def validate_image_content(upload) -> None:
 
 def validate_business_attachment(upload) -> None:
     """Validate signatures for supported announcement attachment formats."""
-    extension = Path(upload.name).suffix.lower()
+    safe_name = safe_uploaded_basename(getattr(upload, "name", ""))
+    extension = Path(safe_name).suffix.lower()
     _rewind(upload)
     header = upload.read(16)
     _rewind(upload)
