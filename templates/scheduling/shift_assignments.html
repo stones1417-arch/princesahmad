@@ -35,40 +35,6 @@
       لا توجد وردية نشطة حاليًا. فعّل وردية أولًا من صفحة حالات الورديات.
     </div>
   {% else %}
-    <section class="assign-kpis" aria-label="ملخص تسكين الوردية">
-      <article class="assign-kpi assign-kpi--total">
-        <span class="assign-kpi__icon" aria-hidden="true">👥</span>
-        <div>
-          <strong>{{ assignments|length }}</strong>
-          <span>إجمالي المسكنين</span>
-        </div>
-      </article>
-
-      <article class="assign-kpi assign-kpi--success">
-        <span class="assign-kpi__icon" aria-hidden="true">✓</span>
-        <div>
-          <strong>{{ confirmed_count|default:0 }}</strong>
-          <span>المؤكدون</span>
-        </div>
-      </article>
-
-      <article class="assign-kpi assign-kpi--info">
-        <span class="assign-kpi__icon" aria-hidden="true">＋</span>
-        <div>
-          <strong>{{ available_employees|length }}</strong>
-          <span>المتاحون للتسكين</span>
-        </div>
-      </article>
-
-      <article class="assign-kpi assign-kpi--warning">
-        <span class="assign-kpi__icon" aria-hidden="true">◷</span>
-        <div>
-          <strong>{{ active_shift.shift_type.name }}</strong>
-          <span>الوردية الحالية</span>
-        </div>
-      </article>
-    </section>
-
     <section class="enterprise-card assignment-create-card" id="assignmentCreateCard">
       <header class="enterprise-card__header">
         <div class="enterprise-card__title-group">
