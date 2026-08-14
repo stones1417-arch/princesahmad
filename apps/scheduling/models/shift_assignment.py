@@ -116,6 +116,11 @@ class ShiftAssignment(models.Model):
 
         errors: dict[str, str] = {}
 
+        if not self.shift_plan_id:
+            errors["shift_plan"] = (
+                "يجب اختيار وردية قبل تسكين الموظف."
+            )
+
         if self.shift_plan_id:
             shift_plan = self.shift_plan
 
@@ -123,6 +128,16 @@ class ShiftAssignment(models.Model):
                 errors["shift_plan"] = (
                     "لا يمكن تسكين موظف في وردية منتهية."
                 )
+
+            if not getattr(shift_plan, "date", None):
+                errors["shift_plan"] = (
+                    "يجب تحديد تاريخ الوردية قبل التسكين."
+                )
+
+        if not self.employee_id:
+            errors["employee"] = (
+                "يجب اختيار الموظف قبل التسكين."
+            )
 
         if self.employee_id:
             employee = self.employee
@@ -158,6 +173,33 @@ class ShiftAssignment(models.Model):
                 errors["employee"] = (
                     "الموظف مسكن مسبقًا في هذه الوردية."
                 )
+
+            candidate_range = self.shift_plan.get_datetime_range()
+            if candidate_range is not None:
+                candidate_start, candidate_end = candidate_range
+                existing_assignments = (
+                    ShiftAssignment.objects
+                    .exclude(pk=self.pk)
+                    .filter(
+                        employee_id=self.employee_id,
+                    )
+                    .select_related("shift_plan")
+                )
+
+                for assignment in existing_assignments:
+                    other_range = assignment.shift_plan.get_datetime_range()
+                    if other_range is None:
+                        continue
+
+                    other_start, other_end = other_range
+                    if (
+                        candidate_start < other_end
+                        and candidate_end > other_start
+                    ):
+                        errors["employee"] = (
+                            "الموظف لديه وردية متعارضة في نفس الفترة الزمنية."
+                        )
+                        break
 
         if errors:
             raise ValidationError(errors)

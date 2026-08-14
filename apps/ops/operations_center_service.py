@@ -3,9 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from django.db.models import Prefetch
+from django.core.exceptions import ValidationError
 
 from apps.distribution.models import DoorAssignment
+from apps.locations.door_directions import get_official_door_direction
 from apps.locations.models import Door
 from apps.scheduling.models import ShiftPlan
 
@@ -140,30 +141,27 @@ class OperationsCenterService:
 
     @staticmethod
     def direction_for_number(
-        door_number: int,
+        door_number: object,
     ) -> tuple[str, str]:
         """
-        تحديد الجهة حسب رقم الباب.
+        تحديد الجهة حسب رقم الباب باستخدام القواعد الرسمية النصية.
         """
+        try:
+            direction = get_official_door_direction(door_number)
+        except ValidationError:
+            return (
+                "other",
+                "غير مصنف",
+            )
 
-        for (
-            key,
-            label,
-            first_number,
-            last_number,
-        ) in DIRECTION_RULES:
-
-            if (
-                first_number
-                <= door_number
-                <= last_number
-            ):
-                return key, label
-
-        return (
-            "other",
-            "غير مصنف",
-        )
+        labels = {
+            "south": "الجهة الجنوبية",
+            "west": "الجهة الغربية",
+            "north": "الجهة الشمالية",
+            "east": "الجهة الشرقية",
+            "southeast": "الجهة الجنوبية الشرقية",
+        }
+        return direction, labels.get(direction, "غير مصنف")
 
     # ======================================================
     # إنشاء هيكل الجهات
@@ -211,13 +209,12 @@ class OperationsCenterService:
             Door.objects
             .filter(
                 is_active=True,
-                door_number__gte=1,
-                door_number__lte=41,
             )
             .select_related(
                 "zone",
             )
             .order_by(
+                "sort_order",
                 "door_number",
             )
         )
@@ -284,8 +281,6 @@ class OperationsCenterService:
                 .filter(
                     shift_plan=active_shift,
                     is_active=True,
-                    door_number__gte=1,
-                    door_number__lte=41,
                 )
                 .select_related(
                     "supervisor",
@@ -293,6 +288,7 @@ class OperationsCenterService:
                     "shift_plan__shift_type",
                 )
                 .order_by(
+                    "sort_order",
                     "door_number",
                 )
             )
@@ -304,8 +300,6 @@ class OperationsCenterService:
                 DoorCurrentState.objects
                 .filter(
                     door__is_active=True,
-                    door__door_number__gte=1,
-                    door__door_number__lte=41,
                 )
                 .select_related(
                     "door",

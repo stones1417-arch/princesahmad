@@ -10,7 +10,6 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from apps.core.notification_service import NotificationService
-from apps.core.tasks import send_sms_task
 from apps.communications.models import CommunicationLog
 from apps.dashboard.activity_logger import log_activity
 from apps.dashboard.models import SystemActivityLog
@@ -20,12 +19,13 @@ from apps.roles.services.section_access import (
     can_manage_section,
     filter_assignments_for_user,
     filter_doors_for_user,
+    filter_employees_for_user,
     get_allowed_sections,
     has_institutional_scope,
 )
 from apps.roles.services.access_control import user_has_permission
 from apps.roles.services.permission_registry import PlatformPermissions
-from apps.scheduling.models import ShiftPlan
+from apps.scheduling.models import ShiftAssignment, ShiftPlan
 from apps.audit.models import AssignmentHistory
 
 from .models import DoorAssignment
@@ -162,8 +162,6 @@ def distribution_dashboard_view(request):
                 shift_plan=active_shift,
                 is_active=True,
                 door__is_active=True,
-                door__door_number__gte=1,
-                door__door_number__lte=41,
             )
             .exclude(door__name__iexact="السلام")
             .order_by("door__door_number", "-is_supervisor", "employee__employee_number")
@@ -203,13 +201,21 @@ def distribution_dashboard_view(request):
                 for log in assignment.assignment_message_logs
             }
 
-        available_ids = [
-            employee.id
-            for employee in DistributionService.eligible_employees(shift_plan=active_shift)
-        ]
+        assignment_employee_ids = (
+            ShiftAssignment.objects
+            .filter(
+                shift_plan=active_shift,
+            )
+            .values_list("employee_id", flat=True)
+        )
         available_employees = (
             Employee.objects
-            .filter(id__in=available_ids)
+            .filter(
+                id__in=assignment_employee_ids,
+                is_active=True,
+                work_status=Employee.WorkStatus.ACTIVE,
+                can_work_on_doors=True,
+            )
             .order_by("employee_number")
         )
 

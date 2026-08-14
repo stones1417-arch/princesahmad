@@ -725,10 +725,10 @@ def shift_assignment_list_view(
 ):
     """
     عرض الموظفين المسكنين
-    في الوردية النشطة.
+    في الوردية النشطة أو في وردية محددة من القائمة.
     """
     _require_scheduling_scope(request, PlatformPermissions.VIEW_SHIFTS)
-    active_shift = (
+    shift_queryset = (
         ShiftPlan.objects
         .select_related(
             "shift_type",
@@ -736,22 +736,22 @@ def shift_assignment_list_view(
             "seasonal_template",
         )
         .filter(
-            is_active=True
+            is_finished=False,
         )
-        .first()
+        .order_by(
+            "date",
+            "shift_type__start_time",
+            "shift_type__id",
+        )
     )
+    active_shift = shift_queryset.filter(is_active=True).first()
+    selected_shift = active_shift or shift_queryset.first()
 
-    assignments = (
-        ShiftAssignment.objects.none()
-    )
-
-    available_employees = (
-        Employee.objects.none()
-    )
-
+    assignments = ShiftAssignment.objects.none()
+    available_employees = Employee.objects.none()
     confirmed_count = 0
 
-    if active_shift:
+    if selected_shift:
         assignments = (
             _scoped_assignments(request.user)
             .select_related(
@@ -760,7 +760,7 @@ def shift_assignment_list_view(
                 "shift_plan__shift_type",
             )
             .filter(
-                shift_plan=active_shift
+                shift_plan=selected_shift,
             )
             .order_by(
                 "role",
@@ -771,42 +771,60 @@ def shift_assignment_list_view(
         available_employees = (
             (filter_employees_for_user(Employee.objects, request.user) if not request.user.is_superuser else Employee.objects)
             .filter(
-                is_active=True
+                is_active=True,
+                work_status=Employee.WorkStatus.ACTIVE,
+                can_work_on_doors=True,
             )
             .exclude(
-                shift_assignments__shift_plan=(
-                    active_shift
-                )
+                shift_assignments__shift_plan=selected_shift,
             )
             .order_by(
-                "employee_number"
+                "employee_number",
             )
+            .distinct()
         )
 
         confirmed_count = (
-            assignments
-            .filter(
-                is_confirmed=True
+            assignments.filter(
+                is_confirmed=True,
+            ).count()
+        )
+
+    assignment_groups = []
+    for shift in shift_queryset:
+        shift_assignments = (
+            _scoped_assignments(request.user)
+            .select_related(
+                "employee",
+                "shift_plan",
+                "shift_plan__shift_type",
             )
-            .count()
+            .filter(
+                shift_plan=shift,
+            )
+            .order_by(
+                "role",
+                "employee__employee_number",
+            )
+        )
+        assignment_groups.append(
+            {
+                "shift": shift,
+                "assignments": shift_assignments,
+            }
         )
 
     return render(
         request,
         "scheduling/shift_assignments.html",
         {
-            "active_shift": (
-                active_shift
-            ),
-            "assignments": (
-                assignments
-            ),
-            "available_employees": (
-                available_employees
-            ),
-            "confirmed_count": (
-                confirmed_count
-            ),
+            "active_shift": active_shift,
+            "selected_shift": selected_shift,
+            "assignments": assignments,
+            "available_employees": available_employees,
+            "confirmed_count": confirmed_count,
+            "assignment_groups": assignment_groups,
+            "shift_choices": list(shift_queryset),
             "role_choices": (
                 ShiftAssignment
                 .OperationalRole
@@ -833,7 +851,7 @@ def shift_assignment_create_view(
     request,
 ):
     """
-    تسكين موظف في الوردية النشطة.
+    تسكين موظف في وردية محددة بشكل صريح.
     """
     _require_scheduling_scope(request, PlatformPermissions.ASSIGN_EMPLOYEES)
     active_shift = (
@@ -842,20 +860,30 @@ def shift_assignment_create_view(
             "shift_type"
         )
         .filter(
-            is_active=True
+            is_active=True,
+            is_finished=False,
         )
         .first()
     )
 
-    if not active_shift:
+    shift_plan_id = (
+        request.POST.get("shift_plan_id")
+        or request.POST.get("shift_id")
+        or ""
+    ).strip()
+
+    if not shift_plan_id.isdigit():
         messages.error(
             request,
-            "لا توجد وردية نشطة",
+            "يجب اختيار وردية صحيحة قبل التسكين.",
         )
+        return redirect("scheduling:assignments")
 
-        return redirect(
-            "scheduling:assignments"
-        )
+    shift_plan = get_object_or_404(
+        ShiftPlan.objects.select_related("shift_type"),
+        pk=int(shift_plan_id),
+        is_finished=False,
+    )
 
     employee_id = (
         request.POST.get(
@@ -909,7 +937,7 @@ def shift_assignment_create_view(
     assignment_exists = (
         ShiftAssignment.objects
         .filter(
-            shift_plan=active_shift,
+            shift_plan=shift_plan,
             employee=employee,
         )
         .exists()
@@ -942,7 +970,7 @@ def shift_assignment_create_view(
         role_exists = (
             ShiftAssignment.objects
             .filter(
-                shift_plan=active_shift,
+                shift_plan=shift_plan,
                 role=role,
             )
             .exists()
@@ -967,7 +995,7 @@ def shift_assignment_create_view(
             assignment = (
                 ShiftAssignment.objects
                 .create(
-                    shift_plan=active_shift,
+                    shift_plan=shift_plan,
                     employee=employee,
                     role=role,
                     notes=notes,
@@ -975,7 +1003,7 @@ def shift_assignment_create_view(
             )
 
             auto_assign_employee_to_door(
-                shift_plan=active_shift,
+                shift_plan=shift_plan,
                 employee=employee,
             )
 
@@ -1017,6 +1045,7 @@ def shift_assignment_create_view(
         (
             f"تم تسكين "
             f"{assignment.employee.full_name} "
+            f"في وردية {shift_plan.shift_type.name} "
             f"بدور "
             f"{assignment.get_role_display()}"
         ),

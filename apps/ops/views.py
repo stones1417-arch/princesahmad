@@ -2,13 +2,15 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Case, Count, IntegerField, Q, Value, When
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from io import BytesIO
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
+
+from apps.locations.models import Door
 
 from apps.dashboard.models import SystemActivityLog
 from apps.audit.models import DoorStateHistory
@@ -242,50 +244,53 @@ def door_status_view(request):
     _require_ops_permission(request, PlatformPermissions.VIEW_DOORS)
     active_shift = _get_active_shift()
 
-    door_shifts = DoorShift.objects.none()
+    DoorService.ensure_current_states_for_catalog()
 
+    official_doors = list(
+        Door.objects.filter(is_active=True)
+        .order_by("sort_order", "door_number")
+        .select_related("zone")
+    )
+
+    door_shift_map = {}
     if active_shift:
-        door_shifts = (
-            _scoped_by_section(DoorShift.objects, request.user)
-            .filter(
-                shift_plan=active_shift,
-                is_active=True,
-            )
-            .select_related(
-                "supervisor",
-                "shift_plan",
-            )
-            .annotate(
-                open_incidents_count=Count(
-                    "incidents",
-                    filter=Q(incidents__status__in=[
-                        Incident.Status.NEW,
-                        Incident.Status.IN_PROGRESS,
-                        Incident.Status.FORWARDED,
-                    ]),
-                    distinct=True,
-                ),
-                open_maintenance_count=Count(
-                    "maintenance_requests",
-                    filter=Q(maintenance_requests__status__in=[
-                        MaintenanceRequest.Status.NEW,
-                        MaintenanceRequest.Status.APPROVED,
-                        MaintenanceRequest.Status.ASSIGNED,
-                        MaintenanceRequest.Status.IN_PROGRESS,
-                        MaintenanceRequest.Status.OPEN,
-                    ]),
-                    distinct=True,
-                ),
-            )
-            .order_by("door_number")
-        )
-
-        for door_shift in door_shifts:
-            door_shift.direction_key, door_shift.direction_label = (
-                OperationsCenterService.direction_for_number(
-                    door_shift.door_number
+        door_shift_map = {
+            item.door_number: item
+            for item in (
+                _scoped_by_section(DoorShift.objects, request.user)
+                .filter(
+                    shift_plan=active_shift,
+                    is_active=True,
                 )
+                .select_related(
+                    "supervisor",
+                    "shift_plan",
+                )
+                .annotate(
+                    open_incidents_count=Count(
+                        "incidents",
+                        filter=Q(incidents__status__in=[
+                            Incident.Status.NEW,
+                            Incident.Status.IN_PROGRESS,
+                            Incident.Status.FORWARDED,
+                        ]),
+                        distinct=True,
+                    ),
+                    open_maintenance_count=Count(
+                        "maintenance_requests",
+                        filter=Q(maintenance_requests__status__in=[
+                            MaintenanceRequest.Status.NEW,
+                            MaintenanceRequest.Status.APPROVED,
+                            MaintenanceRequest.Status.ASSIGNED,
+                            MaintenanceRequest.Status.IN_PROGRESS,
+                            MaintenanceRequest.Status.OPEN,
+                        ]),
+                        distinct=True,
+                    ),
+                )
+                .order_by("door_number")
             )
+        }
 
     current_states = (
         DoorCurrentState.objects
@@ -302,35 +307,67 @@ def door_status_view(request):
             "door__door_number",
         )
     )
+    current_state_map = {item.door_id: item for item in current_states}
+
+    visible_door_rows = []
+    for door in official_doors:
+        active_door_shift = door_shift_map.get(door.door_number)
+        current_state = current_state_map.get(door.id)
+        state = (
+            current_state.state if current_state else (
+                active_door_shift.state if active_door_shift else DoorShift.DoorState.CLOSED
+            )
+        )
+        notes = (
+            current_state.notes if current_state else (
+                active_door_shift.notes if active_door_shift else ""
+            )
+        )
+        updated_at = (
+            current_state.updated_at if current_state else (
+                active_door_shift.updated_at if active_door_shift else None
+            )
+        )
+
+        display_shift = active_door_shift or DoorShift(
+            door_number=door.door_number,
+            state=state,
+            notes=notes,
+            sort_order=door.sort_order,
+            is_active=True,
+        )
+        display_shift.direction_key, display_shift.direction_label = (
+            OperationsCenterService.direction_for_number(door.door_number)
+        )
+        display_shift.supervisor = getattr(active_door_shift, "supervisor", None)
+        display_shift.updated_at = updated_at
+        display_shift.open_incidents_count = 0
+        display_shift.open_maintenance_count = 0
+        if active_door_shift is not None:
+            display_shift.open_incidents_count = getattr(active_door_shift, "open_incidents_count", 0)
+            display_shift.open_maintenance_count = getattr(active_door_shift, "open_maintenance_count", 0)
+        visible_door_rows.append(display_shift)
+
+    open_count = sum(1 for row in visible_door_rows if row.state == DoorShift.DoorState.OPEN)
+    closed_count = sum(1 for row in visible_door_rows if row.state == DoorShift.DoorState.CLOSED)
+    maintenance_count = sum(1 for row in visible_door_rows if row.state == DoorShift.DoorState.MAINTENANCE)
+    secured_count = sum(1 for row in visible_door_rows if row.state == DoorShift.DoorState.SECURED)
+    total_count = len(visible_door_rows)
+    readiness_rate = round(
+        ((open_count + secured_count) / total_count * 100),
+        1,
+    ) if total_count else 0
 
     context = {
         "active_shift": active_shift,
-        "active_door_shifts": door_shifts,
+        "active_door_shifts": visible_door_rows,
         "current_door_states": current_states,
-
-        "open_count": current_states.filter(
-            state=DoorShift.DoorState.OPEN,
-        ).count(),
-
-        "closed_count": current_states.filter(
-            state=DoorShift.DoorState.CLOSED,
-        ).count(),
-
-        "maintenance_count": current_states.filter(
-            state=DoorShift.DoorState.MAINTENANCE,
-        ).count(),
-
-        "secured_count": current_states.filter(
-            state=DoorShift.DoorState.SECURED,
-        ).count(),
-        "total_count": current_states.count(),
-        "readiness_rate": round(
-            current_states.filter(state__in=[
-                DoorShift.DoorState.OPEN,
-                DoorShift.DoorState.SECURED,
-            ]).count() / current_states.count() * 100,
-            1,
-        ) if current_states.count() else 0,
+        "open_count": open_count,
+        "closed_count": closed_count,
+        "maintenance_count": maintenance_count,
+        "secured_count": secured_count,
+        "total_count": total_count,
+        "readiness_rate": readiness_rate,
         "recent_state_changes": DoorStateHistory.objects.select_related(
             "door_shift", "changed_by"
         ).filter(
@@ -1012,8 +1049,6 @@ def incidents_view(request):
             .filter(
                 shift_plan=active_shift,
                 is_active=True,
-                door_number__gte=1,
-                door_number__lte=41,
             )
             .select_related(
                 "shift_plan",

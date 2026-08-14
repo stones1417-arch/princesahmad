@@ -4,12 +4,14 @@ from datetime import time
 
 from django.core.exceptions import ValidationError
 from django.test import TestCase
+from django.urls import reverse
 from django.utils import timezone
 
 from apps.core.tests.factories import (
     create_door,
     create_shift_plan,
     create_shift_type,
+    create_user,
 )
 from apps.ops.models import (
     DoorCurrentState,
@@ -133,12 +135,12 @@ class DoorCurrentStateTests(TestCase):
         )
 
         self.door = create_door(
-            door_number=6,
+            door_number="6B",
         )
 
         self.door_shift = DoorShift.objects.create(
             shift_plan=self.shift,
-            door_number=6,
+            door_number="6B",
             state=DoorShift.DoorState.OPEN,
             is_active=True,
         )
@@ -201,3 +203,19 @@ class DoorCurrentStateTests(TestCase):
             current_state.update_source,
             DoorCurrentState.UpdateSource.MAINTENANCE,
         )
+
+    def test_door_status_view_lists_official_doors_even_without_active_shift(self):
+        admin = create_user(username="ops_admin", is_superuser=True)
+        self.client.force_login(admin)
+
+        create_door(door_number="21")
+        create_door(door_number="22")
+        create_door(door_number="23")
+
+        response = self.client.get(reverse("ops:doors"))
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode("utf-8")
+        self.assertIn("باب 21", content)
+        self.assertIn("باب 22", content)
+        self.assertIn("باب 23", content)

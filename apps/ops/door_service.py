@@ -229,6 +229,24 @@ class DoorService:
     """
 
     @staticmethod
+    def ensure_current_states_for_catalog():
+        """Ensure each active official door has a current-state row without overwriting existing data."""
+        from apps.locations.models import Door
+        from apps.ops.models import DoorCurrentState, DoorShift
+
+        for door in Door.objects.filter(is_active=True).order_by("sort_order", "door_number"):
+            DoorCurrentState.objects.get_or_create(
+                door=door,
+                defaults={
+                    "state": DoorShift.DoorState.CLOSED,
+                    "notes": "",
+                    "current_shift": None,
+                    "updated_by": None,
+                    "update_source": DoorCurrentState.UpdateSource.SYSTEM,
+                },
+            )
+
+    @staticmethod
     def change_state(
         *,
         door_shift,

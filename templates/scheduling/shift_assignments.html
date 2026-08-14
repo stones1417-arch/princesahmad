@@ -90,6 +90,18 @@
           </div>
 
           <div class="form-field">
+            <label for="assignmentShift">الوردية <small>مطلوب</small></label>
+            <select id="assignmentShift" name="shift_plan_id" required {% if not shift_choices %}disabled{% endif %}>
+              <option value="">اختر الوردية</option>
+              {% for shift in shift_choices %}
+                <option value="{{ shift.id }}" {% if selected_shift and shift.id == selected_shift.id %}selected{% endif %}>
+                  {{ shift.shift_type.name }} - {{ shift.date|date:"Y-m-d" }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-field">
             <label for="assignmentRole">الدور التشغيلي <small>مطلوب</small></label>
             <select id="assignmentRole" name="role" required {% if not available_employees %}disabled{% endif %}>
               {% for value,label in role_choices %}
@@ -102,7 +114,7 @@
 
           <div class="form-field notes">
             <label for="assignmentNotes">ملاحظات <small class="optional">اختياري</small></label>
-            <input id="assignmentNotes" name="notes" maxlength="500" placeholder="ملاحظات تساعد فريق التشغيل" {% if not available_employees %}disabled{% endif %}>
+            <textarea id="assignmentNotes" name="notes" maxlength="500" rows="1" placeholder="تفاصيل إضافية اختيارية" {% if not available_employees %}disabled{% endif %}></textarea>
           </div>
 
           <div class="form-action">
@@ -251,58 +263,68 @@
         <strong id="visibleAssignmentsCount">{{ assignments|length }} موظف</strong>
       </div>
 
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>الرقم</th>
-              <th>الاسم</th>
-              <th>الدور التشغيلي</th>
-              <th>الحالة</th>
-              <th>تاريخ التسكين</th>
-              <th>إجراء</th>
-            </tr>
-          </thead>
+      {% if assignment_groups %}
+        {% for group in assignment_groups %}
+          <div class="shift-group-block">
+            <div class="shift-group-header">
+              <h4>{{ group.shift.shift_type.name }} - {{ group.shift.date|date:"Y-m-d" }}</h4>
+            </div>
 
-          <tbody>
-            {% for a in assignments %}
-              <tr data-assignment-row>
-                <td>{{ a.employee.employee_number }}</td>
-                <td><span class="employee-cell"><i>{{ a.employee.full_name|slice:":1" }}</i><b>{{ a.employee.full_name }}</b></span></td>
-                <td>
-                  <span class="badge blue">
-                    {{ a.get_role_display }}
-                  </span>
-                </td>
-                <td>
-                  {% if a.is_confirmed %}
-                    <span class="badge green">مؤكد</span>
-                  {% else %}
-                    <span class="badge yellow">غير مؤكد</span>
-                  {% endif %}
-                </td>
-                <td>{{ a.assigned_at|date:"Y-m-d H:i" }}</td>
-                <td>
-                  {% if not a.is_confirmed %}
-                    <form method="post" action="{% url 'scheduling:assignment-confirm' a.id %}">
-                      {% csrf_token %}
-                      <button class="btn-confirm" type="submit">تأكيد</button>
-                    </form>
-                  {% else %}
-                    <span class="muted">—</span>
-                  {% endif %}
-                </td>
-              </tr>
-            {% empty %}
-              <tr>
-                <td colspan="6" class="empty-row">
-                  لا يوجد موظفون مسكنون
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+            {% if group.assignments %}
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>الرقم</th>
+                      <th>الاسم</th>
+                      <th>الدور التشغيلي</th>
+                      <th>الحالة</th>
+                      <th>تاريخ التسكين</th>
+                      <th>إجراء</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {% for a in group.assignments %}
+                      <tr data-assignment-row>
+                        <td>{{ a.employee.employee_number }}</td>
+                        <td><span class="employee-cell"><i>{{ a.employee.full_name|slice:":1" }}</i><b>{{ a.employee.full_name }}</b></span></td>
+                        <td>
+                          <span class="badge blue">
+                            {{ a.get_role_display }}
+                          </span>
+                        </td>
+                        <td>
+                          {% if a.is_confirmed %}
+                            <span class="badge green">مؤكد</span>
+                          {% else %}
+                            <span class="badge yellow">غير مؤكد</span>
+                          {% endif %}
+                        </td>
+                        <td>{{ a.assigned_at|date:"Y-m-d H:i" }}</td>
+                        <td>
+                          {% if not a.is_confirmed %}
+                            <form method="post" action="{% url 'scheduling:assignment-confirm' a.id %}">
+                              {% csrf_token %}
+                              <button class="btn-confirm" type="submit">تأكيد</button>
+                            </form>
+                          {% else %}
+                            <span class="muted">—</span>
+                          {% endif %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <div class="empty-shift-row">لا يوجد موظفون مسكنون في هذه الوردية.</div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-shift-row">لا يوجد موظفون مسكنون في هذه الوردية.</div>
+      {% endif %}
     </div>
 
   {% endif %}
