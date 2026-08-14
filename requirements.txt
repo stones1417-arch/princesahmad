@@ -11,7 +11,7 @@ cloudinary>=1.4,<2
 colorama==0.4.6
 ConfigArgParse==1.7.5
 cssselect2==0.9.0
-Django==6.0
+Django==6.0.8
 dj-database-url>=2.3,<3
 django-cloudinary-storage>=0.3,<1
 et_xmlfile==2.0.0
@@ -33,7 +33,7 @@ MarkupSafe==3.0.3
 msgpack==1.2.1
 openpyxl==3.1.5
 packaging==26.2
-pillow==12.0.0
+pillow==12.3.0
 playwright==1.61.0
 pluggy==1.6.0
 psutil==7.2.2
