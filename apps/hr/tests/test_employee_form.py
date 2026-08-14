@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from django.test import TestCase
 
+from apps.communications.services.otp_validation import normalize_saudi_phone_number
 from apps.hr.forms import EmployeeForm
 from apps.hr.models import Employee
 
@@ -126,35 +127,64 @@ class EmployeeFormTests(TestCase):
             "رئيس قسم الأبواب",
         )
 
-    def test_form_normalizes_valid_e164_saudi_mobile(self):
-        form = EmployeeForm(
-            data={
-                "employee_number": "81005",
-                "full_name": "موظف جوال",
-                "operational_section": Employee.OperationalSection.MALE,
-                "phone_number": "+966501234567",
-                "job_title": Employee.JobTitle.MONITOR,
-                "work_status": Employee.WorkStatus.ACTIVE,
-            }
-        )
+    def test_phone_normalizer_accepts_saudi_mobile_variants(self):
+        for raw, expected in [
+            ("0501234567", "+966501234567"),
+            ("501234567", "+966501234567"),
+            ("966501234567", "+966501234567"),
+            ("+966501234567", "+966501234567"),
+            ("050 123 4567", "+966501234567"),
+            ("050-123-4567", "+966501234567"),
+        ]:
+            self.assertEqual(normalize_saudi_phone_number(raw), expected)
 
-        self.assertTrue(form.is_valid())
-        self.assertEqual(form.cleaned_data["phone_number"], "+966501234567")
+    def test_form_normalizes_valid_saudi_mobile_variants(self):
+        for raw in [
+            "0501234567",
+            "501234567",
+            "966501234567",
+            "+966501234567",
+            "050 123 4567",
+            "050-123-4567",
+        ]:
+            form = EmployeeForm(
+                data={
+                    "employee_number": "81005",
+                    "full_name": "موظف جوال",
+                    "operational_section": Employee.OperationalSection.MALE,
+                    "phone_number": raw,
+                    "job_title": Employee.JobTitle.MONITOR,
+                    "work_status": Employee.WorkStatus.ACTIVE,
+                }
+            )
 
-    def test_form_rejects_non_e164_mobile(self):
-        form = EmployeeForm(
-            data={
-                "employee_number": "81006",
-                "full_name": "موظف جوال خاطئ",
-                "operational_section": Employee.OperationalSection.MALE,
-                "phone_number": "0501234567",
-                "job_title": Employee.JobTitle.MONITOR,
-                "work_status": Employee.WorkStatus.ACTIVE,
-            }
-        )
+            self.assertTrue(form.is_valid(), msg=f"raw={raw!r} errors={form.errors}")
+            self.assertEqual(form.cleaned_data["phone_number"], "+966501234567")
 
-        self.assertFalse(form.is_valid())
-        self.assertIn("phone_number", form.errors)
+    def test_form_rejects_invalid_mobile_numbers(self):
+        for raw in [
+            "123",
+            "+9664",
+            "abc",
+            "050123456",
+            "05012345678",
+            "96650123456",
+            "+96650123456",
+        ]:
+            form = EmployeeForm(
+                data={
+                    "employee_number": "81006",
+                    "full_name": "موظف جوال خاطئ",
+                    "operational_section": Employee.OperationalSection.MALE,
+                    "phone_number": raw,
+                    "job_title": Employee.JobTitle.MONITOR,
+                    "work_status": Employee.WorkStatus.ACTIVE,
+                }
+            )
+
+            self.assertFalse(form.is_valid(), msg=f"raw={raw!r} should be invalid")
+            self.assertIn("phone_number", form.errors)
+            self.assertIn("أدخل رقم جوال سعودي صحيحًا", form.errors["phone_number"][0])
 
     def test_form_rejects_invalid_email(self):
         form = EmployeeForm(

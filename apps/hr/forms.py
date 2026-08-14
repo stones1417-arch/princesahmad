@@ -1,13 +1,25 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from django import forms
 from django.core.exceptions import ValidationError
-from django.core.validators import RegexValidator
 
-from .models import Employee
+from apps.communications.services.otp_validation import (
+    OTPRecipientValidationError,
+    normalize_saudi_phone_number,
+)
+from apps.hr.models import Employee
 
 
 class EmployeeForm(forms.ModelForm):
+    """
+    النموذج الموحد لإضافة الموظف وتعديل بياناته.
+
+    يدعم:
+    - القسم الرجالي.
+    - القسم النسائي.
+    - التحقق من البيانات الأساسية.
+    - توحيد تنسيق الحقول.
+    """
 
     FEMALE_JOB_TITLE_LABELS = {
         Employee.JobTitle.CHAIRMAN_OFFICE: "مكتب معالي: رئيسة مجلس الإدارة",
@@ -35,6 +47,7 @@ class EmployeeForm(forms.ModelForm):
         model = Employee
 
         fields = [
+            "user",
             "employee_number",
             "full_name",
             "operational_section",
@@ -43,64 +56,115 @@ class EmployeeForm(forms.ModelForm):
             "email",
             "job_title",
             "work_status",
+            "is_active",
             "can_work_on_doors",
             "can_execute_maintenance",
             "hire_date",
             "notes",
         ]
 
-        widgets = {
+        labels = {
+            "operational_section": "القسم التشغيلي",
+        }
 
-            "operational_section": forms.Select(
+        help_texts = {
+            "operational_section": (
+                "حدد القسم الذي يتبع له الموظف: "
+                "رجالي أو نسائي."
+            ),
+        }
+
+        widgets = {
+            "user": forms.Select(
                 attrs={
-                    "class": "form-control",
+                    "class": "form-select",
+                    "data-field": "user",
                 }
             ),
 
             "employee_number": forms.TextInput(
                 attrs={
                     "class": "form-control",
-                    "placeholder": "الرقم الوظيفي",
+                    "placeholder": "أدخل الرقم الوظيفي",
+                    "autocomplete": "off",
+                    "maxlength": "20",
+                    "dir": "ltr",
                 }
             ),
 
             "full_name": forms.TextInput(
                 attrs={
                     "class": "form-control",
-                    "placeholder": "الاسم الكامل",
+                    "placeholder": "أدخل الاسم الكامل",
+                    "autocomplete": "name",
+                }
+            ),
+
+            "operational_section": forms.Select(
+                attrs={
+                    "class": "form-select",
+                    "data-field": "operational_section",
                 }
             ),
 
             "national_id": forms.TextInput(
                 attrs={
                     "class": "form-control",
-                    "placeholder": "رقم الهوية",
+                    "placeholder": "رقم الهوية المكون من 10 أرقام",
+                    "autocomplete": "off",
+                    "inputmode": "numeric",
+                    "maxlength": "10",
+                    "dir": "ltr",
                 }
             ),
 
             "phone_number": forms.TextInput(
                 attrs={
                     "class": "form-control",
-                    "placeholder": "05xxxxxxxx",
+                    "placeholder": "مثال: +9665XXXXXXXX",
+                    "autocomplete": "tel",
+                    "inputmode": "tel",
+                    "maxlength": "20",
+                    "dir": "ltr",
                 }
             ),
 
             "email": forms.EmailInput(
                 attrs={
                     "class": "form-control",
-                    "placeholder": "example@email.com",
+                    "placeholder": "example@domain.com",
+                    "autocomplete": "email",
+                    "dir": "ltr",
                 }
             ),
 
             "job_title": forms.Select(
                 attrs={
-                    "class": "form-control",
+                    "class": "form-select",
                 }
             ),
 
             "work_status": forms.Select(
                 attrs={
-                    "class": "form-control",
+                    "class": "form-select",
+                }
+            ),
+
+            "is_active": forms.CheckboxInput(
+                attrs={
+                    "class": "form-check-input",
+                }
+            ),
+
+            "can_work_on_doors": forms.CheckboxInput(
+                attrs={
+                    "class": "form-check-input",
+                }
+            ),
+
+            "can_execute_maintenance": forms.CheckboxInput(
+                attrs={
+                    "class": "form-check-input",
                 }
             ),
 
@@ -108,46 +172,131 @@ class EmployeeForm(forms.ModelForm):
                 attrs={
                     "class": "form-control",
                     "type": "date",
-                }
+                },
+                format="%Y-%m-%d",
             ),
 
             "notes": forms.Textarea(
                 attrs={
                     "class": "form-control",
+                    "placeholder": "أدخل الملاحظات الإضافية",
                     "rows": 4,
-                    "placeholder": "ملاحظات إضافية",
                 }
             ),
         }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["operational_section"].required = True
-        self.fields["operational_section"].error_messages = {
+    def __init__(
+        self,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(
+            *args,
+            **kwargs,
+        )
+
+        self.fields[
+            "operational_section"
+        ].required = True
+
+        self.fields[
+            "operational_section"
+        ].error_messages = {
             "required": "يجب اختيار القسم التشغيلي.",
-            "invalid_choice": "يجب اختيار القسم التشغيلي: رجالي أو نسائي.",
+            "invalid_choice": (
+                "يجب اختيار القسم التشغيلي: "
+                "رجالي أو نسائي."
+            ),
         }
-        self.fields["operational_section"].choices = [
-            ("", "اختر القسم التشغيلي"),
+
+        self.fields[
+            "operational_section"
+        ].choices = [
+            (
+                "",
+                "اختر القسم التشغيلي",
+            ),
             *Employee.OperationalSection.choices,
         ]
-        if self._selected_operational_section() == Employee.OperationalSection.FEMALE:
+
+        selected_section = self._selected_operational_section()
+        if selected_section == Employee.OperationalSection.FEMALE:
             self.fields["job_title"].choices = self._female_job_title_choices()
 
-    def _selected_operational_section(self):
+        self.fields[
+            "employee_number"
+        ].required = True
+
+        self.fields[
+            "full_name"
+        ].required = True
+
+        self.fields[
+            "user"
+        ].required = False
+
+        self.fields[
+            "national_id"
+        ].required = False
+
+        self.fields[
+            "phone_number"
+        ].required = False
+
+        self.fields[
+            "email"
+        ].required = False
+
+        self.fields[
+            "hire_date"
+        ].required = False
+
+        self.fields[
+            "notes"
+        ].required = False
+
+        for field_name, field in self.fields.items():
+            field.widget.attrs.setdefault(
+                "aria-label",
+                str(
+                    field.label
+                    or field_name
+                ),
+            )
+
+        if self.instance.pk:
+            self.fields[
+                "employee_number"
+            ].widget.attrs[
+                "data-original-value"
+            ] = self.instance.employee_number
+
+    def _selected_operational_section(self) -> str:
         if self.is_bound:
-            return self.data.get(self.add_prefix("operational_section"), "")
+            return str(
+                self.data.get(
+                    self.add_prefix("operational_section"),
+                    "",
+                )
+            )
+
         return self.instance.operational_section
 
     @classmethod
-    def _female_job_title_choices(cls):
+    def _female_job_title_choices(cls) -> list[tuple[str, str]]:
         return [
-            (value, cls.FEMALE_JOB_TITLE_LABELS.get(value, label))
+            (
+                value,
+                cls.FEMALE_JOB_TITLE_LABELS.get(
+                    value,
+                    label,
+                ),
+            )
             for value, label in Employee.JobTitle.choices
         ]
 
     @property
-    def job_title_labels(self):
+    def job_title_labels(self) -> dict[str, dict[str, str]]:
         return {
             "male": {
                 str(value): label
@@ -159,67 +308,224 @@ class EmployeeForm(forms.ModelForm):
             },
         }
 
-    def clean_employee_number(self):
-        employee_number = (
-            self.cleaned_data.get("employee_number") or ""
+    def clean_employee_number(
+        self,
+    ) -> str:
+        employee_number = str(
+            self.cleaned_data.get(
+                "employee_number"
+            )
+            or ""
         ).strip()
 
         if not employee_number:
-            raise ValidationError("الرقم الوظيفي مطلوب")
+            raise ValidationError(
+                "الرقم الوظيفي مطلوب."
+            )
+
+        duplicate_query = (
+            Employee.objects.filter(
+                employee_number=employee_number
+            )
+        )
+
+        if self.instance.pk:
+            duplicate_query = (
+                duplicate_query.exclude(
+                    pk=self.instance.pk
+                )
+            )
+
+        if duplicate_query.exists():
+            raise ValidationError(
+                "الرقم الوظيفي مسجل لموظف آخر."
+            )
 
         return employee_number
 
-    def clean_full_name(self):
-        full_name = (
-            self.cleaned_data.get("full_name") or ""
+    def clean_full_name(
+        self,
+    ) -> str:
+        full_name = str(
+            self.cleaned_data.get(
+                "full_name"
+            )
+            or ""
         ).strip()
 
         if not full_name:
-            raise ValidationError("الاسم الكامل مطلوب")
+            raise ValidationError(
+                "الاسم الكامل مطلوب."
+            )
 
-        return full_name
+        return " ".join(
+            full_name.split()
+        )
 
-    def clean_operational_section(self):
+    def clean_operational_section(
+        self,
+    ) -> str:
         operational_section = str(
-            self.cleaned_data.get("operational_section") or ""
+            self.cleaned_data.get(
+            "operational_section"
+            )
+            or ""
         ).strip().lower()
-        if operational_section not in {
+
+        valid_sections = {
             Employee.OperationalSection.MALE,
             Employee.OperationalSection.FEMALE,
-        }:
-            raise ValidationError("يجب اختيار القسم التشغيلي: رجالي أو نسائي.")
+        }
+
+        if operational_section not in valid_sections:
+            raise ValidationError(
+                "يجب اختيار القسم التشغيلي: "
+                "رجالي أو نسائي."
+            )
+
         return operational_section
 
-    def clean_national_id(self):
-        national_id = (
-            self.cleaned_data.get("national_id") or ""
+    def clean_national_id(
+        self,
+    ) -> str:
+        national_id = str(
+            self.cleaned_data.get(
+                "national_id"
+            )
+            or ""
         ).strip()
+
+        if not national_id:
+            return ""
+
+        if (
+            len(national_id) != 10
+            or not national_id.isdigit()
+        ):
+            raise ValidationError(
+                "رقم الهوية يجب أن يتكون "
+                "من 10 أرقام."
+            )
+
+        duplicate_query = (
+            Employee.objects.filter(
+                national_id=national_id
+            )
+        )
+
+        if self.instance.pk:
+            duplicate_query = (
+                duplicate_query.exclude(
+                    pk=self.instance.pk
+                )
+            )
+
+        if duplicate_query.exists():
+            raise ValidationError(
+                "رقم الهوية مسجل لموظف آخر."
+            )
 
         return national_id
 
-    def clean_phone_number(self):
-        phone = (
-            self.cleaned_data.get("phone_number") or ""
+    def clean_phone_number(
+        self,
+    ) -> str:
+        phone_number = str(
+            self.cleaned_data.get(
+                "phone_number"
+            )
+            or ""
         ).strip()
+        if not phone_number:
+            return ""
+        try:
+            return normalize_saudi_phone_number(phone_number)
+        except OTPRecipientValidationError as exc:
+            raise ValidationError(
+                "أدخل رقم جوال سعودي صحيحًا، مثل 0501234567 أو +966501234567."
+            ) from exc
 
-        if phone:
-            RegexValidator(
-                regex=r"^\+[1-9]\d{7,14}$",
-                message="أدخل رقم جوال بصيغة E.164، مثل +9665XXXXXXXX.",
-            )(phone)
+    def clean_email(
+        self,
+    ) -> str:
+        return str(
+            self.cleaned_data.get(
+                "email"
+            )
+            or ""
+        ).strip().lower()
 
-        return phone
+    def clean(self) -> dict:
+        cleaned_data = super().clean()
 
-    def save(self, commit=True):
-        employee = super().save(commit=False)
-
-        # تزامن حالة النظام مع حالة الموظف
-        employee.is_active = (
-            employee.work_status ==
-            Employee.WorkStatus.ACTIVE
+        work_status = cleaned_data.get(
+            "work_status"
         )
 
-        if commit:
-            employee.save()
+        is_active = cleaned_data.get(
+            "is_active"
+        )
 
-        return employee
+        can_work_on_doors = cleaned_data.get(
+            "can_work_on_doors"
+        )
+
+        if (
+            work_status
+            and work_status
+            != Employee.WorkStatus.ACTIVE
+        ):
+            cleaned_data[
+                "is_active"
+            ] = False
+
+            cleaned_data[
+                "can_work_on_doors"
+            ] = False
+
+        if (
+            is_active
+            and work_status
+            != Employee.WorkStatus.ACTIVE
+        ):
+            self.add_error(
+                "is_active",
+                (
+                    "لا يمكن تفعيل الموظف بينما "
+                    "حالته الوظيفية ليست على رأس العمل."
+                ),
+            )
+
+        if (
+            can_work_on_doors
+            and not cleaned_data.get(
+                "is_active"
+            )
+        ):
+            self.add_error(
+                "can_work_on_doors",
+                (
+                    "لا يمكن السماح بالتسكين لموظف "
+                    "غير نشط في النظام."
+                ),
+            )
+
+        return cleaned_data
+
+
+class EmployeeCreateForm(EmployeeForm):
+    """
+    نموذج إضافة موظف جديد.
+    """
+
+    class Meta(EmployeeForm.Meta):
+        pass
+
+
+class EmployeeUpdateForm(EmployeeForm):
+    """
+    نموذج تعديل بيانات موظف موجود.
+    """
+
+    class Meta(EmployeeForm.Meta):
+        pass

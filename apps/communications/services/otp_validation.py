@@ -17,10 +17,22 @@ def normalize_saudi_phone_number(value: str) -> str:
     """Normalize supported Saudi mobile formats to E.164."""
     normalized_phone = re.sub(r"[\s()\-]", "", (value or "").strip())
 
+    if not normalized_phone:
+        raise OTPRecipientValidationError(
+            "رقم الجوال غير صالح. استخدم رقمًا سعوديًا صحيحًا مثل +9665XXXXXXXX."
+        )
+
+    if normalized_phone.startswith("00"):
+        normalized_phone = f"+{normalized_phone[2:]}"
+
     if normalized_phone.startswith("+966"):
         national_number = normalized_phone[4:]
+    elif normalized_phone.startswith("966"):
+        national_number = normalized_phone[3:]
     elif normalized_phone.startswith("05"):
         national_number = normalized_phone[1:]
+    elif normalized_phone.startswith("5"):
+        national_number = normalized_phone
     else:
         national_number = normalized_phone
 
