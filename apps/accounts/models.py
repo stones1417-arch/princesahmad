@@ -100,15 +100,33 @@ class AccountProfile(models.Model):
         if not self.photo:
             return ""
 
-        photo_name = _normalize_uploaded_media_name(self.photo.name)
-        if not photo_name:
+        original_name = str(self.photo.name or "").replace("\\", "/").lstrip("/")
+        if not original_name:
+            return ""
+
+        normalized_name = _normalize_uploaded_media_name(original_name)
+        if not normalized_name:
             return ""
 
         try:
             storage = self.photo.storage
-            if hasattr(storage, "exists") and not storage.exists(photo_name):
-                return ""
-            return storage.url(photo_name)
+
+            candidates = []
+            if original_name:
+                candidates.append(original_name)
+            if normalized_name and normalized_name != original_name:
+                candidates.append(normalized_name)
+
+            seen = set()
+            for candidate in candidates:
+                if candidate in seen:
+                    continue
+                seen.add(candidate)
+                if hasattr(storage, "exists") and not storage.exists(candidate):
+                    continue
+                return storage.url(candidate)
+
+            return ""
         except Exception:
             return ""
 

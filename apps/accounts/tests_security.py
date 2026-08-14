@@ -1,4 +1,5 @@
 from io import BytesIO
+from unittest.mock import Mock
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -107,6 +108,59 @@ class SecureUploadTests(SimpleTestCase):
 
 
 class ProfileImageSafetyTests(TestCase):
+    def test_legacy_storage_key_returns_url_when_original_key_exists(self):
+        user = User.objects.create_user(username="legacy-key-user")
+        profile = AccountProfile(user=user, photo="media/profiles/2026/08/avatar.png")
+        storage = Mock()
+        storage.exists.side_effect = lambda name: name == "media/profiles/2026/08/avatar.png"
+        storage.url.side_effect = lambda name: f"https://cdn.example/{name}"
+        profile.photo.storage = storage
+
+        self.assertEqual(
+            profile.profile_image_url,
+            "https://cdn.example/media/profiles/2026/08/avatar.png",
+        )
+
+    def test_modern_storage_key_returns_url_when_normalized_key_exists(self):
+        user = User.objects.create_user(username="modern-key-user")
+        profile = AccountProfile(user=user, photo="profiles/2026/08/avatar.png")
+        storage = Mock()
+        storage.exists.side_effect = lambda name: name == "profiles/2026/08/avatar.png"
+        storage.url.side_effect = lambda name: f"https://cdn.example/{name}"
+        profile.photo.storage = storage
+
+        self.assertEqual(
+            profile.profile_image_url,
+            "https://cdn.example/profiles/2026/08/avatar.png",
+        )
+
+    def test_legacy_db_name_falls_back_to_normalized_key_when_needed(self):
+        user = User.objects.create_user(username="legacy-db-user")
+        profile = AccountProfile(user=user, photo="media/profiles/2026/08/avatar.png")
+        storage = Mock()
+        storage.exists.side_effect = lambda name: name == "profiles/2026/08/avatar.png"
+        storage.url.side_effect = lambda name: f"https://cdn.example/{name}"
+        profile.photo.storage = storage
+
+        self.assertEqual(
+            profile.profile_image_url,
+            "https://cdn.example/profiles/2026/08/avatar.png",
+        )
+
+    def test_missing_or_unsafe_storage_keys_return_empty_string(self):
+        user = User.objects.create_user(username="unsafe-key-user")
+
+        missing_profile = AccountProfile(user=user, photo="media/profiles/2026/08/missing.png")
+        missing_storage = Mock()
+        missing_storage.exists.return_value = False
+        missing_profile.photo.storage = missing_storage
+        self.assertEqual(missing_profile.profile_image_url, "")
+
+        unsafe_profile = AccountProfile(user=user, photo="../avatar.png")
+        unsafe_storage = Mock()
+        unsafe_profile.photo.storage = unsafe_storage
+        self.assertEqual(unsafe_profile.profile_image_url, "")
+
     def test_missing_profile_photo_renders_fallback_in_topbar(self):
         user = User.objects.create_user(username="profile-fallback-user")
         AccountProfile.objects.create(user=user, photo="profiles/missing-profile.png")
