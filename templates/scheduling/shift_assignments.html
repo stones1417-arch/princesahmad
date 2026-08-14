@@ -1,19 +1,22 @@
 {% extends "base.html" %}
 {% load static %}
 
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/scheduling/shift_assignments_page.css' %}?v=20260814-compact">
+{% endblock %}
+
 {% block content %}
 <div class="assign-page" dir="rtl">
   <header class="assign-header">
     <div class="assign-header__copy">
       <span class="assign-eyebrow">إدارة القوى العاملة</span>
-      <h1>تسكين الموظفين في الوردية</h1>
+      <h1>تسكين الموظفين</h1>
+      <p>إدارة تسكين الموظفين حسب الوردية والدور التشغيلي</p>
 
       {% if active_shift %}
-        <p>
+        <p class="assign-current-shift">
           الوردية الحالية:
-          <strong>
-            {{ active_shift.shift_type.name }} - {{ active_shift.date|date:"Y-m-d" }}
-          </strong>
+          <strong>{{ active_shift.shift_type.name }} - {{ active_shift.date|date:"Y-m-d" }}</strong>
         </p>
       {% else %}
         <p class="assign-warning">لا توجد وردية نشطة حاليًا</p>
@@ -24,9 +27,6 @@
       <a href="{% url 'scheduling:status' %}" class="assign-btn assign-btn--secondary">
         حالة الورديات
       </a>
-      <a href="#assignmentCreateCard" class="assign-btn assign-btn--primary">
-        ＋ تسكين جديد
-      </a>
     </div>
   </header>
 
@@ -35,17 +35,11 @@
       لا توجد وردية نشطة حاليًا. فعّل وردية أولًا من صفحة حالات الورديات.
     </div>
   {% else %}
-    <section class="enterprise-card assignment-create-card" id="assignmentCreateCard">
-      <header class="enterprise-card__header">
-        <div class="enterprise-card__title-group">
-          <span class="enterprise-card__icon" aria-hidden="true">🧭</span>
-          <div>
-            <span class="enterprise-card__eyebrow">تسكين تشغيلي</span>
-            <h2>إضافة تسكين جديد</h2>
-          </div>
-        </div>
+    <section class="assignment-card assignment-create-card" id="assignmentCreateCard">
+      <div class="assignment-card__header">
+        <h2>إضافة تسكين جديد</h2>
         <p>اختر الموظف والوردية والدور التشغيلي</p>
-      </header>
+      </div>
 
       <form
         id="assignmentCreateForm"
@@ -55,11 +49,11 @@
       >
         {% csrf_token %}
 
-        <div class="assignment-field-grid">
+        <div class="assignment-form__grid">
           <div class="assignment-field">
             <label for="assignmentEmployee">
-              الموظف
-              <span class="required-badge">مطلوب</span>
+              <span>الموظف</span>
+              <small>مطلوب</small>
             </label>
             <select id="assignmentEmployee" name="employee_id" required {% if not available_employees %}disabled{% endif %}>
               <option value="">
@@ -80,8 +74,8 @@
 
           <div class="assignment-field">
             <label for="assignmentShift">
-              الوردية
-              <span class="required-badge">مطلوب</span>
+              <span>الوردية</span>
+              <small>مطلوب</small>
             </label>
             <select id="assignmentShift" name="shift_plan_id" required {% if not shift_choices %}disabled{% endif %}>
               <option value="">اختر الوردية</option>
@@ -95,8 +89,8 @@
 
           <div class="assignment-field">
             <label for="assignmentRole">
-              الدور التشغيلي
-              <span class="required-badge">مطلوب</span>
+              <span>الدور التشغيلي</span>
+              <small>مطلوب</small>
             </label>
             <select id="assignmentRole" name="role" required {% if not available_employees %}disabled{% endif %}>
               {% for value, label in role_choices %}
@@ -106,41 +100,24 @@
           </div>
         </div>
 
-        <div class="assignment-notes">
-          <button
-            type="button"
-            class="assignment-notes__toggle"
-            aria-expanded="false"
-            aria-controls="assignmentNotesPanel"
-          >
-            <span>ملاحظات إضافية</span>
-            <span class="optional-badge">اختياري</span>
-          </button>
-
-          <div class="assignment-notes__panel" id="assignmentNotesPanel">
-            <label for="assignmentNotes">ملاحظات إضافية — اختياري</label>
-            <textarea
-              id="assignmentNotes"
-              name="notes"
-              maxlength="500"
-              rows="3"
-              placeholder="أي تفاصيل إضافية أو ملاحظات لتسهل متابعة التسكين"
-              {% if not available_employees %}disabled{% endif %}
-            ></textarea>
-          </div>
-        </div>
-
-        <div class="assignment-summary" id="assignmentSummary" aria-live="polite">
-          اختر الموظف والوردية والدور لتظهر تفاصيل التسكين.
-        </div>
+        <details class="assignment-notes">
+          <summary>ملاحظات إضافية</summary>
+          <textarea
+            id="assignmentNotes"
+            name="notes"
+            maxlength="500"
+            rows="2"
+            placeholder="ملاحظات اختيارية..."
+            {% if not available_employees %}disabled{% endif %}
+          ></textarea>
+        </details>
 
         <div class="assignment-form__actions">
           <button
             id="assignmentSubmitButton"
             type="submit"
-            class="assign-btn assign-btn--primary assign-btn--submit"
+            class="assign-btn assign-btn--primary"
             {% if not available_employees %}disabled{% endif %}
-            aria-busy="false"
           >
             <span aria-hidden="true">＋</span>
             <span>تسكين الموظف</span>
@@ -155,219 +132,144 @@
       {% endif %}
     </section>
 
-    <section class="enterprise-card">
-      <header class="enterprise-card__header enterprise-card__header--split">
-        <div>
-          <span class="enterprise-card__eyebrow">سجل الوردية</span>
-          <h2>سجل التسكين</h2>
-        </div>
+    <section class="assignment-card assignment-log-card">
+      <div class="assignment-card__header assignment-card__header--split">
+        <h2>سجل التسكين</h2>
         <span class="count-badge">{{ assignments|length }} موظف</span>
-      </header>
+      </div>
 
-      <form class="shift-log-toolbar" method="get" action="" id="shiftLogToolbar">
-        <label class="sr-only" for="shiftLogSearch">بحث الموظفين</label>
+      <form class="assignment-toolbar" method="get" action="" id="shiftLogToolbar">
         <input
           id="shiftLogSearch"
           type="search"
           name="q"
           value="{{ request.GET.q|default:'' }}"
-          placeholder="ابحث بالاسم أو الرقم الوظيفي"
+          placeholder="بحث بالاسم أو الرقم"
         >
 
-        <label class="sr-only" for="shiftFilterSelect">فلتر الوردية</label>
         <select id="shiftFilterSelect" name="shift_filter">
-          <option value="">جميع الورديات</option>
+          <option value="">كل الورديات</option>
           {% for shift in shift_choices %}
             <option value="{{ shift.id }}" {% if selected_shift and shift.id == selected_shift.id %}selected{% endif %}>
-              {{ shift.shift_type.name }} - {{ shift.date|date:"Y-m-d" }}
+              {{ shift.shift_type.name }}
             </option>
           {% endfor %}
         </select>
 
-        <label class="sr-only" for="sectionFilterSelect">فلتر القسم</label>
         <select id="sectionFilterSelect" name="section_filter">
           <option value="">كل الأقسام</option>
           <option value="male">رجل</option>
           <option value="female">نساء</option>
         </select>
 
-        <button type="reset" class="assign-btn assign-btn--secondary">إعادة تعيين</button>
+        <input
+          id="assignmentDateFilter"
+          type="date"
+          name="date"
+          value="{{ selected_date|date:'Y-m-d' }}"
+        >
+
+        <a href="{% url 'scheduling:assignments' %}" class="assign-btn assign-btn--secondary">
+          إعادة تعيين
+        </a>
       </form>
 
-      <div class="shift-tabs" role="tablist" aria-label="ورديات موظفي الوردية">
-        {% for group in assignment_groups %}
-          <article
-            class="shift-group-card {% if selected_shift and group.shift.id == selected_shift.id %}is-current{% endif %}"
-            data-shift-group
-            data-shift-name="{{ group.shift.shift_type.name }}"
-          >
-            <header class="shift-group-header">
-              <div>
-                <span class="shift-group-header__label">{{ group.shift.shift_type.name }}</span>
+      {% if assignment_groups %}
+        <div class="assignment-log-groups">
+          {% for group in assignment_groups %}
+            <article class="shift-group-card" data-shift-group data-shift-name="{{ group.shift.shift_type.name }}">
+              <header class="shift-group-card__header">
+                <span>{{ group.shift.shift_type.name }}</span>
                 <strong>{{ group.shift.date|date:"Y-m-d" }}</strong>
-              </div>
-              <span class="shift-badge">{{ group.assignments|length }} موظف</span>
-            </header>
+              </header>
 
-            {% if group.assignments %}
-              <div class="shift-table-wrap">
-                <table class="assignment-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">الرقم الوظيفي</th>
-                      <th scope="col">اسم الموظف</th>
-                      <th scope="col">الدور التشغيلي</th>
-                      <th scope="col">القسم</th>
-                      <th scope="col">حالة التسكين</th>
-                      <th scope="col">أسند بواسطة</th>
-                      <th scope="col">تاريخ الإسناد</th>
-                      <th scope="col">الإجراءات</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {% for a in group.assignments %}
-                      <tr data-assignment-row>
-                        <td>{{ a.employee.employee_number }}</td>
-                        <td>
-                          <div class="employee-cell">
-                            <span class="employee-cell__avatar" aria-hidden="true">
-                              {{ a.employee.full_name|slice:":1" }}
-                            </span>
-                            <span>{{ a.employee.full_name }}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <span class="tag tag--blue">{{ a.get_role_display }}</span>
-                        </td>
-                        <td>
-                          <span class="tag tag--muted">
-                            {{ a.employee.operational_section_label|default:"—" }}
-                          </span>
-                        </td>
-                        <td>
-                          {% if a.is_confirmed %}
-                            <span class="status-badge status-badge--confirmed">مؤكد</span>
-                          {% else %}
-                            <span class="status-badge status-badge--pending">قيد التسكين</span>
-                          {% endif %}
-                        </td>
-                        <td>المنظومة</td>
-                        <td>{{ a.assigned_at|date:"Y-m-d" }}<br><small>{{ a.assigned_at|time:"H:i" }}</small></td>
-                        <td class="assignment-row-actions">
-                          {% if not a.is_confirmed %}
-                            <form method="post" action="{% url 'scheduling:assignment-confirm' a.id %}">
-                              {% csrf_token %}
-                              <button type="submit" class="mini-action mini-action--success" aria-label="تأكيد تسكين {{ a.employee.full_name }}">
-                                تأكيد
-                              </button>
-                            </form>
-                          {% else %}
-                            <span class="status-badge status-badge--neutral">مكتمل</span>
-                          {% endif %}
-                        </td>
+              {% if group.assignments %}
+                <div class="assignment-table-wrap">
+                  <table class="assignment-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">الرقم الوظيفي</th>
+                        <th scope="col">اسم الموظف</th>
+                        <th scope="col">الدور التشغيلي</th>
+                        <th scope="col">القسم</th>
+                        <th scope="col">الوردية</th>
+                        <th scope="col">وقت التسكين</th>
+                        <th scope="col">الإجراءات</th>
                       </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
-            {% else %}
-              <div class="empty-shift-state">
-                <span class="empty-shift-state__icon" aria-hidden="true">👥</span>
-                <h3>لا يوجد موظفون مسكنون</h3>
-                <p>لم تتم إضافة موظفين لهذه الوردية بعد.</p>
-                <a href="#assignmentCreateCard" class="empty-shift-state__action">إضافة تسكين</a>
-              </div>
-            {% endif %}
-          </article>
-        {% empty %}
-          <div class="empty-shift-state empty-shift-state--global">
-            <span class="empty-shift-state__icon" aria-hidden="true">🗂️</span>
-            <h3>لا يوجد موظفون مسكنون</h3>
-            <p>لم تتم إضافة موظفين لهذه الوردية بعد.</p>
-            <a href="#assignmentCreateCard" class="empty-shift-state__action">إضافة تسكين</a>
-          </div>
-        {% endfor %}
-      </div>
+                    </thead>
+
+                    <tbody>
+                      {% for a in group.assignments %}
+                        <tr data-assignment-row>
+                          <td>{{ a.employee.employee_number }}</td>
+                          <td>
+                            <div class="employee-cell">
+                              <span class="employee-cell__avatar" aria-hidden="true">{{ a.employee.full_name|slice:":1" }}</span>
+                              <span>{{ a.employee.full_name }}</span>
+                            </div>
+                          </td>
+                          <td>
+                            <span class="tag tag--blue">{{ a.get_role_display }}</span>
+                          </td>
+                          <td>
+                            <span class="tag tag--muted">{{ a.employee.operational_section_label|default:"—" }}</span>
+                          </td>
+                          <td>{{ group.shift.shift_type.name }}</td>
+                          <td>
+                            {{ a.assigned_at|date:"Y-m-d" }}
+                            <small>{{ a.assigned_at|time:"H:i" }}</small>
+                          </td>
+                          <td class="assignment-row-actions">
+                            {% if not a.is_confirmed %}
+                              <form method="post" action="{% url 'scheduling:assignment-confirm' a.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="mini-action mini-action--success" aria-label="تأكيد تسكين {{ a.employee.full_name }}">
+                                  تأكيد
+                                </button>
+                              </form>
+                            {% else %}
+                              <span class="status-badge status-badge--neutral">مكتمل</span>
+                            {% endif %}
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% else %}
+                <div class="assignment-empty-inline">
+                  <strong>لا يوجد موظفون مسكنون في هذه الوردية</strong>
+                  <span>يمكنك إضافة موظف من نموذج التسكين أعلاه</span>
+                </div>
+              {% endif %}
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="assignment-empty-inline assignment-empty-inline--global">
+          <strong>لا يوجد موظفون مسكنون</strong>
+          <span>يمكنك إضافة موظف من نموذج التسكين أعلاه</span>
+        </div>
+      {% endif %}
     </section>
   {% endif %}
 </div>
 
 <script>
   document.addEventListener("DOMContentLoaded", function () {
-    const employeeInput = document.getElementById("assignmentEmployee");
-    const shiftInput = document.getElementById("assignmentShift");
-    const roleInput = document.getElementById("assignmentRole");
-    const summary = document.getElementById("assignmentSummary");
-    const notesToggle = document.querySelector(".assignment-notes__toggle");
-    const notesPanel = document.getElementById("assignmentNotesPanel");
-    const submitButton = document.getElementById("assignmentSubmitButton");
-    const createForm = document.getElementById("assignmentCreateForm");
     const tableSearch = document.getElementById("shiftLogSearch");
     const rows = Array.from(document.querySelectorAll("[data-assignment-row]"));
-    const resetButton = document.querySelector("#shiftLogToolbar button[type='reset']");
 
-    function updateSummary() {
-      if (!summary || !employeeInput || !shiftInput || !roleInput) {
-        return;
-      }
-
-      const employeeName = employeeInput.options[employeeInput.selectedIndex]?.text || "";
-      const shiftName = shiftInput.options[shiftInput.selectedIndex]?.text || "";
-      const roleName = roleInput.options[roleInput.selectedIndex]?.text || "";
-
-      if (!employeeName || !shiftName || !roleName) {
-        summary.textContent = "اختر الموظف والوردية والدور لتظهر تفاصيل التسكين.";
-        return;
-      }
-
-      const cleanedEmployee = employeeName.replace(/\s*[-–—]\s*.*$/, "").trim();
-      const cleanedShift = shiftName.trim();
-      const cleanedRole = roleName.trim();
-
-      summary.textContent = "سيتم تسكين " + cleanedEmployee + " على وردية " + cleanedShift + " بدور " + cleanedRole;
+    if (!tableSearch || !rows.length) {
+      return;
     }
 
-    [employeeInput, shiftInput, roleInput].forEach(function (element) {
-      element?.addEventListener("change", updateSummary);
-      element?.addEventListener("input", updateSummary);
-    });
-    updateSummary();
-
-    notesToggle?.addEventListener("click", function () {
-      const isOpen = notesPanel.classList.toggle("is-open");
-      notesToggle.setAttribute("aria-expanded", String(isOpen));
-    });
-
-    createForm?.addEventListener("submit", function () {
-      if (!createForm.checkValidity() || !submitButton) {
-        return;
-      }
-
-      submitButton.disabled = true;
-      submitButton.setAttribute("aria-busy", "true");
-      const label = submitButton.querySelector("span:last-child");
-      if (label) {
-        label.textContent = "جارٍ التسكين...";
-      }
-    });
-
-    if (tableSearch) {
-      tableSearch.addEventListener("input", function () {
-        const query = tableSearch.value.trim().toLowerCase();
-        rows.forEach(function (row) {
-          const text = row.textContent.toLowerCase();
-          row.hidden = query && !text.includes(query);
-        });
+    tableSearch.addEventListener("input", function () {
+      const query = tableSearch.value.trim().toLowerCase();
+      rows.forEach(function (row) {
+        const text = row.textContent.toLowerCase();
+        row.hidden = Boolean(query) && !text.includes(query);
       });
-    }
-
-    resetButton?.addEventListener("click", function () {
-      setTimeout(function () {
-        rows.forEach(function (row) {
-          row.hidden = false;
-        });
-      }, 0);
     });
   });
 </script>

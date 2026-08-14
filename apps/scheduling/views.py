@@ -725,7 +725,7 @@ def shift_assignment_list_view(
 ):
     """
     عرض الموظفين المسكنين
-    في الوردية النشطة أو في وردية محددة من القائمة.
+    في الوردية النشطة أو في اليوم الحالي افتراضيًا.
     """
     _require_scheduling_scope(request, PlatformPermissions.VIEW_SHIFTS)
     shift_queryset = (
@@ -744,8 +744,38 @@ def shift_assignment_list_view(
             "shift_type__id",
         )
     )
+    today = timezone.localdate()
+    selected_date = request.GET.get("date")
+    requested_shift_id = request.GET.get("shift_filter")
+
+    if selected_date:
+        try:
+            selected_date = datetime.strptime(selected_date, "%Y-%m-%d").date()
+        except ValueError:
+            selected_date = today
+    else:
+        selected_date = today
+
     active_shift = shift_queryset.filter(is_active=True).first()
-    selected_shift = active_shift or shift_queryset.first()
+    visible_shift_queryset = shift_queryset.filter(date=selected_date)
+
+    if requested_shift_id and requested_shift_id.isdigit():
+        requested_shift = shift_queryset.filter(pk=int(requested_shift_id)).first()
+        if requested_shift:
+            selected_date = requested_shift.date
+            visible_shift_queryset = shift_queryset.filter(pk=requested_shift.pk)
+
+    if not visible_shift_queryset.exists():
+        visible_shift_queryset = shift_queryset.filter(date=today)
+
+    if not visible_shift_queryset.exists():
+        visible_shift_queryset = shift_queryset
+
+    selected_shift = (
+        active_shift
+        if active_shift and active_shift.date == selected_date
+        else visible_shift_queryset.first() or active_shift or shift_queryset.first()
+    )
 
     assignments = ShiftAssignment.objects.none()
     available_employees = Employee.objects.none()
@@ -791,7 +821,7 @@ def shift_assignment_list_view(
         )
 
     assignment_groups = []
-    for shift in shift_queryset:
+    for shift in visible_shift_queryset:
         shift_assignments = (
             _scoped_assignments(request.user)
             .select_related(
@@ -820,6 +850,7 @@ def shift_assignment_list_view(
         {
             "active_shift": active_shift,
             "selected_shift": selected_shift,
+            "selected_date": selected_date,
             "assignments": assignments,
             "available_employees": available_employees,
             "confirmed_count": confirmed_count,
