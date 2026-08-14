@@ -1,10 +1,12 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block content %}
-
+{% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/hr/employee_list.css' %}">
 <link rel="stylesheet" href="{% static 'css/hr/employee_form.css' %}">
+{% endblock %}
+
+{% block content %}
 
 <div class="employees-page employee-form-page" dir="rtl">
 
@@ -99,95 +101,160 @@
             </div>
         {% endif %}
 
-        <section class="employees-panel employee-form-panel">
-
-            <div class="employees-panel-header">
-                <div class="employees-panel-heading">
-                    <div class="employees-panel-icon">🪪</div>
-
-                    <div>
-                        <span class="employees-panel-eyebrow">
-                            البيانات الأساسية
-                        </span>
-
-                        <h2>
-                            بيانات الموظف
-                        </h2>
-
-                        <p>
-                            أدخل البيانات بدقة. الحقول المعلّمة بنجمة مطلوبة.
-                        </p>
+        <div class="employee-form-layout">
+            <div class="employee-form-main">
+                <section class="employee-form-section">
+                    <header class="employee-form-section-header">
+                        <span class="employee-form-section-icon">1</span>
+                        <div>
+                            <h2>الهوية الوظيفية</h2>
+                            <p>تعريف الموظف وربطه بحساب المنصة والقسم التشغيلي.</p>
+                        </div>
+                    </header>
+                    <div class="employee-form-grid identity-grid">
+                        <div class="employee-form-field full">
+                            <label for="{{ form.user.id_for_label }}">{{ form.user.label }}</label>
+                            {{ form.user }}
+                            {% if form.user.errors %}<div class="employee-field-error">{{ form.user.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="employee-form-field">
+                            <label for="{{ form.employee_number.id_for_label }}">{{ form.employee_number.label }} <span class="required-mark">*</span></label>
+                            {{ form.employee_number }}
+                            {% if form.employee_number.errors %}<div class="employee-field-error">{{ form.employee_number.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="employee-form-field">
+                            <label for="{{ form.full_name.id_for_label }}">{{ form.full_name.label }} <span class="required-mark">*</span></label>
+                            {{ form.full_name }}
+                            {% if form.full_name.errors %}<div class="employee-field-error">{{ form.full_name.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="employee-form-field full">
+                            <label for="{{ form.operational_section.id_for_label }}">{{ form.operational_section.label }} <span class="required-mark">*</span></label>
+                            {{ form.operational_section }}
+                            <small class="employee-field-help">{{ form.operational_section.help_text }}</small>
+                            {% if form.operational_section.errors %}<div class="employee-field-error">{{ form.operational_section.errors|striptags }}</div>{% endif %}
+                        </div>
                     </div>
-                </div>
+                </section>
 
-                <span class="employees-panel-badge">
-                    نموذج الموظف
-                </span>
-            </div>
-
-            <div class="employee-form-grid">
-
-                {% for field in form %}
-
-                    {% if field.field.widget.input_type == "checkbox" %}
-
-                        <div class="employee-form-field employee-checkbox-field {% if field.name == 'notes' %}full{% endif %}">
-                            <label class="employee-switch-row" for="{{ field.id_for_label }}">
-                                <span class="employee-switch-control">
-                                    {{ field }}
-                                    <span class="employee-switch-slider"></span>
-                                </span>
-
-                                <span class="employee-switch-text">
-                                    <strong>{{ field.label }}</strong>
-
-                                    {% if field.help_text %}
-                                        <small>{{ field.help_text }}</small>
-                                    {% endif %}
-                                </span>
-                            </label>
-
-                            {% if field.errors %}
-                                <div class="employee-field-error">
-                                    {{ field.errors|striptags }}
-                                </div>
-                            {% endif %}
+                <section class="employee-form-section">
+                    <header class="employee-form-section-header">
+                        <span class="employee-form-section-icon">2</span>
+                        <div>
+                            <h2>بيانات التواصل</h2>
+                            <p>وسيلة التعريف والتواصل المعتمدة للموظف.</p>
                         </div>
+                    </header>
+                    <div class="employee-form-grid">
+                        <div class="employee-form-field">
+                            <label for="{{ form.national_id.id_for_label }}">{{ form.national_id.label }}</label>
+                            {{ form.national_id }}
+                            {% if form.national_id.errors %}<div class="employee-field-error">{{ form.national_id.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="employee-form-field">
+                            <label for="{{ form.phone_number.id_for_label }}">{{ form.phone_number.label }}</label>
+                            {{ form.phone_number }}
+                            {% if form.phone_number.errors %}<div class="employee-field-error">{{ form.phone_number.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="employee-form-field full">
+                            <label for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+                            {{ form.email }}
+                            {% if form.email.errors %}<div class="employee-field-error">{{ form.email.errors|striptags }}</div>{% endif %}
+                        </div>
+                    </div>
+                </section>
 
-                    {% else %}
-
-                        <div class="employee-form-field {% if field.name == 'notes' %}full{% endif %}">
-                            <label for="{{ field.id_for_label }}">
-                                {{ field.label }}
-                                {% if field.field.required %}
-                                    <span class="required-mark">*</span>
-                                {% endif %}
-                            </label>
-
-                            <div class="employee-input-wrapper">
-                                {{ field }}
+                {% if two_factor_readiness %}
+                    <section class="employee-form-section">
+                        <header class="employee-form-section-header">
+                            <span class="employee-form-section-icon">2FA</span>
+                            <div>
+                                <h2>بيانات التحقق الثنائي</h2>
+                                <p>حالة فنية مقنّعة لقنوات OTP المتاحة.</p>
                             </div>
-
-                            {% if field.help_text %}
-                                <small class="employee-field-help">
-                                    {{ field.help_text }}
-                                </small>
-                            {% endif %}
-
-                            {% if field.errors %}
-                                <div class="employee-field-error">
-                                    {{ field.errors|striptags }}
-                                </div>
-                            {% endif %}
+                        </header>
+                        <div class="employee-form-grid">
+                            <div class="employee-form-field">
+                                <label>البريد الإلكتروني</label>
+                                <strong dir="ltr">{{ two_factor_readiness.email_masked }}</strong>
+                                <small class="employee-field-help">الحالة: {% if two_factor_readiness.email_valid %}صالح لـ OTP{% else %}غير صالح أو غير موجود{% endif %}</small>
+                            </div>
+                            <div class="employee-form-field">
+                                <label>رقم الجوال</label>
+                                <strong dir="ltr">{{ two_factor_readiness.phone_masked }}</strong>
+                                <small class="employee-field-help">الحالة: {% if two_factor_readiness.phone_valid %}صالح لـ OTP{% else %}غير صالح أو غير موجود{% endif %}</small>
+                            </div>
+                            <div class="employee-form-field full">
+                                <label>قنوات 2FA المتاحة</label>
+                                <strong>{% if two_factor_readiness.channels %}{{ two_factor_readiness.channels|join:", " }}{% else %}لا توجد قناة متاحة{% endif %}</strong>
+                                <small class="employee-field-help">تعديل بيانات الاتصال لا يثبت ملكية القناة تلقائيًا.</small>
+                            </div>
+                            <div class="employee-form-field full">
+                                <label>جاهزية 2FA</label>
+                                <strong>{% if two_factor_readiness.channels %}READY{% else %}NOT READY{% endif %}</strong>
+                                {% if not two_factor_readiness.channels %}<small class="employee-field-help">{{ two_factor_readiness.reason }}</small>{% endif %}
+                            </div>
                         </div>
+                    </section>
+                {% endif %}
 
-                    {% endif %}
-
-                {% endfor %}
-
+                <section class="employee-form-section">
+                    <header class="employee-form-section-header">
+                        <span class="employee-form-section-icon">3</span>
+                        <div>
+                            <h2>التكليف التشغيلي</h2>
+                            <p>الدور الوظيفي وحالة العمل وتاريخ المباشرة.</p>
+                        </div>
+                    </header>
+                    <div class="employee-form-grid">
+                        <div class="employee-form-field">
+                            <label for="{{ form.job_title.id_for_label }}">{{ form.job_title.label }} <span class="required-mark">*</span></label>
+                            {{ form.job_title }}
+                            {% if form.job_title.errors %}<div class="employee-field-error">{{ form.job_title.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="employee-form-field">
+                            <label for="{{ form.work_status.id_for_label }}">{{ form.work_status.label }} <span class="required-mark">*</span></label>
+                            {{ form.work_status }}
+                            {% if form.work_status.errors %}<div class="employee-field-error">{{ form.work_status.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="employee-form-field full">
+                            <label for="{{ form.hire_date.id_for_label }}">{{ form.hire_date.label }}</label>
+                            {{ form.hire_date }}
+                            {% if form.hire_date.errors %}<div class="employee-field-error">{{ form.hire_date.errors|striptags }}</div>{% endif %}
+                        </div>
+                    </div>
+                </section>
             </div>
 
-        </section>
+            <aside class="employee-form-side">
+                <section class="employee-form-section permissions-section">
+                    <header class="employee-form-section-header">
+                        <span class="employee-form-section-icon">4</span>
+                        <div>
+                            <h2>التفعيل والصلاحيات</h2>
+                            <p>حدّد الجاهزية للنظام والمهام الميدانية.</p>
+                        </div>
+                    </header>
+                    <div class="employee-switches">
+                        {% for field in form %}
+                            {% if field.field.widget.input_type == "checkbox" %}
+                                <label class="employee-switch-row" for="{{ field.id_for_label }}">
+                                    <span class="employee-switch-control">{{ field }}<span class="employee-switch-slider"></span></span>
+                                    <span class="employee-switch-text"><strong>{{ field.label }}</strong><small>{% if field.name == "is_active" %}السماح بالدخول إلى المنصة.{% elif field.name == "can_work_on_doors" %}إتاحة الإسناد إلى نقاط الأبواب.{% else %}إتاحة تنفيذ مهام الصيانة الميدانية.{% endif %}</small></span>
+                                </label>
+                                {% if field.errors %}<div class="employee-field-error">{{ field.errors|striptags }}</div>{% endif %}
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </section>
+
+                <section class="employee-form-section notes-section">
+                    <header class="employee-form-section-header compact">
+                        <div><h2>ملاحظات إدارية</h2></div>
+                    </header>
+                    <div class="employee-form-field">{{ form.notes }}{% if form.notes.errors %}<div class="employee-field-error">{{ form.notes.errors|striptags }}</div>{% endif %}</div>
+                </section>
+            </aside>
+        </div>
 
         <section class="employee-form-actions-panel">
 
@@ -228,4 +295,9 @@
 
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+{{ form.job_title_labels|json_script:"employee-job-title-labels" }}
+<script src="{% static 'js/hr/employee_form.js' %}"></script>
 {% endblock %}
