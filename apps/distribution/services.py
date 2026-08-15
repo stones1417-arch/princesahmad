@@ -1,16 +1,22 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime, timedelta
 
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
-from django.contrib.auth import get_user_model
+from django.utils import timezone
 
 from apps.breaks.models import Break
+from apps.communications.services.assignment_message_service import (
+    dispatch_assignment_message,
+)
 from apps.core.notification_service import NotificationService
 from apps.hr.models import Employee
+from apps.locations.door_directions import get_door_sort_order, normalize_door_code
 from apps.locations.models import Door
 
 from .assignment_history_service import (
@@ -19,6 +25,9 @@ from .assignment_history_service import (
     update_assignment_with_history,
 )
 from .models import DoorAssignment
+
+
+logger = logging.getLogger(__name__)
 
 
 REST_DAY_MAP = {
@@ -79,21 +88,17 @@ class DistributionService:
 
     @staticmethod
     def operational_doors():
-        """
-        الأبواب التشغيلية المعتمدة من 1 إلى 41.
-        """
+        """Official operative doors using the canonical text-safe codes and sort order."""
         return (
             Door.objects
             .filter(
                 is_active=True,
-                door_number__isnull=False,
-                door_number__gte=1,
-                door_number__lte=41,
             )
             .exclude(
                 name__iexact="السلام",
             )
             .order_by(
+                "sort_order",
                 "door_number",
             )
         )
@@ -121,6 +126,161 @@ class DistributionService:
                 return value
 
         return date.today()
+
+    @staticmethod
+    def _shift_datetime_range(
+        shift_plan,
+    ) -> tuple[datetime, datetime] | None:
+        """
+        إرجاع نطاق الوردية بالوقت الكامل مع دعم فاصل الأوقات
+        من الوردية أو نوع الوردية عند وجود قيم مفقودة.
+        """
+        if not getattr(
+            shift_plan,
+            "date",
+            None,
+        ):
+            return None
+
+        if getattr(
+            shift_plan,
+            "start_time",
+            None,
+        ) is None:
+            shift_type = getattr(
+                shift_plan,
+                "shift_type",
+                None,
+            )
+            if shift_type is not None:
+                start_time = getattr(
+                    shift_type,
+                    "start_time",
+                    None,
+                )
+            else:
+                start_time = None
+        else:
+            start_time = shift_plan.start_time
+
+        if getattr(
+            shift_plan,
+            "end_time",
+            None,
+        ) is None:
+            shift_type = getattr(
+                shift_plan,
+                "shift_type",
+                None,
+            )
+            if shift_type is not None:
+                end_time = getattr(
+                    shift_type,
+                    "end_time",
+                    None,
+                )
+            else:
+                end_time = None
+        else:
+            end_time = shift_plan.end_time
+
+        if start_time is None or end_time is None:
+            return None
+
+        start_datetime = timezone.make_aware(
+            datetime.combine(
+                shift_plan.date,
+                start_time,
+            ),
+            timezone.get_current_timezone(),
+        )
+
+        crosses_midnight = bool(
+            getattr(
+                shift_plan,
+                "crosses_midnight",
+                False,
+            )
+            or end_time <= start_time
+        )
+
+        end_date = (
+            shift_plan.date + timedelta(days=1)
+            if crosses_midnight
+            else shift_plan.date
+        )
+        end_datetime = timezone.make_aware(
+            datetime.combine(
+                end_date,
+                end_time,
+            ),
+            timezone.get_current_timezone(),
+        )
+
+        return start_datetime, end_datetime
+
+    @classmethod
+    def _has_overlap_with_other_active_shift(
+        cls,
+        *,
+        employee,
+        shift_plan,
+        exclude_pk=None,
+    ) -> bool:
+        """
+        تحديد ما إذا كان الموظف لديه وردية أخرى نشطة
+        تتداخل زمنياً مع هذه الوردية.
+        """
+        candidate_range = cls._shift_datetime_range(
+            shift_plan,
+        )
+
+        if candidate_range is None:
+            return False
+
+        candidate_start, candidate_end = candidate_range
+
+        active_assignments = (
+            DoorAssignment.objects
+            .filter(
+                employee=employee,
+                is_active=True,
+            )
+            .select_related(
+                "shift_plan",
+                "shift_plan__shift_type",
+            )
+        )
+
+        if exclude_pk:
+            active_assignments = active_assignments.exclude(
+                pk=exclude_pk,
+            )
+
+        for assignment in active_assignments:
+            if assignment.shift_plan_id == getattr(
+                shift_plan,
+                "pk",
+                None,
+            ):
+                continue
+
+            other_range = cls._shift_datetime_range(
+                assignment.shift_plan,
+            )
+
+            if other_range is None:
+                continue
+
+            other_start, other_end = other_range
+
+            if (
+                candidate_start < other_end
+                and candidate_end > other_start
+            ):
+                return True
+
+        return False
 
     @classmethod
     def employee_is_on_break(
@@ -242,13 +402,12 @@ class DistributionService:
             None,
         )
 
-        if (
-            door_number is None
-            or door_number < 1
-            or door_number > 41
-        ):
+        try:
+            normalized_code = normalize_door_code(door_number)
+            get_door_sort_order(normalized_code)
+        except ValidationError:
             errors.append(
-                "الباب خارج النطاق التشغيلي المعتمد."
+                "الباب خارج النطاق التشغيلي المعتمد أو غير مدعوم في الكتالوج الرسمي."
             )
 
         door_section = getattr(
@@ -302,6 +461,15 @@ class DistributionService:
         if duplicate_assignment.exists():
             errors.append(
                 "الموظف موزع مسبقًا في هذه الوردية."
+            )
+
+        if cls._has_overlap_with_other_active_shift(
+            employee=employee,
+            shift_plan=shift_plan,
+            exclude_pk=exclude_pk,
+        ):
+            errors.append(
+                "الموظف لديه وردية متعارضة في نفس الفترة الزمنية."
             )
 
         if role == DoorAssignment.Role.SUPERVISOR:
@@ -419,6 +587,18 @@ class DistributionService:
             assignment=assignment,
         )
 
+        try:
+            dispatch_assignment_message(
+                assignment,
+                channels=("sms", "whatsapp"),
+                actor=assigned_by,
+            )
+        except Exception:
+            logger.exception(
+                "Assignment message dispatch logging failed.",
+                extra={"assignment_id": assignment.pk},
+            )
+
         return assignment
 
     @classmethod
@@ -437,11 +617,6 @@ class DistributionService:
         assignment = (
             DoorAssignment.objects
             .select_for_update()
-            .select_related(
-                "employee",
-                "door",
-                "shift_plan",
-            )
             .get(
                 pk=assignment.pk,
             )
@@ -1263,11 +1438,6 @@ class DistributionService:
             for assignment in (
                 DoorAssignment.objects
                 .select_for_update()
-                .select_related(
-                    "employee",
-                    "door",
-                    "shift_plan",
-                )
                 .filter(
                     id__in=assignment_ids,
                     shift_plan=shift_plan,
