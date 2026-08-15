@@ -319,8 +319,8 @@ class ShiftDoorStatesTests(TestCase):
         self.assertEqual(
             door_numbers,
             {
-                1,
-                2,
+                "1",
+                "2",
             },
         )
 
@@ -349,6 +349,53 @@ class ShiftDoorStatesTests(TestCase):
             .filter(shift_plan=self.shift)
             .count(),
             2,
+        )
+
+    def test_ensure_shift_door_states_keeps_textual_official_codes(self):
+        """
+        يجب الاحتفاظ برقم الباب النصي الرسمي مثل 6A و 6B عند إنشاء حالات الأبواب.
+        """
+
+        for door_code in (
+            "5",
+            "6B",
+            "6A",
+            "7",
+            "8",
+            "9",
+        ):
+            create_door(
+                door_number=door_code,
+            )
+
+        created_count = ensure_shift_door_states(
+            self.shift,
+        )
+
+        self.assertEqual(
+            created_count,
+            8,
+        )
+
+        ordered_door_numbers = list(
+            DoorShift.objects
+            .filter(shift_plan=self.shift)
+            .order_by("sort_order", "door_number")
+            .values_list("door_number", flat=True)
+        )
+
+        self.assertEqual(
+            ordered_door_numbers,
+            [
+                "1",
+                "2",
+                "5",
+                "6B",
+                "6A",
+                "7",
+                "8",
+                "9",
+            ],
         )
 
     def test_activation_creates_door_states(self):

@@ -25,15 +25,14 @@ def ensure_shift_door_states(
             "الوردية المحددة غير صحيحة."
         )
 
-    active_doors = (
+    active_doors = list(
         Door.objects
         .filter(
             is_active=True,
-            door_number__gte=1,
-            door_number__lte=41,
         )
         .order_by(
-            "door_number"
+            "sort_order",
+            "door_number",
         )
     )
 
@@ -61,6 +60,7 @@ def ensure_shift_door_states(
             DoorShift(
                 shift_plan=shift,
                 door_number=door.door_number,
+                sort_order=door.sort_order,
                 state=(
                     DoorShift
                     .DoorState
@@ -77,15 +77,19 @@ def ensure_shift_door_states(
             ignore_conflicts=True,
         )
 
-    DoorShift.objects.filter(
-        shift_plan=shift,
-        door_number__in=active_doors.values_list(
-            "door_number",
-            flat=True,
-        ),
-    ).update(
-        is_active=True
-    )
+    active_door_numbers = {
+        door.door_number: door.sort_order
+        for door in active_doors
+    }
+
+    for door_number, sort_order in active_door_numbers.items():
+        DoorShift.objects.filter(
+            shift_plan=shift,
+            door_number=door_number,
+        ).update(
+            is_active=True,
+            sort_order=sort_order,
+        )
 
     return len(
         door_shifts_to_create
