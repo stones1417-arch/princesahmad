@@ -1,19 +1,153 @@
 {% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/communications/assignment_messages.css' %}?v=20260810-1">
+{% endblock %}
+
 {% block content %}
-<main class="assignment-center" dir="rtl">
-  <header class="assignment-center__header"><div><p class="eyebrow">مركز الاتصالات التشغيلية</p><h1>رسائل التكليف</h1><p>متابعة رسائل SMS وWhatsApp المرتبطة بالتكليفات فقط.</p></div></header>
-  <section class="assignment-stats" aria-label="إحصائيات رسائل التكليف">
-    <article><span>إجمالي الرسائل</span><strong>{{ stats.total }}</strong></article><article><span>قيد الانتظار</span><strong>{{ stats.pending }}</strong></article><article><span>تم الإرسال</span><strong>{{ stats.sent }}</strong></article><article><span>فشل</span><strong>{{ stats.failed }}</strong></article><article><span>تم التخطي</span><strong>{{ stats.skipped }}</strong></article><article><span>SMS</span><strong>{{ stats.sms }}</strong></article><article><span>WhatsApp</span><strong>{{ stats.whatsapp }}</strong></article>
+<main class="assignment-log-page" dir="rtl">
+  <header class="page-header compact-header">
+    <p class="page-eyebrow">مركز الاتصالات التشغيلية</p>
+    <h1>سجل رسائل التكليف</h1>
+    <p class="page-subtitle">متابعة رسائل SMS وWhatsApp المرتبطة بالتكليفات التشغيلية</p>
+  </header>
+
+  <section class="kpi-grid" aria-label="إحصائيات رسائل التكليف">
+    <article class="kpi-card"><span>إجمالي الرسائل</span><strong>{{ stats.total }}</strong></article>
+    <article class="kpi-card"><span>قيد الانتظار</span><strong>{{ stats.pending }}</strong></article>
+    <article class="kpi-card"><span>تم الإرسال</span><strong>{{ stats.sent }}</strong></article>
+    <article class="kpi-card"><span>فشل</span><strong>{{ stats.failed }}</strong></article>
+    <article class="kpi-card"><span>تم التخطي</span><strong>{{ stats.skipped }}</strong></article>
+    <article class="kpi-card"><span>SMS</span><strong>{{ stats.sms }}</strong></article>
+    <article class="kpi-card"><span>WhatsApp</span><strong>{{ stats.whatsapp }}</strong></article>
   </section>
-  <form class="assignment-filters" method="get">
-    <input name="q" value="{{ request.GET.q }}" placeholder="بحث بالموظف أو الباب أو الوردية" aria-label="بحث">
-    <select name="channel" aria-label="القناة"><option value="">كل القنوات</option>{% for value,label in channel_choices %}<option value="{{ value }}"{% if request.GET.channel == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
-    <select name="status" aria-label="الحالة"><option value="">كل الحالات</option>{% for value,label in status_choices %}<option value="{{ value }}"{% if request.GET.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
-    <select name="section" aria-label="القسم"><option value="">كل الأقسام</option><option value="male">رجالي</option><option value="female">نسائي</option></select>
-    <input type="number" min="1" name="door" value="{{ request.GET.door }}" placeholder="رقم الباب" aria-label="رقم الباب"><input type="number" min="1" name="shift" value="{{ request.GET.shift }}" placeholder="معرف الوردية" aria-label="معرف الوردية"><input type="date" name="date_from" value="{{ request.GET.date_from }}" aria-label="من تاريخ"><input type="date" name="date_to" value="{{ request.GET.date_to }}" aria-label="إلى تاريخ"><button type="submit">تصفية</button>
-  </form>
-  <section class="assignment-table-wrap"><table><thead><tr><th>السجل</th><th>الموظف</th><th>الرقم الوظيفي</th><th>الباب</th><th>الوردية</th><th>القسم</th><th>القناة</th><th>الحالة</th><th>المحاولات</th><th>الإنشاء</th><th>الإرسال</th><th>إجراءات</th></tr></thead><tbody>{% for log in page_obj %}<tr><td>#{{ log.pk }}</td><td>{{ log.recipient_employee.full_name|default:"-" }}</td><td>{{ log.recipient_employee.employee_number|default:"-" }}</td><td>{{ log.related_door.door_number|default:"-" }}</td><td>{{ log.related_shift.shift_type.name|default:"-" }}</td><td>{{ log.get_section_display }}</td><td>{{ log.get_channel_display }}</td><td><span class="status status--{{ log.status }}">{{ log.get_status_display }}</span></td><td>{{ log.retry_count }}</td><td>{{ log.created_at|date:"Y/m/d H:i" }}</td><td>{{ log.sent_at|date:"Y/m/d H:i"|default:"-" }}</td><td><a href="{% url 'communications:assignment-message-detail' log.pk %}">عرض</a></td></tr>{% empty %}<tr><td colspan="12">لا توجد رسائل تكليف مطابقة.</td></tr>{% endfor %}</tbody></table></section>
-  {% if page_obj.has_other_pages %}<nav class="assignment-pagination" aria-label="التنقل بين الصفحات">{% if page_obj.has_previous %}<a href="?{{ query_string }}{% if query_string %}&{% endif %}page={{ page_obj.previous_page_number }}">السابق</a>{% endif %}<span>صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a href="?{{ query_string }}{% if query_string %}&{% endif %}page={{ page_obj.next_page_number }}">التالي</a>{% endif %}</nav>{% endif %}
+
+  <section class="filter-card">
+    <form class="filter-form" method="get">
+      <div class="field">
+        <label for="q">بحث</label>
+        <input id="q" name="q" value="{{ request.GET.q }}" placeholder="الموظف أو الباب أو الوردية" aria-label="بحث">
+      </div>
+
+      <div class="field">
+        <label for="channel">القناة</label>
+        <select id="channel" name="channel" aria-label="القناة">
+          <option value="">كل القنوات</option>
+          {% for value, label in channel_choices %}
+            <option value="{{ value }}"{% if request.GET.channel == value %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="status">الحالة</label>
+        <select id="status" name="status" aria-label="الحالة">
+          <option value="">كل الحالات</option>
+          {% for value, label in status_choices %}
+            <option value="{{ value }}"{% if request.GET.status == value %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="section">القسم</label>
+        <select id="section" name="section" aria-label="القسم">
+          <option value="">كل الأقسام</option>
+          <option value="male"{% if request.GET.section == 'male' %} selected{% endif %}>رجالي</option>
+          <option value="female"{% if request.GET.section == 'female' %} selected{% endif %}>نسائي</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="door">الباب</label>
+        <input id="door" type="number" min="1" name="door" value="{{ request.GET.door }}" placeholder="رقم الباب" aria-label="رقم الباب">
+      </div>
+
+      <div class="field">
+        <label for="shift">الوردية</label>
+        <input id="shift" type="number" min="1" name="shift" value="{{ request.GET.shift }}" placeholder="معرف الوردية" aria-label="معرف الوردية">
+      </div>
+
+      <div class="field">
+        <label for="date_from">من تاريخ</label>
+        <input id="date_from" type="date" name="date_from" value="{{ request.GET.date_from }}" aria-label="من تاريخ">
+      </div>
+
+      <div class="field">
+        <label for="date_to">إلى تاريخ</label>
+        <input id="date_to" type="date" name="date_to" value="{{ request.GET.date_to }}" aria-label="إلى تاريخ">
+      </div>
+
+      <div class="actions-row">
+        <button type="submit" class="btn btn-primary">تصفية</button>
+        {% if request.GET %}
+          <a class="btn btn-secondary" href="{% url 'communications:assignment-messages' %}">إعادة ضبط</a>
+        {% endif %}
+      </div>
+    </form>
+  </section>
+
+  <section class="table-panel">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>السجل</th>
+            <th>الموظف</th>
+            <th>الرقم الوظيفي</th>
+            <th>الباب</th>
+            <th>الوردية</th>
+            <th>القسم</th>
+            <th>القناة</th>
+            <th>الحالة</th>
+            <th>المحاولات</th>
+            <th>الإنشاء</th>
+            <th>الإرسال</th>
+            <th>إجراءات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in page_obj %}
+            <tr>
+              <td>#{{ log.pk }}</td>
+              <td>{{ log.recipient_employee.full_name|default:"-" }}</td>
+              <td>{{ log.recipient_employee.employee_number|default:"-" }}</td>
+              <td>{{ log.related_door.door_number|default:"-" }}</td>
+              <td>{{ log.related_shift.shift_type.name|default:"-" }}</td>
+              <td>{{ log.get_section_display }}</td>
+              <td><span class="channel-badge channel-{{ log.channel }}">{{ log.get_channel_display }}</span></td>
+              <td><span class="status-badge status-{{ log.status }}">{{ log.get_status_display }}</span></td>
+              <td>{{ log.retry_count }}</td>
+              <td>{{ log.created_at|date:"Y/m/d H:i" }}</td>
+              <td>{{ log.sent_at|date:"Y/m/d H:i"|default:"-" }}</td>
+              <td><a class="link-action" href="{% url 'communications:assignment-message-detail' log.pk %}">عرض</a></td>
+            </tr>
+          {% empty %}
+            <tr class="empty-row">
+              <td colspan="12">
+                <div class="empty-state">
+                  <p>لا توجد رسائل تكليف مطابقة للفلاتر الحالية.</p>
+                  <a class="btn btn-secondary" href="{% url 'communications:assignment-messages' %}">إعادة ضبط</a>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {% if page_obj.has_other_pages %}
+    <nav class="pagination" aria-label="التنقل بين الصفحات">
+      {% if page_obj.has_previous %}
+        <a href="?{{ query_string }}{% if query_string %}&{% endif %}page={{ page_obj.previous_page_number }}">السابق</a>
+      {% endif %}
+      <span>صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}
+        <a href="?{{ query_string }}{% if query_string %}&{% endif %}page={{ page_obj.next_page_number }}">التالي</a>
+      {% endif %}
+    </nav>
+  {% endif %}
 </main>
-<style>.assignment-center{max-width:1440px;margin:0 auto;padding:28px;color:#17362b}.assignment-center__header{border-bottom:3px solid #c9a23f;margin-bottom:20px}.assignment-center h1{margin:4px 0;font-size:28px}.assignment-center p{color:#60756a}.eyebrow{color:#87691d;font-weight:800;font-size:13px}.assignment-stats{display:grid;grid-template-columns:repeat(7,minmax(115px,1fr));gap:10px;margin:20px 0}.assignment-stats article{background:#fff;border:1px solid #d6e3db;border-radius:6px;padding:14px}.assignment-stats span{display:block;color:#667a70;font-size:12px}.assignment-stats strong{font-size:24px;color:#086148}.assignment-filters{display:grid;grid-template-columns:2fr repeat(7,minmax(100px,1fr));gap:8px;padding:14px;background:#eef4f0;border:1px solid #d6e3db;border-radius:6px}.assignment-filters input,.assignment-filters select,.assignment-filters button{min-height:38px;border:1px solid #b9ccc1;border-radius:4px;padding:6px;font:inherit}.assignment-filters button{background:#086148;color:#fff;border-color:#086148;font-weight:700;cursor:pointer}.assignment-table-wrap{overflow:auto;margin-top:18px;background:#fff;border:1px solid #d6e3db}.assignment-table-wrap table{width:100%;border-collapse:collapse;white-space:nowrap}.assignment-table-wrap th,.assignment-table-wrap td{padding:11px 10px;border-bottom:1px solid #e6eee9;text-align:right;font-size:13px}.assignment-table-wrap th{background:#f3f7f4;color:#355148}.status{padding:4px 8px;border-radius:4px;font-weight:700;font-size:12px}.status--pending{background:#f6ecd1;color:#805c08}.status--sent{background:#dcefe5;color:#096148}.status--failed{background:#f6dfdc;color:#92372f}.status--skipped{background:#e7ece9;color:#53655d}.assignment-pagination{display:flex;gap:12px;align-items:center;justify-content:center;margin:20px}.assignment-pagination a{color:#086148;font-weight:700}@media(max-width:1000px){.assignment-stats{grid-template-columns:repeat(3,1fr)}.assignment-filters{grid-template-columns:repeat(2,1fr)}}@media(max-width:600px){.assignment-center{padding:16px}.assignment-stats,.assignment-filters{grid-template-columns:1fr}}</style>
 {% endblock %}

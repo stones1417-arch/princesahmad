@@ -96,6 +96,19 @@ class AssignmentMessageViewTests(TestCase):
         self.assertEqual(response.context["stats"]["sms"], 1)
         self.assertEqual(response.context["stats"]["whatsapp"], 1)
 
+    def test_list_has_correct_header_and_empty_state_text(self):
+        self._login()
+        response = self.client.get(
+            reverse("communications:assignment-messages"),
+            {"channel": "sms", "status": "pending", "q": "مستخدم-غير-موجود"},
+        )
+
+        self.assertContains(response, "سجل رسائل التكليف")
+        self.assertContains(response, "متابعة رسائل SMS وWhatsApp المرتبطة بالتكليفات التشغيلية")
+        self.assertContains(response, "لا توجد رسائل تكليف مطابقة للفلاتر الحالية.")
+        self.assertContains(response, "إعادة ضبط")
+        self.assertNotContains(response, "لا توجد رسائل تكليف مطابقة.")
+
     def test_list_filters_channel_status_and_employee_search(self):
         self._login()
         url = reverse("communications:assignment-messages")
