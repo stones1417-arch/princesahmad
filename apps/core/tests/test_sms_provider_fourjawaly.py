@@ -309,6 +309,124 @@ class FourJawalyProviderTests(SimpleTestCase):
 
     @override_settings(
         SMS_ENABLED=True,
+        SMS_PROVIDER="4jawaly",
+        FOURJAWALY_API_KEY="api-key-123",
+        FOURJAWALY_API_SECRET="api-secret-123",
+        FOURJAWALY_SENDER_ID="Abwab",
+    )
+    def test_success_response_uses_job_ids_when_message_id_missing(self):
+        mock_response = Mock()
+        mock_response.ok = True
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "success": True,
+            "job_ids": ["abc-123"],
+        }
+
+        with patch("apps.core.sms_service.requests.post", return_value=mock_response):
+            result = SmsService.send(
+                recipient="0500000000",
+                message="مرحبا",
+                correlation_id="corr-job-ids",
+            )
+
+        self.assertTrue(result.success)
+        self.assertEqual(result.message_id, "abc-123")
+
+    @override_settings(
+        SMS_ENABLED=True,
+        SMS_PROVIDER="4jawaly",
+        FOURJAWALY_API_KEY="api-key-123",
+        FOURJAWALY_API_SECRET="api-secret-123",
+        FOURJAWALY_SENDER_ID="Abwab",
+    )
+    def test_failure_response_uses_official_errors_without_numbers(self):
+        mock_response = Mock()
+        mock_response.ok = False
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "success": False,
+            "total_success": 0,
+            "total_failed": 1,
+            "job_ids": [],
+            "errors": {"Sender is not allowed": ["966500000000"]},
+        }
+
+        with patch("apps.core.sms_service.requests.post", return_value=mock_response):
+            result = SmsService.send(
+                recipient="0500000000",
+                message="مرحبا",
+                correlation_id="corr-error-keys",
+            )
+
+        self.assertFalse(result.success)
+        self.assertIn("Sender is not allowed", result.error)
+        self.assertNotIn("966500000000", result.error)
+
+    @override_settings(
+        SMS_ENABLED=True,
+        SMS_PROVIDER="4jawaly",
+        FOURJAWALY_API_KEY="api-key-123",
+        FOURJAWALY_API_SECRET="api-secret-123",
+        FOURJAWALY_SENDER_ID="Abwab",
+    )
+    def test_multiple_official_errors_are_summarized_safely(self):
+        mock_response = Mock()
+        mock_response.ok = False
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "success": False,
+            "total_success": 0,
+            "total_failed": 2,
+            "job_ids": [],
+            "errors": {
+                "Sender is not allowed": ["966500000000"],
+                "Account blocked": ["966500000001"],
+            },
+        }
+
+        with patch("apps.core.sms_service.requests.post", return_value=mock_response):
+            result = SmsService.send(
+                recipient="0500000000",
+                message="مرحبا",
+                correlation_id="corr-error-keys-multi",
+            )
+
+        self.assertFalse(result.success)
+        self.assertIn("Sender is not allowed", result.error)
+        self.assertIn("Account blocked", result.error)
+        self.assertNotIn("966500000000", result.error)
+        self.assertNotIn("966500000001", result.error)
+
+    @override_settings(
+        SMS_ENABLED=True,
+        SMS_PROVIDER="4jawaly",
+        FOURJAWALY_API_KEY="api-key-123",
+        FOURJAWALY_API_SECRET="api-secret-123",
+        FOURJAWALY_SENDER_ID="Abwab",
+    )
+    def test_malformed_official_errors_fall_back_safely(self):
+        mock_response = Mock()
+        mock_response.ok = False
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "success": False,
+            "errors": ["broken-format"],
+            "message": "Request rejected",
+        }
+
+        with patch("apps.core.sms_service.requests.post", return_value=mock_response):
+            result = SmsService.send(
+                recipient="0500000000",
+                message="مرحبا",
+                correlation_id="corr-error-malformed",
+            )
+
+        self.assertFalse(result.success)
+        self.assertEqual(result.error, "Request rejected")
+
+    @override_settings(
+        SMS_ENABLED=True,
         SMS_PROVIDER="unifonic",
         UNIFONIC_APP_SID="appsid-123",
         UNIFONIC_SENDER_ID="Abwab",

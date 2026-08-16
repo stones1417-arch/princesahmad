@@ -372,12 +372,21 @@ class FourJawalySMSProvider(SMSProvider):
         if response.ok and is_success:
             message_id = ""
             data = response_data.get("data") if isinstance(response_data.get("data"), dict) else {}
+            job_ids = response_data.get("job_ids") if isinstance(response_data.get("job_ids"), list) else []
             message_id = str(
                 response_data.get("messageId")
                 or response_data.get("message_id")
                 or data.get("messageId")
                 or data.get("id")
                 or data.get("message_id")
+                or next(
+                    (
+                        str(item)
+                        for item in job_ids
+                        if isinstance(item, (str, int)) and str(item).strip()
+                    ),
+                    "",
+                )
                 or ""
             )
             return SmsResult(
@@ -391,8 +400,22 @@ class FourJawalySMSProvider(SMSProvider):
             or response_data.get("error")
             or response_data.get("errorMessage")
             or response_data.get("details")
-            or f"فشل الإرسال برمز HTTP {response.status_code}"
+            or ""
         )
+        errors_payload = response_data.get("errors") if isinstance(response_data.get("errors"), dict) else {}
+        if response_data.get("errors") is not None and isinstance(response_data.get("errors"), dict):
+            extracted_errors = []
+            for error_key, error_values in errors_payload.items():
+                if isinstance(error_key, str) and error_key.strip():
+                    extracted_errors.append(error_key.strip())
+                elif isinstance(error_key, (int, float)) and str(error_key).strip():
+                    extracted_errors.append(str(error_key).strip())
+            if extracted_errors:
+                provider_message = "; ".join(extracted_errors[:5])
+
+        if not provider_message:
+            provider_message = f"فشل الإرسال برمز HTTP {response.status_code}"
+
         return SmsResult(
             success=False,
             error=str(provider_message),
