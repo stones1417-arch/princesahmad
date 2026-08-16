@@ -1219,6 +1219,15 @@ SMS_ENABLED = env_bool(
 )
 
 
+SMS_PROVIDER = (
+    os.getenv(
+        "SMS_PROVIDER",
+        "unifonic",
+    ).strip().lower()
+    or "unifonic"
+)
+
+
 UNIFONIC_APP_SID = os.getenv(
     "UNIFONIC_APP_SID",
     "",
