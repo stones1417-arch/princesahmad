@@ -1240,6 +1240,24 @@ UNIFONIC_SENDER_ID = os.getenv(
 ).strip()
 
 
+FOURJAWALY_API_KEY = os.getenv(
+    "FOURJAWALY_API_KEY",
+    "",
+).strip()
+
+
+FOURJAWALY_API_SECRET = os.getenv(
+    "FOURJAWALY_API_SECRET",
+    "",
+).strip()
+
+
+FOURJAWALY_SENDER_ID = os.getenv(
+    "FOURJAWALY_SENDER_ID",
+    "",
+).strip()
+
+
 # ============================================================
 # Communications / Authentica
 # ============================================================
