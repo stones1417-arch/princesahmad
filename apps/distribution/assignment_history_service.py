@@ -50,6 +50,7 @@ def assignment_snapshot(assignment) -> dict[str, Any]:
         "door_id",
         "shift_plan_id",
         "door_number",
+        "section",
         "role",
         "assignment_role",
         "is_supervisor",
@@ -218,7 +219,7 @@ def update_assignment_with_history(
         )
     )
 
-    record_assignment_history(
+    history_record = record_assignment_history(
         assignment=locked_assignment,
         employee=employee,
         door=door,
@@ -233,6 +234,36 @@ def update_assignment_with_history(
             reason or "تعديل توزيع موظف"
         ).strip(),
     )
+
+    relevant_notification_fields = {
+        "door",
+        "shift_plan",
+        "role",
+        "section",
+        "is_supervisor",
+    }
+    notification_event = None
+    if "is_active" in changed_fields and old_snapshot.get("is_active") is True and not locked_assignment.is_active:
+        notification_event = "assignment_cancelled"
+    elif relevant_notification_fields.intersection(changed_fields):
+        notification_event = "assignment_updated"
+
+    if notification_event:
+        condition = "assignment_cancelled" if notification_event == "assignment_cancelled" else "assignment_updated"
+        correlation_id = (
+            f"assignment:{locked_assignment.pk}:cancelled"
+            if condition == "assignment_cancelled"
+            else f"assignment:{locked_assignment.pk}:updated:{history_record.pk}"
+        )
+
+        from apps.distribution.services import _schedule_assignment_notification
+
+        _schedule_assignment_notification(
+            assignment_id=locked_assignment.pk,
+            event_type=notification_event,
+            actor=user,
+            correlation_id=correlation_id,
+        )
 
     return locked_assignment, True
 

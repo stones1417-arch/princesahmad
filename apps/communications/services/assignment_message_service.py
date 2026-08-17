@@ -22,7 +22,20 @@ logger = logging.getLogger("communications")
 ASSIGNMENT_CHANNELS = ("sms", "whatsapp")
 
 
-def build_assignment_message(assignment) -> str:
+def _assignment_event_key(assignment, event_type, *, correlation_id=None):
+    if correlation_id:
+        return correlation_id
+
+    if event_type == "assignment_created":
+        return f"assignment:{assignment.pk}:created"
+    if event_type == "assignment_updated":
+        return f"assignment:{assignment.pk}:updated"
+    if event_type == "assignment_cancelled":
+        return f"assignment:{assignment.pk}:cancelled"
+    return f"assignment:{assignment.pk}:{event_type or 'assignment'}"
+
+
+def build_assignment_message(assignment, event_type="assignment_created") -> str:
     shift_plan = getattr(assignment, "shift_plan", None)
     door = getattr(assignment, "door", None)
     shift_type = getattr(shift_plan, "shift_type", None)
@@ -36,17 +49,27 @@ def build_assignment_message(assignment) -> str:
         .select_related("employee")
         .first()
     )
+    role_display = getattr(assignment, "get_role_display", lambda: "")()
     supervisor_name = getattr(getattr(supervisor, "employee", None), "full_name", "") or "غير محدد"
     door_name = getattr(door, "door_number", "") or "غير محدد"
     shift_name = getattr(shift_type, "name", "") or "غير محدد"
     date = getattr(shift_plan, "date", None)
     start_time = getattr(shift_plan, "start_time", None)
     end_time = getattr(shift_plan, "end_time", None)
+
+    if event_type == "assignment_updated":
+        lead = f"تم تحديث تكليفكم إلى الباب {door_name} في وردية {shift_name}."
+    elif event_type == "assignment_cancelled":
+        lead = f"تم إلغاء تكليفكم على الباب {door_name} في وردية {shift_name}."
+    else:
+        lead = f"تم تكليفكم بالعمل على الباب {door_name} في وردية {shift_name}."
+
+    if role_display and event_type != "assignment_cancelled":
+        lead = f"{lead[:-1]} بصفة {role_display}."
+
     return "\n".join(
         (
-            "منصة أبواب",
-            "",
-            "تم تكليفكم بالعمل.",
+            lead,
             "",
             f"الباب: {door_name}",
             f"الوردية: {shift_name}",
@@ -68,9 +91,22 @@ class AssignmentMessageService:
     def __init__(self, provider=None):
         self.provider = provider
 
-    def dispatch_assignment_message(self, assignment, channels=("sms", "whatsapp"), actor=None):
+    def dispatch_assignment_message(
+        self,
+        assignment,
+        channels=("sms", "whatsapp"),
+        actor=None,
+        event_type="assignment_created",
+        correlation_id=None,
+    ):
         return [
-            self._dispatch_channel(assignment, channel, actor)
+            self._dispatch_channel(
+                assignment,
+                channel,
+                actor,
+                event_type=event_type,
+                correlation_id=correlation_id,
+            )
             for channel in channels
             if channel in ASSIGNMENT_CHANNELS
         ]
@@ -84,11 +120,27 @@ class AssignmentMessageService:
             raise ValueError("لا يمكن إعادة المحاولة قبل تحديث رقم جوال الموظف.")
         if not settings.OPERATIONAL_MESSAGING_ENABLED:
             return log
-        return self._dispatch_channel(log.related_assignment, log.channel, log.created_by, retry_log=log)
+        return self._dispatch_channel(
+            log.related_assignment,
+            log.channel,
+            log.created_by,
+            event_type=log.request_payload.get("event_type", "assignment_created"),
+            correlation_id=log.request_payload.get("correlation_id"),
+            retry_log=log,
+        )
 
-    def _dispatch_channel(self, assignment, channel, actor, retry_log=None):
-        message = build_assignment_message(assignment)
-        idempotency_key = f"assignment:{assignment.pk}:{channel}"
+    def _dispatch_channel(
+        self,
+        assignment,
+        channel,
+        actor,
+        retry_log=None,
+        event_type="assignment_created",
+        correlation_id=None,
+    ):
+        message = build_assignment_message(assignment, event_type=event_type)
+        base_key = _assignment_event_key(assignment, event_type, correlation_id=correlation_id)
+        idempotency_key = f"{base_key}:{channel}"
         try:
             recipient = get_assignment_recipient(assignment.employee)
         except InvalidRecipientError:
@@ -101,6 +153,8 @@ class AssignmentMessageService:
                 status=CommunicationLog.Status.SKIPPED,
                 idempotency_key=idempotency_key,
                 error_code="invalid_recipient",
+                event_type=event_type,
+                correlation_id=base_key,
             )
 
         log = retry_log or self._create_or_get_log(
@@ -111,6 +165,8 @@ class AssignmentMessageService:
             recipient_masked=mask_value(recipient),
             status=CommunicationLog.Status.PENDING,
             idempotency_key=idempotency_key,
+            event_type=event_type,
+            correlation_id=base_key,
         )
         if not settings.OPERATIONAL_MESSAGING_ENABLED:
             return log
@@ -140,7 +196,19 @@ class AssignmentMessageService:
         return log
 
     @staticmethod
-    def _create_or_get_log(*, assignment, channel, actor, message, recipient_masked, status, idempotency_key, error_code=""):
+    def _create_or_get_log(
+        *,
+        assignment,
+        channel,
+        actor,
+        message,
+        recipient_masked,
+        status,
+        idempotency_key,
+        error_code="",
+        event_type="assignment_created",
+        correlation_id=None,
+    ):
         existing = CommunicationLog.objects.filter(idempotency_key=idempotency_key).first()
         if existing:
             return existing
@@ -164,14 +232,31 @@ class AssignmentMessageService:
                 status=status,
                 error_code=error_code,
                 idempotency_key=idempotency_key,
-                request_payload={"type": "assignment", "channel": channel},
+                request_payload={
+                    "type": "assignment",
+                    "event_type": event_type,
+                    "channel": channel,
+                    "correlation_id": correlation_id,
+                },
             )
         except IntegrityError:
             return CommunicationLog.objects.get(idempotency_key=idempotency_key)
 
 
-def dispatch_assignment_message(assignment, channels=("sms", "whatsapp"), actor=None):
-    return AssignmentMessageService().dispatch_assignment_message(assignment, channels, actor)
+def dispatch_assignment_message(
+    assignment,
+    channels=("sms", "whatsapp"),
+    actor=None,
+    event_type="assignment_created",
+    correlation_id=None,
+):
+    return AssignmentMessageService().dispatch_assignment_message(
+        assignment,
+        channels,
+        actor,
+        event_type=event_type,
+        correlation_id=correlation_id,
+    )
 
 
 def retry_assignment_message(log):

@@ -30,6 +30,64 @@ from .models import DoorAssignment
 logger = logging.getLogger(__name__)
 
 
+def _safe_dispatch_assignment_message(
+    *,
+    assignment_id,
+    event_type,
+    actor=None,
+    channels=("sms", "whatsapp"),
+    correlation_id=None,
+):
+    try:
+        assignment = (
+            DoorAssignment.objects
+            .select_related(
+                "employee",
+                "employee__user",
+                "door",
+                "shift_plan",
+                "shift_plan__shift_type",
+            )
+            .get(pk=assignment_id)
+        )
+        dispatch_assignment_message(
+            assignment,
+            channels=channels,
+            actor=actor,
+            event_type=event_type,
+            correlation_id=correlation_id,
+        )
+    except Exception:
+        logger.exception(
+            "Assignment notification dispatch failed safely.",
+            extra={
+                "assignment_id": assignment_id,
+                "event_type": event_type,
+            },
+        )
+
+
+def _schedule_assignment_notification(
+    *,
+    assignment_id,
+    event_type,
+    actor=None,
+    channels=("sms", "whatsapp"),
+    correlation_id=None,
+):
+    callback = lambda: _safe_dispatch_assignment_message(
+        assignment_id=assignment_id,
+        event_type=event_type,
+        actor=actor,
+        channels=channels,
+        correlation_id=correlation_id,
+    )
+    if transaction.get_connection().in_atomic_block:
+        transaction.on_commit(callback)
+        return
+    callback()
+
+
 REST_DAY_MAP = {
     Break.RestDays.FRIDAY_SATURDAY: {4, 5},
     Break.RestDays.SATURDAY_SUNDAY: {5, 6},
@@ -587,17 +645,12 @@ class DistributionService:
             assignment=assignment,
         )
 
-        try:
-            dispatch_assignment_message(
-                assignment,
-                channels=("sms", "whatsapp"),
-                actor=assigned_by,
-            )
-        except Exception:
-            logger.exception(
-                "Assignment message dispatch logging failed.",
-                extra={"assignment_id": assignment.pk},
-            )
+        _schedule_assignment_notification(
+            assignment_id=assignment.pk,
+            event_type="assignment_created",
+            actor=assigned_by,
+            correlation_id=f"assignment:{assignment.pk}:created",
+        )
 
         return assignment
 

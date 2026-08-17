@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import time
 from unittest.mock import patch
 
+from django.db import transaction
 from django.test import TestCase
 from django.utils import timezone
 
@@ -33,12 +34,13 @@ class AssignmentMessageIntegrationTests(TestCase):
     def test_assignment_creation_creates_pending_local_sms_and_whatsapp_logs(self):
         shift_plan, employee, door = self._assignment_inputs()
 
-        assignment = DistributionService.create_assignment(
-            shift_plan=shift_plan,
-            employee=employee,
-            door=door,
-            role=DoorAssignment.Role.MONITOR,
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            assignment = DistributionService.create_assignment(
+                shift_plan=shift_plan,
+                employee=employee,
+                door=door,
+                role=DoorAssignment.Role.MONITOR,
+            )
 
         logs = CommunicationLog.objects.filter(related_assignment=assignment)
         self.assertEqual(logs.count(), 2)
@@ -56,6 +58,24 @@ class AssignmentMessageIntegrationTests(TestCase):
             )
 
         self.assertTrue(DoorAssignment.objects.filter(pk=assignment.pk).exists())
+
+    def test_assignment_notification_dispatches_after_commit(self):
+        shift_plan, employee, door = self._assignment_inputs()
+
+        with patch("apps.distribution.services.dispatch_assignment_message") as mocked_dispatch:
+            with self.captureOnCommitCallbacks(execute=True):
+                with transaction.atomic():
+                    assignment = DistributionService.create_assignment(
+                        shift_plan=shift_plan,
+                        employee=employee,
+                        door=door,
+                        role=DoorAssignment.Role.MONITOR,
+                    )
+                    self.assertFalse(mocked_dispatch.called)
+                    self.assertTrue(DoorAssignment.objects.filter(pk=assignment.pk).exists())
+
+        self.assertEqual(mocked_dispatch.call_count, 1)
+        self.assertEqual(mocked_dispatch.call_args.kwargs.get("event_type"), "assignment_created")
 
     def test_staff_without_assignment_permission_is_denied(self):
         user = create_user(is_staff=True)
