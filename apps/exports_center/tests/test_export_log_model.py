@@ -1,18 +1,24 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from io import BytesIO
-from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 
 from apps.exports_center.models import ExportLog
+from apps.exports_center.services.shift_excel_exporter import export_shift_excel_response
+from apps.exports_center.services.shift_pdf_exporter import export_shift_pdf_response
 
 
 User = get_user_model()
+
+
+class ExportServiceImportTests(SimpleTestCase):
+    def test_shift_export_services_import_cleanly(self):
+        self.assertTrue(callable(export_shift_excel_response))
+        self.assertTrue(callable(export_shift_pdf_response))
 
 
 class ExportLogModelTests(TestCase):
