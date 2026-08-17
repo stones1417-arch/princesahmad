@@ -678,20 +678,48 @@ class OperationsCenterService:
     # ======================================================
 
     @staticmethod
+    def _should_use_current_state(
+        *,
+        door_shift: DoorShift | None,
+        current_state: DoorCurrentState | None,
+    ) -> bool:
+        """
+        اعتماد الحالة الحالية فقط عندما تكون مرتبطة بالوردية النشطة
+        وليس مجرد قيمة افتراضية قديمة من النظام.
+        """
+
+        if current_state is None:
+            return False
+
+        if not door_shift:
+            return True
+
+        if current_state.update_source == DoorCurrentState.UpdateSource.SYSTEM:
+            return False
+
+        return current_state.current_shift_id == door_shift.pk
+
+    @staticmethod
     def _resolve_state(
         *,
         door_shift: DoorShift | None,
         current_state: DoorCurrentState | None,
     ) -> str:
         """
-        الحالة الحالية لها الأولوية.
+        الحالة الحالية لها الأولوية فقط عندما تكون مرتبطة بالوردية النشطة.
         """
 
-        if current_state:
+        if OperationsCenterService._should_use_current_state(
+            door_shift=door_shift,
+            current_state=current_state,
+        ):
             return current_state.state
 
         if door_shift:
             return door_shift.state
+
+        if current_state:
+            return current_state.state
 
         return DoorShift.DoorState.CLOSED
 
@@ -705,11 +733,17 @@ class OperationsCenterService:
         تحديد الملاحظات الحالية.
         """
 
-        if current_state:
+        if OperationsCenterService._should_use_current_state(
+            door_shift=door_shift,
+            current_state=current_state,
+        ):
             return current_state.notes or ""
 
         if door_shift:
             return door_shift.notes or ""
+
+        if current_state:
+            return current_state.notes or ""
 
         return ""
 
@@ -723,11 +757,17 @@ class OperationsCenterService:
         تحديد آخر وقت تحديث.
         """
 
-        if current_state:
+        if OperationsCenterService._should_use_current_state(
+            door_shift=door_shift,
+            current_state=current_state,
+        ):
             return current_state.updated_at
 
         if door_shift:
             return door_shift.updated_at
+
+        if current_state:
+            return current_state.updated_at
 
         return None
 

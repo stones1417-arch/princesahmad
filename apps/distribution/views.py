@@ -138,7 +138,7 @@ def distribution_dashboard_view(request):
                 ),
                 distinct=True,
             ),
-        ).order_by("door_number")
+        ).order_by("sort_order", "door_number")
 
         assignments = (
             DoorAssignment.objects.select_related(
@@ -164,7 +164,7 @@ def distribution_dashboard_view(request):
                 door__is_active=True,
             )
             .exclude(door__name__iexact="السلام")
-            .order_by("door__door_number", "-is_supervisor", "employee__employee_number")
+            .order_by("door__sort_order", "door__door_number", "-is_supervisor", "employee__employee_number")
         )
 
         if scoped_user and not has_all_sections:

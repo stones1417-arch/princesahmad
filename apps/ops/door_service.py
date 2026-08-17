@@ -230,21 +230,59 @@ class DoorService:
 
     @staticmethod
     def ensure_current_states_for_catalog():
-        """Ensure each active official door has a current-state row without overwriting existing data."""
+        """Ensure each active official door has a current-state row synced to the active shift if one exists."""
         from apps.locations.models import Door
         from apps.ops.models import DoorCurrentState, DoorShift
 
         for door in Door.objects.filter(is_active=True).order_by("sort_order", "door_number"):
-            DoorCurrentState.objects.get_or_create(
+            active_shift = (
+                DoorShift.objects
+                .filter(
+                    door_number=door.door_number,
+                    is_active=True,
+                    shift_plan__is_active=True,
+                )
+                .select_related("supervisor", "shift_plan")
+                .order_by("-updated_at", "-pk")
+                .first()
+            )
+
+            current_state, created = DoorCurrentState.objects.get_or_create(
                 door=door,
                 defaults={
-                    "state": DoorShift.DoorState.CLOSED,
-                    "notes": "",
-                    "current_shift": None,
-                    "updated_by": None,
-                    "update_source": DoorCurrentState.UpdateSource.SYSTEM,
+                    "state": active_shift.state if active_shift else DoorShift.DoorState.CLOSED,
+                    "notes": active_shift.notes if active_shift else "",
+                    "current_shift": active_shift,
+                    "updated_by": active_shift.supervisor if active_shift else None,
+                    "update_source": (
+                        DoorCurrentState.UpdateSource.OPERATIONS
+                        if active_shift
+                        else DoorCurrentState.UpdateSource.SYSTEM
+                    ),
                 },
             )
+
+            if active_shift and (
+                created
+                or current_state.update_source == DoorCurrentState.UpdateSource.SYSTEM
+                or current_state.current_shift_id != active_shift.pk
+                or current_state.state != active_shift.state
+            ):
+                current_state.state = active_shift.state
+                current_state.notes = active_shift.notes
+                current_state.current_shift = active_shift
+                current_state.updated_by = active_shift.supervisor
+                current_state.update_source = DoorCurrentState.UpdateSource.OPERATIONS
+                current_state.save(
+                    update_fields=[
+                        "state",
+                        "notes",
+                        "current_shift",
+                        "updated_by",
+                        "update_source",
+                        "updated_at",
+                    ]
+                )
 
     @staticmethod
     def change_state(

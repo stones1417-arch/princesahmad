@@ -313,20 +313,17 @@ def door_status_view(request):
     for door in official_doors:
         active_door_shift = door_shift_map.get(door.door_number)
         current_state = current_state_map.get(door.id)
-        state = (
-            current_state.state if current_state else (
-                active_door_shift.state if active_door_shift else DoorShift.DoorState.CLOSED
-            )
+        state = OperationsCenterService._resolve_state(
+            door_shift=active_door_shift,
+            current_state=current_state,
         )
-        notes = (
-            current_state.notes if current_state else (
-                active_door_shift.notes if active_door_shift else ""
-            )
+        notes = OperationsCenterService._resolve_notes(
+            door_shift=active_door_shift,
+            current_state=current_state,
         )
-        updated_at = (
-            current_state.updated_at if current_state else (
-                active_door_shift.updated_at if active_door_shift else None
-            )
+        updated_at = OperationsCenterService._resolve_updated_at(
+            door_shift=active_door_shift,
+            current_state=current_state,
         )
 
         display_shift = active_door_shift or DoorShift(

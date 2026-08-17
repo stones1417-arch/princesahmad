@@ -13,10 +13,12 @@ from apps.core.tests.factories import (
     create_shift_type,
     create_user,
 )
+from apps.ops.door_service import DoorService
 from apps.ops.models import (
     DoorCurrentState,
     DoorShift,
 )
+from apps.ops.operations_center_service import OperationsCenterService
 
 
 class DoorShiftModelTests(TestCase):
@@ -202,6 +204,42 @@ class DoorCurrentStateTests(TestCase):
         self.assertEqual(
             current_state.update_source,
             DoorCurrentState.UpdateSource.MAINTENANCE,
+        )
+
+    def test_system_default_state_does_not_override_active_shift_state(self):
+        stale_state = DoorCurrentState.objects.create(
+            door=self.door,
+            state=DoorShift.DoorState.CLOSED,
+            current_shift=None,
+            update_source=DoorCurrentState.UpdateSource.SYSTEM,
+        )
+
+        self.assertEqual(
+            OperationsCenterService._resolve_state(
+                door_shift=self.door_shift,
+                current_state=stale_state,
+            ),
+            DoorShift.DoorState.OPEN,
+        )
+
+    def test_ensure_current_states_for_catalog_syncs_active_shift_state(self):
+        DoorCurrentState.objects.create(
+            door=self.door,
+            state=DoorShift.DoorState.CLOSED,
+            current_shift=None,
+            update_source=DoorCurrentState.UpdateSource.SYSTEM,
+        )
+
+        DoorService.ensure_current_states_for_catalog()
+
+        synced_state = DoorCurrentState.objects.get(door=self.door)
+        self.assertEqual(
+            synced_state.state,
+            DoorShift.DoorState.OPEN,
+        )
+        self.assertEqual(
+            synced_state.current_shift,
+            self.door_shift,
         )
 
     def test_door_status_view_lists_official_doors_even_without_active_shift(self):
