@@ -1,0 +1,230 @@
+from __future__ import annotations
+
+import tempfile
+from pathlib import Path
+
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group, Permission
+from django.test import TestCase, override_settings
+from django.urls import reverse
+from openpyxl import load_workbook
+
+from apps.core.tests.factories import create_door, create_shift_plan
+from apps.exports_center.models import ExportLog
+from apps.locations.door_directions import OFFICIAL_DOOR_CODES
+from apps.ops.models import DoorShift
+from apps.reporting.models import ShiftReport
+from apps.reporting.services import ReportService
+from apps.roles.models import Role, UserRole
+
+
+class OperationalReportWorkflowTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_superuser(
+            username="report-workflow-admin"
+        )
+        self.client.force_login(self.user)
+        self.shift = create_shift_plan(is_active=True, is_finished=False)
+        for code in OFFICIAL_DOOR_CODES:
+            create_door(door_number=code)
+            DoorShift.objects.create(
+                shift_plan=self.shift,
+                door_number=code,
+                state=DoorShift.DoorState.OPEN,
+                is_active=True,
+            )
+
+    def _finish_shift(self):
+        self.shift.is_active = False
+        self.shift.is_finished = True
+        self.shift.save(update_fields=["is_active", "is_finished"])
+        self.shift.refresh_from_db()
+
+    def test_active_shift_is_rejected_and_finished_shift_uses_one_snapshot(self):
+        response = self.client.post(
+            reverse("reporting:generate", args=[self.shift.pk])
+        )
+        self.assertEqual(
+            response.status_code,
+            302,
+            getattr(response.context.get("form"), "errors", "")
+            if response.context
+            else "",
+        )
+        self.assertFalse(ShiftReport.objects.exists())
+
+        self._finish_shift()
+        response = self.client.post(
+            reverse("reporting:create-operational"),
+            {
+                "report_type": ShiftReport.ReportType.OPERATIONAL,
+                "shift_plan": self.shift.pk,
+                "summary": "",
+                "recommendations": "",
+            },
+        )
+        self.assertEqual(
+            response.status_code,
+            302,
+            getattr(response.context.get("form"), "errors", "")
+            if response.context
+            else "",
+        )
+        report = ShiftReport.objects.get()
+        self.assertEqual(report.shift_plan, self.shift)
+        self.assertEqual(report.status, ShiftReport.ReportStatus.FINAL)
+        self.assertEqual(report.total_doors, 42)
+        snapshot_codes = {
+            item["door_number"] for item in report.snapshot_data["doors"]
+        }
+        self.assertEqual(snapshot_codes, set(OFFICIAL_DOOR_CODES))
+        self.assertIn("6A", snapshot_codes)
+        self.assertIn("6B", snapshot_codes)
+
+        duplicate = self.client.post(
+            reverse("reporting:generate", args=[self.shift.pk])
+        )
+        self.assertEqual(duplicate.status_code, 302)
+        self.assertEqual(ShiftReport.objects.count(), 1)
+
+    def test_view_approval_pdf_excel_and_export_log(self):
+        self._finish_shift()
+        report = ReportService.generate_shift_report(
+            shift_plan=self.shift,
+            user=self.user,
+        )
+        draft = ShiftReport.objects.create(
+            report_type=ShiftReport.ReportType.MANUAL,
+            summary="Draft report",
+            created_by=self.user,
+        )
+        self.assertEqual(
+            self.client.get(reverse("reporting:detail", args=[draft.pk])).status_code,
+            200,
+        )
+        detail = self.client.get(reverse("reporting:detail", args=[report.pk]))
+        self.assertEqual(detail.status_code, 200)
+
+        approved = self.client.post(
+            reverse("reporting:approve", args=[report.pk])
+        )
+        self.assertEqual(approved.status_code, 302)
+        report.refresh_from_db()
+        self.assertEqual(report.status, ShiftReport.ReportStatus.APPROVED)
+        self.assertEqual(
+            self.client.get(reverse("reporting:detail", args=[report.pk])).status_code,
+            200,
+        )
+
+        with tempfile.TemporaryDirectory() as media_root:
+            with override_settings(MEDIA_ROOT=media_root):
+                pdf = self.client.get(
+                    reverse("reporting:export-pdf", args=[report.pk])
+                )
+                self.assertEqual(pdf.status_code, 200)
+                self.assertEqual(pdf["Content-Type"], "application/pdf")
+                self.assertIn("attachment", pdf["Content-Disposition"])
+                self.assertTrue(pdf.content.startswith(b"%PDF"))
+                self.assertGreater(len(pdf.content), 100)
+
+                excel = self.client.get(
+                    reverse("reporting:export-excel", args=[report.pk])
+                )
+                self.assertEqual(excel.status_code, 200)
+                self.assertGreater(len(excel.content), 100)
+                workbook_path = Path(media_root) / "report.xlsx"
+                workbook_path.write_bytes(excel.content)
+                workbook = load_workbook(workbook_path, read_only=True)
+                self.assertIn("الملخص التنفيذي", workbook.sheetnames)
+                workbook.close()
+
+                logs = ExportLog.objects.order_by("created_at")
+                self.assertEqual(logs.count(), 2)
+                self.assertTrue(all(log.status == "success" for log in logs))
+                self.assertTrue(all(log.download_count == 1 for log in logs))
+
+    def test_create_and_approve_buttons_match_post_contract(self):
+        self._finish_shift()
+        list_page = self.client.get(reverse("reporting:list"))
+        self.assertContains(list_page, reverse("reporting:create-operational"))
+        self.assertNotContains(list_page, 'href="/reporting/generate-active/"')
+        legacy = self.client.get(reverse("reporting:generate-active"))
+        self.assertRedirects(legacy, reverse("reporting:create-operational"))
+
+        report = ReportService.generate_shift_report(
+            shift_plan=self.shift,
+            user=self.user,
+        )
+        detail = self.client.get(reverse("reporting:detail", args=[report.pk]))
+        approve_url = reverse("reporting:approve", args=[report.pk])
+        self.assertContains(detail, f'action="{approve_url}"')
+        self.assertNotContains(detail, f'href="{approve_url}"')
+
+    def test_unauthenticated_and_unauthorized_access_is_denied(self):
+        self._finish_shift()
+        report = ReportService.generate_shift_report(
+            shift_plan=self.shift,
+            user=self.user,
+        )
+        urls = (
+            reverse("reporting:detail", args=[report.pk]),
+            reverse("reporting:export-pdf", args=[report.pk]),
+        )
+        self.client.logout()
+        for url in urls:
+            self.assertEqual(self.client.get(url).status_code, 302)
+
+        unauthorized = get_user_model().objects.create_user(
+            username="report-unauthorized"
+        )
+        self.client.force_login(unauthorized)
+        for url in urls:
+            self.assertEqual(self.client.get(url).status_code, 403)
+
+    def test_section_scoped_user_cannot_view_or_export_all_scope_report(self):
+        self._finish_shift()
+        report = ReportService.generate_shift_report(
+            shift_plan=self.shift,
+            user=self.user,
+        )
+        group = Group.objects.create(name="male-report-scope")
+        group.permissions.add(
+            *Permission.objects.filter(
+                content_type__app_label="roles",
+                codename__in=("view_reports", "export_report"),
+            )
+        )
+        role = Role.objects.create(
+            code="male-report-scope",
+            name="Male report scope",
+            group=group,
+            operational_section=Role.OperationalSection.MALE,
+        )
+        user = get_user_model().objects.create_user(username="male-reporter")
+        UserRole.objects.create(user=user, role=role)
+        self.client.force_login(user)
+        self.assertEqual(
+            self.client.get(reverse("reporting:detail", args=[report.pk])).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.get(
+                reverse("reporting:export-pdf", args=[report.pk])
+            ).status_code,
+            404,
+        )
+
+    def test_generation_rolls_back_when_summary_generation_fails(self):
+        self._finish_shift()
+        from unittest.mock import patch
+
+        with patch(
+            "apps.reporting.services.build_executive_summary",
+            side_effect=RuntimeError("summary failed"),
+        ):
+            with self.assertRaises(RuntimeError):
+                ReportService.generate_shift_report(
+                    shift_plan=self.shift,
+                    user=self.user,
+                )
+        self.assertFalse(ShiftReport.objects.exists())

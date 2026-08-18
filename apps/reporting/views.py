@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import os
-import tempfile
 import hashlib
+from functools import wraps
 from io import BytesIO
 
 from django.conf import settings
@@ -20,13 +20,18 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from playwright.sync_api import sync_playwright
 from openpyxl import Workbook
-from openpyxl.chart import BarChart, DoughnutChart, Reference
+from openpyxl.chart import DoughnutChart, Reference
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
 from apps.distribution.models import DoorAssignment
+from apps.exports_center.models import ExportLog
+from apps.exports_center.services.export_logger import (
+    complete_export_log,
+    create_processing_log,
+    fail_export_log,
+)
 from apps.ops.models import (
     DoorShift,
     MaintenanceRequest,
@@ -38,13 +43,40 @@ from apps.roles.services.permission_registry import (
 from apps.roles.services.section_access import get_allowed_sections, has_institutional_scope
 from apps.scheduling.models import ShiftPlan
 
-from .ai_summary import (
-    build_executive_summary,
-    build_recommendations,
-)
 from .forms import ShiftReportForm
 from .models import ShiftReport
 from .services import ReportService
+
+
+def _logged_report_export(export_format):
+    """Record operational report downloads in the central ExportLog."""
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapped(request, pk, *args, **kwargs):
+            extension = "xlsx" if export_format == "excel" else export_format
+            export_log = create_processing_log(
+                request=request,
+                module="reporting",
+                report_key="operational_shift_report",
+                file_name=f"operational_report_{pk}.{extension}",
+                export_format=export_format,
+                filters={"report_id": pk},
+            )
+            try:
+                response = view_func(request, pk, *args, **kwargs)
+                content = bytes(response.content)
+                complete_export_log(
+                    export_log=export_log,
+                    content=content,
+                    records_count=1,
+                )
+                export_log.register_download()
+                return response
+            except Exception as error:
+                fail_export_log(export_log=export_log, exception=error)
+                raise
+        return wrapped
+    return decorator
 
 
 # ==================================================
@@ -250,6 +282,17 @@ def _scoped_reports(user):
     if allowed_sections == {"male", "female"}:
         return queryset
     return queryset.filter(operational_section__in=allowed_sections)
+
+
+def _user_can_access_shift_report(user, shift_plan):
+    if user.is_superuser:
+        return True
+    if not has_institutional_scope(user):
+        return False
+    allowed_sections = get_allowed_sections(user)
+    if allowed_sections == {"male", "female"}:
+        return True
+    return ReportService.report_section_for_shift(shift_plan) in allowed_sections
 
 
 # ==================================================
@@ -1262,30 +1305,28 @@ def report_create_view(
                 .ReportType
                 .OPERATIONAL
             ):
-                _refresh_report_metrics(
-                    report
-                )
-
-                report.summary = (
-                    build_executive_summary(
-                        report
+                if not _user_can_access_shift_report(request.user, report.shift_plan):
+                    form.add_error("shift_plan", "الوردية خارج نطاق قسمك التشغيلي.")
+                    return render(
+                        request,
+                        "reporting/report_form.html",
+                        {"form": form, "default_report_type": default_report_type},
+                        status=403,
                     )
-                )
-
-                report.recommendations = (
-                    "\n".join(
-                        build_recommendations(
-                            report
-                        )
+                try:
+                    report = ReportService.generate_shift_report(
+                        request=request,
+                        shift_plan=report.shift_plan,
+                        user=request.user,
                     )
-                )
+                except ValidationError as error:
+                    form.add_error("shift_plan", error)
+                    messages.error(request, "تعذر إنشاء التقرير التشغيلي")
+                else:
+                    messages.success(request, "تم إنشاء التقرير بنجاح")
+                    return redirect("reporting:detail", pk=report.pk)
 
-            elif (
-                report.report_type
-                == ShiftReport
-                .ReportType
-                .MANUAL
-            ):
+            else:
                 report.total_doors = 0
                 report.open_doors = 0
                 report.closed_doors = 0
@@ -1294,17 +1335,17 @@ def report_create_view(
                 report.total_maintenance_requests = 0
                 report.completed_maintenance_requests = 0
 
-            report.save()
+                report.save()
 
-            messages.success(
-                request,
-                "تم إنشاء التقرير بنجاح",
-            )
+                messages.success(
+                    request,
+                    "تم إنشاء التقرير بنجاح",
+                )
 
-            return redirect(
-                "reporting:detail",
-                pk=report.pk,
-            )
+                return redirect(
+                    "reporting:detail",
+                    pk=report.pk,
+                )
 
         messages.error(
             request,
@@ -1355,6 +1396,8 @@ def generate_report_view(
         ),
         pk=pk,
     )
+    if not _user_can_access_shift_report(request.user, shift):
+        return HttpResponse(status=403)
 
     try:
         report = (
@@ -1399,69 +1442,14 @@ def generate_report_view(
         "إنشاء تقرير الوردية النشطة."
     ),
 )
-@require_POST
 def generate_active_shift_report_view(
     request,
 ):
     """
-    إنشاء تقرير تلقائي للوردية النشطة الحالية.
+    مسار توافقي قديم: يوجّه إلى نموذج اختيار وردية منتهية.
     """
-    active_shift = (
-        ShiftPlan.objects
-        .select_related(
-            "shift_type"
-        )
-        .filter(
-            is_active=True
-        )
-        .first()
-    )
-
-    if not active_shift:
-        messages.error(
-            request,
-            (
-                "لا توجد وردية نشطة "
-                "لإنشاء تقرير"
-            ),
-        )
-
-        return redirect(
-            "reporting:list"
-        )
-
-    try:
-        report = (
-            ReportService
-            .generate_shift_report(
-                request=request,
-                shift_plan=active_shift,
-                user=request.user,
-            )
-        )
-
-        messages.success(
-            request,
-            (
-                "تم إنشاء تقرير "
-                "الوردية النشطة تلقائيًا"
-            ),
-        )
-
-        return redirect(
-            "reporting:detail",
-            pk=report.pk,
-        )
-
-    except ValidationError as error:
-        messages.error(
-            request,
-            str(error),
-        )
-
-        return redirect(
-            "reporting:list"
-        )
+    messages.info(request, "اختر وردية منتهية لإنشاء التقرير التشغيلي.")
+    return redirect("reporting:create-operational")
     # ==================================================
 # تفاصيل التقرير
 # ==================================================
@@ -1850,6 +1838,7 @@ def _get_haramain_logo_path():
         "تصدير التقرير إلى PDF."
     ),
 )
+@_logged_report_export(ExportLog.ExportFormat.PDF)
 def export_report_pdf_view(
     request,
     pk,
@@ -2024,96 +2013,7 @@ def export_report_pdf_view(
         },
     )
 
-    html_path = None
-    pdf_path = None
-    pdf_data = b""
-
-    try:
-        with tempfile.NamedTemporaryFile(
-            suffix=".html",
-            delete=False,
-            mode="w",
-            encoding="utf-8",
-        ) as html_file:
-            html_file.write(
-                html_string
-            )
-
-            html_path = (
-                html_file.name
-            )
-
-        pdf_path = (
-            html_path.replace(
-                ".html",
-                ".pdf",
-            )
-        )
-
-        with sync_playwright() as playwright:
-            browser = (
-                playwright.chromium.launch(
-                    headless=True
-                )
-            )
-
-            try:
-                page = browser.new_page()
-
-                file_url = (
-                    "file:///"
-                    + html_path.replace(
-                        os.sep,
-                        "/",
-                    )
-                )
-
-                page.goto(
-                    file_url,
-                    wait_until="networkidle",
-                )
-
-                page.pdf(
-                    path=pdf_path,
-                    format="A4",
-                    print_background=True,
-                    margin={
-                        "top": "0mm",
-                        "right": "0mm",
-                        "bottom": "0mm",
-                        "left": "0mm",
-                    },
-                )
-
-            finally:
-                browser.close()
-
-        with open(
-            pdf_path,
-            "rb",
-        ) as pdf_file:
-            pdf_data = (
-                pdf_file.read()
-            )
-
-    finally:
-        if html_path:
-            try:
-                os.remove(
-                    html_path
-                )
-
-            except OSError:
-                pass
-
-        if pdf_path:
-            try:
-                os.remove(
-                    pdf_path
-                )
-
-            except OSError:
-                pass
+    pdf_data = ReportService.render_pdf(html_string)
 
     response = HttpResponse(
         pdf_data,
@@ -2136,6 +2036,7 @@ def export_report_pdf_view(
     PlatformPermissions.EXPORT_REPORT,
     message="ليس لديك صلاحية تصدير التقارير.",
 )
+@_logged_report_export(ExportLog.ExportFormat.EXCEL)
 def export_report_excel_view(request, pk):
     """تصدير تقرير تشغيلي متعدد الأوراق بصيغة Excel مؤسسية."""
     report = get_object_or_404(

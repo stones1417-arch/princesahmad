@@ -35,8 +35,8 @@
 
     <div class="report-models-grid">
 
-      {% if active_shift %}
-        <a href="{% url 'reporting:generate-active' %}" class="report-model-card active-report">
+      {% if can_create %}
+        <a href="{% url 'reporting:create-operational' %}" class="report-model-card active-report">
           <div class="model-icon">📊<small>01</small></div>
           <div class="model-content">
             <h4>تقرير تشغيلي</h4>

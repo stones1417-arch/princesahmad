@@ -159,10 +159,10 @@
                 <a href="{% url 'reporting:export-excel' report.pk %}" class="command-button">Excel</a>
                 <a href="{% url 'reporting:export-pdf' report.pk %}" class="command-button command-primary">تنزيل PDF</a>
                 {% if can_create %}
-                    <a href="{% url 'reporting:regenerate-summary' report.pk %}" class="command-button">تحديث المؤشرات</a>
+                    {% if report.status == "draft" %}<form method="post" action="{% url 'reporting:regenerate-summary' report.pk %}">{% csrf_token %}<button type="submit" class="command-button">تحديث المؤشرات</button></form>{% endif %}
                 {% endif %}
-                {% if can_approve and report.status != "approved" %}
-                    <a href="{% url 'reporting:approve' report.pk %}" class="command-button command-approve">اعتماد التقرير</a>
+                {% if can_approve and report.status == "final" %}
+                    <form method="post" action="{% url 'reporting:approve' report.pk %}">{% csrf_token %}<button type="submit" class="command-button command-approve">اعتماد التقرير</button></form>
                 {% endif %}
             </div>
         </section>

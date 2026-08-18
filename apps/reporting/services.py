@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError
+from django.conf import settings
 
 from apps.core.notification_service import NotificationService
 from apps.core.services import BaseService
@@ -23,6 +24,16 @@ class ReportService(BaseService):
     module_name = "التقارير"
 
     @staticmethod
+    def render_pdf(html: str) -> bytes:
+        """Render report HTML with the deployment-safe PDF engine."""
+        from weasyprint import HTML
+
+        return HTML(
+            string=html,
+            base_url=str(settings.BASE_DIR),
+        ).write_pdf()
+
+    @staticmethod
     def report_section_for_shift(shift_plan):
         sections = set(
             DoorAssignment.objects.filter(
@@ -30,6 +41,12 @@ class ReportService(BaseService):
                 is_active=True,
             ).values_list("section", flat=True)
         )
+        if not sections:
+            sections = set(
+                DoorShift.objects.filter(
+                    shift_plan=shift_plan,
+                ).exclude(section="").values_list("section", flat=True)
+            )
         if sections == {"male"}:
             return ShiftReport.OperationalSection.MALE
         if sections == {"female"}:
@@ -45,7 +62,7 @@ class ReportService(BaseService):
         if not shift_plan.is_finished:
             raise ValidationError("لا يمكن إنشاء تقرير لوردية غير منتهية")
 
-        if hasattr(shift_plan, "report"):
+        if ShiftReport.objects.filter(shift_plan=shift_plan).exists():
             raise ValidationError("تم إنشاء تقرير لهذه الوردية مسبقًا")
 
         door_shifts = DoorShift.objects.filter(
