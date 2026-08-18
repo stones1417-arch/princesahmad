@@ -31,7 +31,7 @@ class OperationalMaintenanceWorkflowTests(TestCase):
             is_active=True,
         )
 
-    def test_real_create_url_is_visible_in_maintenance_center_and_is_canonical(self):
+    def test_request_moves_through_review_and_execution_using_same_record(self):
         create_url = reverse(
             "ops:maintenance-create-ajax",
             args=[self.door_shift.pk],
@@ -48,21 +48,19 @@ class OperationalMaintenanceWorkflowTests(TestCase):
         payload = response.json()["maintenance"]
         maintenance = MaintenanceRequest.objects.get(pk=payload["id"])
         self.door_shift.refresh_from_db()
-        current_state = DoorCurrentState.objects.get(door=self.catalog_door)
-
         self.assertEqual(maintenance.created_by, self.user)
         self.assertEqual(maintenance.section, self.door_shift.section)
         self.assertEqual(maintenance.status, MaintenanceRequest.Status.NEW)
-        self.assertEqual(self.door_shift.state, DoorShift.DoorState.MAINTENANCE)
-        self.assertEqual(current_state.state, DoorShift.DoorState.MAINTENANCE)
-        self.assertEqual(current_state.current_shift, self.door_shift)
-        self.assertEqual(payload["state"], DoorShift.DoorState.MAINTENANCE)
+        self.assertEqual(self.door_shift.state, DoorShift.DoorState.OPEN)
+        self.assertEqual(payload["state"], DoorShift.DoorState.OPEN)
+
+        operations = self.client.get(reverse("ops:operations-center"))
+        self.assertContains(operations, maintenance.request_number)
+        self.assertContains(operations, "بانتظار المراجعة")
 
         center = self.client.get(reverse("ops:maintenance-list"))
         self.assertEqual(center.status_code, 200)
-        self.assertContains(center, maintenance.request_number)
-        self.assertContains(center, "6A")
-        self.assertContains(center, self.user.username)
+        self.assertNotContains(center, maintenance.request_number)
 
         duplicate = self.client.post(
             create_url,
@@ -73,6 +71,49 @@ class OperationalMaintenanceWorkflowTests(TestCase):
         )
         self.assertEqual(duplicate.status_code, 400)
         self.assertEqual(MaintenanceRequest.objects.count(), 1)
+
+        status_url = reverse(
+            "ops:maintenance-update-status-ajax", args=[maintenance.pk]
+        )
+        approved = self.client.post(
+            status_url, {"status": MaintenanceRequest.Status.APPROVED}
+        )
+        self.assertEqual(approved.status_code, 200)
+        maintenance.refresh_from_db()
+        self.door_shift.refresh_from_db()
+        current_state = DoorCurrentState.objects.get(door=self.catalog_door)
+        self.assertEqual(maintenance.pk, payload["id"])
+        self.assertEqual(maintenance.status, MaintenanceRequest.Status.APPROVED)
+        self.assertEqual(maintenance.approved_by, self.user)
+        self.assertIsNotNone(maintenance.approved_at)
+        self.assertEqual(self.door_shift.state, DoorShift.DoorState.MAINTENANCE)
+        self.assertEqual(current_state.state, DoorShift.DoorState.MAINTENANCE)
+
+        center = self.client.get(reverse("ops:maintenance-list"))
+        self.assertContains(center, maintenance.request_number)
+        self.assertContains(center, "6A")
+        self.assertContains(center, "غير محدد")
+
+        started = self.client.post(
+            status_url, {"status": MaintenanceRequest.Status.IN_PROGRESS}
+        )
+        self.assertEqual(started.status_code, 200)
+        maintenance.refresh_from_db()
+        self.assertEqual(maintenance.status, MaintenanceRequest.Status.IN_PROGRESS)
+        self.assertIsNotNone(maintenance.started_at)
+
+        completed = self.client.post(
+            status_url,
+            {
+                "status": MaintenanceRequest.Status.DONE,
+                "closing_notes": "Repair completed",
+            },
+        )
+        self.assertEqual(completed.status_code, 200)
+        maintenance.refresh_from_db()
+        self.door_shift.refresh_from_db()
+        self.assertEqual(maintenance.status, MaintenanceRequest.Status.DONE)
+        self.assertEqual(self.door_shift.state, DoorShift.DoorState.OPEN)
 
     def test_state_endpoint_maintenance_creates_request_and_returns_canonical_data(self):
         response = self.client.post(
@@ -88,12 +129,12 @@ class OperationalMaintenanceWorkflowTests(TestCase):
         maintenance = MaintenanceRequest.objects.get(
             pk=payload["maintenance_request_id"]
         )
-        self.assertEqual(payload["door"]["state"], "maintenance")
+        self.assertEqual(payload["door"]["state"], "open")
         self.assertEqual(payload["maintenance_status"], maintenance.status)
 
         context = CommandCenterService.build()
-        self.assertEqual(context["metrics"].open_doors, 0)
-        self.assertEqual(context["metrics"].maintenance_doors, 1)
+        self.assertEqual(context["metrics"].open_doors, 1)
+        self.assertEqual(context["metrics"].maintenance_doors, 0)
         self.assertEqual(context["metrics"].open_maintenance, 1)
 
     def test_finishing_maintenance_uses_official_open_state_contract(self):
@@ -103,18 +144,54 @@ class OperationalMaintenanceWorkflowTests(TestCase):
             description="Finish workflow",
             priority=MaintenanceRequest.Priority.MEDIUM,
         )
+        maintenance = MaintenanceService.update_status(
+            request=None,
+            user=self.user,
+            maintenance=maintenance,
+            new_status=MaintenanceRequest.Status.APPROVED,
+        )
+        maintenance = MaintenanceService.update_status(
+            request=None,
+            user=self.user,
+            maintenance=maintenance,
+            new_status=MaintenanceRequest.Status.IN_PROGRESS,
+        )
         updated = MaintenanceService.update_status(
             request=None,
             user=self.user,
             maintenance=maintenance,
-            new_status=MaintenanceRequest.Status.CLOSED,
+            new_status=MaintenanceRequest.Status.DONE,
             closing_notes="Repair completed",
         )
         self.door_shift.refresh_from_db()
 
-        self.assertEqual(updated.status, MaintenanceRequest.Status.CLOSED)
+        self.assertEqual(updated.status, MaintenanceRequest.Status.DONE)
         self.assertEqual(self.door_shift.state, DoorShift.DoorState.OPEN)
         self.assertFalse(updated.is_open_request)
+
+    def test_operations_can_reject_pending_request_without_changing_door(self):
+        maintenance = MaintenanceService.create_request(
+            request=None,
+            door=self.door_shift,
+            description="Rejected after review",
+            priority=MaintenanceRequest.Priority.LOW,
+        )
+        response = self.client.post(
+            reverse(
+                "ops:maintenance-update-status-ajax", args=[maintenance.pk]
+            ),
+            {
+                "status": MaintenanceRequest.Status.CLOSED,
+                "closing_notes": "Request is not a maintenance issue",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        maintenance.refresh_from_db()
+        self.door_shift.refresh_from_db()
+        self.assertEqual(maintenance.status, MaintenanceRequest.Status.CLOSED)
+        self.assertEqual(self.door_shift.state, DoorShift.DoorState.OPEN)
+        center = self.client.get(reverse("ops:maintenance-list"))
+        self.assertNotContains(center, maintenance.request_number)
 
     def test_authorized_buttons_render_with_real_urls_and_matching_selectors(self):
         response = self.client.get(reverse("ops:doors"))
@@ -203,9 +280,17 @@ class OperationalMaintenanceSecurityTests(TestCase):
         return user
 
     def test_unauthenticated_and_unauthorized_requests_are_denied(self):
+        maintenance = MaintenanceRequest.objects.create(
+            door_shift=self.door_shift,
+            description="Protected workflow",
+            priority=MaintenanceRequest.Priority.MEDIUM,
+        )
         urls = (
             reverse("ops:maintenance-create-ajax", args=[self.door_shift.pk]),
             reverse("ops:door-update-ajax", args=[self.door_shift.pk]),
+            reverse(
+                "ops:maintenance-update-status-ajax", args=[maintenance.pk]
+            ),
         )
         for url in urls:
             unauthenticated = self.client.post(url, {"description": "Denied"})

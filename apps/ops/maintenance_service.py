@@ -335,13 +335,9 @@ class MaintenanceService:
         assignment=None,
     ):
         """
-        إنشاء طلب صيانة جديد وتحويل
-        حالة الباب إلى الصيانة.
+        إنشاء طلب صيانة جديد بانتظار مراجعة مركز العمليات.
         """
 
-        from apps.ops.door_service import (
-            change_door_state,
-        )
         from apps.ops.models import (
             DoorShift,
             MaintenanceRequest,
@@ -489,24 +485,6 @@ class MaintenanceService:
         maintenance.full_clean()
         maintenance.save()
 
-        updated_door, _changed = change_door_state(
-            door_shift=locked_door,
-            new_state=(
-                DoorShift
-                .DoorState
-                .MAINTENANCE
-            ),
-            request=request,
-            user=created_by,
-            reason=(
-                "فتح طلب صيانة "
-                f"{maintenance.request_number}"
-            ),
-        )
-
-        maintenance.refresh_from_db()
-        maintenance.door_shift = updated_door
-
         return maintenance
 
     @staticmethod
@@ -571,6 +549,36 @@ class MaintenanceService:
             new_status=new_status,
         )
 
+        allowed_transitions = {
+            MaintenanceRequest.Status.NEW: {
+                MaintenanceRequest.Status.APPROVED,
+                MaintenanceRequest.Status.CLOSED,
+            },
+            MaintenanceRequest.Status.APPROVED: {
+                MaintenanceRequest.Status.ASSIGNED,
+                MaintenanceRequest.Status.IN_PROGRESS,
+            },
+            MaintenanceRequest.Status.ASSIGNED: {
+                MaintenanceRequest.Status.IN_PROGRESS,
+            },
+            MaintenanceRequest.Status.IN_PROGRESS: {
+                MaintenanceRequest.Status.FIXED,
+                MaintenanceRequest.Status.DONE,
+            },
+            MaintenanceRequest.Status.FIXED: {
+                MaintenanceRequest.Status.DONE,
+            },
+        }
+        if (
+            normalized_status != maintenance.status
+            and normalized_status not in allowed_transitions.get(
+                maintenance.status, set()
+            )
+        ):
+            raise ValidationError(
+                {"status": "انتقال حالة طلب الصيانة غير مسموح."}
+            )
+
         final_statuses = {
             MaintenanceRequest.Status.CLOSED,
         }
@@ -629,6 +637,11 @@ class MaintenanceService:
             )
         )
 
+        if normalized_status == MaintenanceRequest.Status.APPROVED:
+            maintenance.approved_by = effective_user
+            maintenance.save()
+            maintenance.refresh_from_db()
+
         updated_maintenance, changed = (
             change_maintenance_status(
                 maintenance_request=maintenance,
@@ -641,6 +654,21 @@ class MaintenanceService:
                 ),
             )
         )
+
+        if changed and normalized_status == MaintenanceRequest.Status.APPROVED:
+            door_shift = DoorShift.objects.select_for_update().get(
+                pk=updated_maintenance.door_shift_id
+            )
+            change_door_state(
+                door_shift=door_shift,
+                new_state=DoorShift.DoorState.MAINTENANCE,
+                request=request,
+                user=effective_user,
+                reason=(
+                    "اعتماد وتحويل طلب الصيانة "
+                    f"{updated_maintenance.request_number}"
+                ),
+            )
 
         if (
             changed

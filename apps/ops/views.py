@@ -148,13 +148,11 @@ def operations_center_view(request):
         When(priority=Incident.Priority.MEDIUM, then=Value(2)),
         default=Value(3), output_field=IntegerField(),
     )).order_by("priority_order", "created_at")[:6]
-    maintenance_queue = MaintenanceRequest.objects.select_related(
-        "door_shift", "technician"
-    ).filter(status__in=[
-        MaintenanceRequest.Status.NEW, MaintenanceRequest.Status.APPROVED,
-        MaintenanceRequest.Status.ASSIGNED, MaintenanceRequest.Status.IN_PROGRESS,
-        MaintenanceRequest.Status.OPEN,
-    ]).annotate(priority_order=Case(
+    maintenance_queue = _scoped_by_section(
+        MaintenanceRequest.objects, request.user
+    ).select_related(
+        "door_shift", "technician", "created_by"
+    ).filter(status=MaintenanceRequest.Status.NEW).annotate(priority_order=Case(
         When(priority=MaintenanceRequest.Priority.URGENT, then=Value(0)),
         When(priority=MaintenanceRequest.Priority.HIGH, then=Value(1)),
         When(priority=MaintenanceRequest.Priority.MEDIUM, then=Value(2)),
@@ -455,7 +453,7 @@ def update_door_status_ajax(request, pk):
                 priority=MaintenanceRequest.Priority.MEDIUM,
             )
             door.refresh_from_db()
-            changed = True
+            changed = False
         else:
             door, changed = DoorService.update_state(
                 request=request,
@@ -681,6 +679,14 @@ def maintenance_requests_view(request):
 
     maintenance_requests = (
         _scoped_by_section(MaintenanceRequest.objects, request.user)
+        .filter(status__in=(
+            MaintenanceRequest.Status.APPROVED,
+            MaintenanceRequest.Status.ASSIGNED,
+            MaintenanceRequest.Status.IN_PROGRESS,
+            MaintenanceRequest.Status.FIXED,
+            MaintenanceRequest.Status.OPEN,
+            MaintenanceRequest.Status.DONE,
+        ))
         .select_related(
             "door_shift",
             "door_shift__shift_plan",
@@ -773,7 +779,14 @@ def maintenance_requests_view(request):
         "active_shift": active_shift,
 
         "status_choices": (
-            MaintenanceRequest.Status.choices
+            (
+                MaintenanceRequest.Status.IN_PROGRESS,
+                "بدء المعالجة",
+            ),
+            (
+                MaintenanceRequest.Status.DONE,
+                "إنهاء الصيانة",
+            ),
         ),
         "priority_choices": (
             MaintenanceRequest.Priority.choices
@@ -839,11 +852,14 @@ def update_maintenance_status_ajax(
     """
 
     new_status = (request.POST.get("status", "") or "").strip()
-    permission = (
-        PlatformPermissions.CLOSE_MAINTENANCE_REQUEST
-        if new_status in {MaintenanceRequest.Status.CLOSED, MaintenanceRequest.Status.DONE}
-        else PlatformPermissions.APPROVE_MAINTENANCE_REQUEST
-    )
+    permission = {
+        MaintenanceRequest.Status.APPROVED: PlatformPermissions.APPROVE_MAINTENANCE_REQUEST,
+        MaintenanceRequest.Status.CLOSED: PlatformPermissions.APPROVE_MAINTENANCE_REQUEST,
+        MaintenanceRequest.Status.ASSIGNED: PlatformPermissions.ASSIGN_MAINTENANCE_TECHNICIAN,
+        MaintenanceRequest.Status.IN_PROGRESS: PlatformPermissions.ASSIGN_MAINTENANCE_TECHNICIAN,
+        MaintenanceRequest.Status.FIXED: PlatformPermissions.CLOSE_MAINTENANCE_REQUEST,
+        MaintenanceRequest.Status.DONE: PlatformPermissions.CLOSE_MAINTENANCE_REQUEST,
+    }.get(new_status, PlatformPermissions.VIEW_MAINTENANCE_REQUESTS)
     _require_ops_permission(request, permission)
     maintenance = get_object_or_404(
         _scoped_by_section(MaintenanceRequest.objects, request.user)
