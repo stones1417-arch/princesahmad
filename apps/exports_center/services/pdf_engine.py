@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import html
+
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
@@ -12,7 +13,6 @@ from urllib.parse import quote
 from django.conf import settings
 from django.http import HttpResponse
 from django.utils import timezone
-from django.utils.formats import date_format
 
 from apps.exports_center.registry import (
     FORMAT_PDF,
@@ -23,6 +23,9 @@ from apps.exports_center.registry import (
 from apps.exports_center.selectors import (
     build_report_indicators,
     select_report_queryset,
+)
+from apps.exports_center.services.column_selector import (
+    select_export_columns,
 )
 
 
@@ -92,7 +95,10 @@ class PDFExportResult:
         """
         حجم الملف بالبايت.
         """
-        return len(self.content)
+
+        return len(
+            self.content
+        )
 
 
 # ==================================================
@@ -115,6 +121,9 @@ class PDFExportEngine:
     - ترقيم الصفحات.
     - دعم الوضع الأفقي والرأسي.
     - دعم أسماء الملفات العربية والإنجليزية.
+    - اختيار أعمدة التقرير قبل التصدير.
+    - الحفاظ على ترتيب الأعمدة المختارة.
+    - رفض الأعمدة غير المصرح بها.
     """
 
     def __init__(
@@ -141,10 +150,22 @@ class PDFExportEngine:
         user=None,
         indicators: dict[str, Any] | None = None,
         file_name: str | None = None,
+        selected_columns: (
+            str
+            | Iterable[str]
+            | None
+        ) = None,
     ) -> PDFExportResult:
         """
         إنشاء ملف PDF كامل.
+
+        عند عدم تمرير queryset يتم جلب البيانات
+        تلقائيًا من selectors.py.
+
+        عند عدم تمرير selected_columns يتم استخدام
+        جميع أعمدة التقرير المتاحة لصيغة PDF.
         """
+
         report = get_report_definition(
             report_key
         )
@@ -159,8 +180,17 @@ class PDFExportEngine:
 
         normalized_filters = (
             self._normalize_filters(
-                filters or {}
+                filters
+                or {}
             )
+        )
+
+        columns = select_export_columns(
+            report=report,
+            export_format=FORMAT_PDF,
+            selected_columns=selected_columns,
+            require_at_least_one=True,
+            reject_unknown=True,
         )
 
         if queryset is None:
@@ -176,10 +206,6 @@ class PDFExportEngine:
                 report_key,
                 queryset,
             )
-
-        columns = report.get_columns(
-            FORMAT_PDF
-        )
 
         html_content = self._build_html_document(
             report=report,
@@ -226,10 +252,16 @@ class PDFExportEngine:
         user=None,
         indicators: dict[str, Any] | None = None,
         file_name: str | None = None,
+        selected_columns: (
+            str
+            | Iterable[str]
+            | None
+        ) = None,
     ) -> HttpResponse:
         """
         إنشاء استجابة تنزيل PDF مباشرة.
         """
+
         result = self.build(
             report_key=report_key,
             queryset=queryset,
@@ -237,6 +269,7 @@ class PDFExportEngine:
             user=user,
             indicators=indicators,
             file_name=file_name,
+            selected_columns=selected_columns,
         )
 
         response = HttpResponse(
@@ -261,6 +294,17 @@ class PDFExportEngine:
             result.file_size
         )
 
+        response[
+            "X-Content-Type-Options"
+        ] = "nosniff"
+
+        response[
+            "Cache-Control"
+        ] = (
+            "private, no-store, "
+            "max-age=0"
+        )
+
         return response
 
     # ==================================================
@@ -281,6 +325,7 @@ class PDFExportEngine:
         """
         إنشاء HTML كامل جاهز للتحويل إلى PDF.
         """
+
         page_orientation = (
             "landscape"
             if getattr(
@@ -299,8 +344,10 @@ class PDFExportEngine:
             records_count=records_count,
         )
 
-        indicators_html = self._build_indicators_html(
-            indicators
+        indicators_html = (
+            self._build_indicators_html(
+                indicators
+            )
         )
 
         table_html = self._build_table_html(
@@ -312,7 +359,9 @@ class PDFExportEngine:
         font_css = self._build_font_css()
 
         report_title = html.escape(
-            str(report.title)
+            str(
+                report.title
+            )
         )
 
         authority_name = html.escape(
@@ -329,7 +378,9 @@ class PDFExportEngine:
 
         generated_at = (
             timezone.localtime()
-            .strftime("%Y-%m-%d %H:%M")
+            .strftime(
+                "%Y-%m-%d %H:%M"
+            )
         )
 
         return f"""
@@ -793,13 +844,17 @@ class PDFExportEngine:
         records_count: int,
     ) -> str:
         exported_by = html.escape(
-            self._display_user(user)
+            self._display_user(
+                user
+            )
             or "—"
         )
 
         exported_at = (
             timezone.localtime()
-            .strftime("%Y-%m-%d %H:%M")
+            .strftime(
+                "%Y-%m-%d %H:%M"
+            )
         )
 
         filters_html = self._build_filters_html(
@@ -904,11 +959,20 @@ class PDFExportEngine:
         ignored_keys = {
             "csrfmiddlewaretoken",
             "page",
+            "page_size",
             "preview",
+            "preview_limit",
             "export_format",
             "format",
             "report_key",
             "submit",
+            "selected_columns",
+            "columns",
+            "search",
+            "sort",
+            "direction",
+            "ordering",
+            "action",
         }
 
         formatted_filters: list[
@@ -930,7 +994,9 @@ class PDFExportEngine:
 
             formatted_filters.append(
                 (
-                    self._filter_label(key),
+                    self._filter_label(
+                        key
+                    ),
                     self._display_filter_value(
                         value
                     ),
@@ -976,7 +1042,10 @@ class PDFExportEngine:
 
         return labels.get(
             key,
-            key.replace("_", " "),
+            key.replace(
+                "_",
+                " ",
+            ),
         )
 
     # ==================================================
@@ -1085,31 +1154,52 @@ class PDFExportEngine:
         for key, value in indicators.items():
             label = labels.get(
                 key,
-                key.replace("_", " "),
+                key.replace(
+                    "_",
+                    " ",
+                ),
             )
 
-            if isinstance(value, list):
+            if isinstance(
+                value,
+                list,
+            ):
                 for item in value:
-                    if isinstance(item, dict):
+                    if isinstance(
+                        item,
+                        dict,
+                    ):
                         item_name = (
-                            item.get("status")
-                            or item.get("priority")
-                            or item.get("label")
+                            item.get(
+                                "status"
+                            )
+                            or item.get(
+                                "priority"
+                            )
+                            or item.get(
+                                "label"
+                            )
                             or "غير محدد"
                         )
 
                         item_total = (
-                            item.get("total")
-                            or item.get("count")
+                            item.get(
+                                "total"
+                            )
+                            or item.get(
+                                "count"
+                            )
                             or 0
                         )
 
                         flattened.append(
                             (
-                                f"{label} - {item_name}",
+                                f"{label} - "
+                                f"{item_name}",
                                 item_total,
                             )
                         )
+
                     else:
                         flattened.append(
                             (
@@ -1118,13 +1208,18 @@ class PDFExportEngine:
                             )
                         )
 
-            elif isinstance(value, dict):
-                for child_key, child_value in (
-                    value.items()
-                ):
+            elif isinstance(
+                value,
+                dict,
+            ):
+                for (
+                    child_key,
+                    child_value,
+                ) in value.items():
                     flattened.append(
                         (
-                            f"{label} - {child_key}",
+                            f"{label} - "
+                            f"{child_key}",
                             child_value,
                         )
                     )
@@ -1197,8 +1292,10 @@ class PDFExportEngine:
                 except Exception:
                     raw_value = ""
 
-                display_value = self._display_value(
-                    raw_value
+                display_value = (
+                    self._display_value(
+                        raw_value
+                    )
                 )
 
                 css_class = (
@@ -1252,6 +1349,7 @@ class PDFExportEngine:
         """
         تحويل HTML إلى PDF باستخدام WeasyPrint.
         """
+
         try:
             from weasyprint import HTML
 
@@ -1293,15 +1391,23 @@ class PDFExportEngine:
         if value is None:
             return "—"
 
-        if isinstance(value, bool):
+        if isinstance(
+            value,
+            bool,
+        ):
             return (
                 "نعم"
                 if value
                 else "لا"
             )
 
-        if isinstance(value, datetime):
-            if timezone.is_aware(value):
+        if isinstance(
+            value,
+            datetime,
+        ):
+            if timezone.is_aware(
+                value
+            ):
                 value = timezone.localtime(
                     value
                 )
@@ -1310,20 +1416,32 @@ class PDFExportEngine:
                 "%Y-%m-%d %H:%M"
             )
 
-        if isinstance(value, date):
+        if isinstance(
+            value,
+            date,
+        ):
             return value.strftime(
                 "%Y-%m-%d"
             )
 
-        if isinstance(value, Decimal):
+        if isinstance(
+            value,
+            Decimal,
+        ):
             return format(
                 value,
                 "f",
             )
 
-        if isinstance(value, dict):
+        if isinstance(
+            value,
+            dict,
+        ):
             return " | ".join(
-                f"{key}: {self._display_value(item)}"
+                (
+                    f"{key}: "
+                    f"{self._display_value(item)}"
+                )
                 for key, item
                 in value.items()
             )
@@ -1337,13 +1455,20 @@ class PDFExportEngine:
             ),
         ):
             return "، ".join(
-                self._display_value(item)
+                self._display_value(
+                    item
+                )
                 for item in value
             )
 
         return (
-            str(value)
-            .replace("\x00", "")
+            str(
+                value
+            )
+            .replace(
+                "\x00",
+                "",
+            )
             .strip()
             or "—"
         )
@@ -1361,18 +1486,25 @@ class PDFExportEngine:
             ),
         ):
             return "، ".join(
-                str(item)
+                str(
+                    item
+                )
                 for item in value
             )
 
-        if isinstance(value, bool):
+        if isinstance(
+            value,
+            bool,
+        ):
             return (
                 "نعم"
                 if value
                 else "لا"
             )
 
-        return str(value)
+        return str(
+            value
+        )
 
     @staticmethod
     def _display_user(
@@ -1387,7 +1519,9 @@ class PDFExportEngine:
             None,
         )
 
-        if callable(get_full_name):
+        if callable(
+            get_full_name
+        ):
             full_name = (
                 get_full_name()
                 or ""
@@ -1410,7 +1544,9 @@ class PDFExportEngine:
             )
 
             if full_name:
-                return str(full_name)
+                return str(
+                    full_name
+                )
 
         return str(
             getattr(
@@ -1418,6 +1554,7 @@ class PDFExportEngine:
                 "username",
                 "",
             )
+            or ""
         )
 
     # ==================================================
@@ -1501,11 +1638,20 @@ class PDFExportEngine:
         )
 
         return (
-            media_root / "aharamain_logo.png",
-            media_root / "aharamaian_logo.png",
-            media_root / "alharamain_logo.png",
-            media_root / "haramain_logo.png",
-            media_root / "شعار الحرمين.png",
+            media_root
+            / "aharamain_logo.png",
+
+            media_root
+            / "aharamaian_logo.png",
+
+            media_root
+            / "alharamain_logo.png",
+
+            media_root
+            / "haramain_logo.png",
+
+            media_root
+            / "شعار الحرمين.png",
 
             base_dir
             / "static"
@@ -1545,10 +1691,17 @@ class PDFExportEngine:
         )
 
         return (
-            media_root / "abwaab-logo.jpeg",
-            media_root / "abwaab-logo.jpg",
-            media_root / "abwaab-logo.png",
-            media_root / "abwaab_logo.png",
+            media_root
+            / "abwaab-logo.jpeg",
+
+            media_root
+            / "abwaab-logo.jpg",
+
+            media_root
+            / "abwaab-logo.png",
+
+            media_root
+            / "abwaab_logo.png",
 
             base_dir
             / "static"
@@ -1637,7 +1790,9 @@ class PDFExportEngine:
         try:
             encoded = base64.b64encode(
                 path.read_bytes()
-            ).decode("ascii")
+            ).decode(
+                "ascii"
+            )
 
         except (
             OSError,
@@ -1658,7 +1813,10 @@ class PDFExportEngine:
     def _normalize_filters(
         filters: Mapping[str, Any],
     ) -> dict[str, Any]:
-        normalized: dict[str, Any] = {}
+        normalized: dict[
+            str,
+            Any
+        ] = {}
 
         lists_method = getattr(
             filters,
@@ -1666,12 +1824,17 @@ class PDFExportEngine:
             None,
         )
 
-        if callable(lists_method):
+        if callable(
+            lists_method
+        ):
             for key, values in lists_method():
                 cleaned_values = [
                     (
                         value.strip()
-                        if isinstance(value, str)
+                        if isinstance(
+                            value,
+                            str,
+                        )
                         else value
                     )
                     for value in values
@@ -1686,14 +1849,19 @@ class PDFExportEngine:
 
                 normalized[key] = (
                     cleaned_values[0]
-                    if len(cleaned_values) == 1
+                    if len(
+                        cleaned_values
+                    ) == 1
                     else cleaned_values
                 )
 
             return normalized
 
         for key, value in filters.items():
-            if isinstance(value, str):
+            if isinstance(
+                value,
+                str,
+            ):
                 value = value.strip()
 
             if value in (
@@ -1719,7 +1887,9 @@ class PDFExportEngine:
     ) -> str:
         timestamp = (
             timezone.localtime()
-            .strftime("%Y%m%d_%H%M%S")
+            .strftime(
+                "%Y%m%d_%H%M%S"
+            )
         )
 
         return (
@@ -1732,10 +1902,22 @@ class PDFExportEngine:
         file_name: str,
     ) -> str:
         normalized_name = (
-            str(file_name or "export")
-            .replace('"', "")
-            .replace("\r", "")
-            .replace("\n", "")
+            str(
+                file_name
+                or "export"
+            )
+            .replace(
+                '"',
+                "",
+            )
+            .replace(
+                "\r",
+                "",
+            )
+            .replace(
+                "\n",
+                "",
+            )
             .strip()
         )
 
@@ -1769,10 +1951,16 @@ def build_pdf_export(
     user=None,
     indicators: dict[str, Any] | None = None,
     file_name: str | None = None,
+    selected_columns: (
+        str
+        | Iterable[str]
+        | None
+    ) = None,
 ) -> PDFExportResult:
     """
     إنشاء ملف PDF باستخدام المحرك الافتراضي.
     """
+
     return pdf_export_engine.build(
         report_key=report_key,
         queryset=queryset,
@@ -1780,6 +1968,7 @@ def build_pdf_export(
         user=user,
         indicators=indicators,
         file_name=file_name,
+        selected_columns=selected_columns,
     )
 
 
@@ -1791,10 +1980,16 @@ def build_pdf_response(
     user=None,
     indicators: dict[str, Any] | None = None,
     file_name: str | None = None,
+    selected_columns: (
+        str
+        | Iterable[str]
+        | None
+    ) = None,
 ) -> HttpResponse:
     """
     إنشاء استجابة تنزيل PDF مباشرة.
     """
+
     return pdf_export_engine.build_response(
         report_key=report_key,
         queryset=queryset,
@@ -1802,4 +1997,5 @@ def build_pdf_response(
         user=user,
         indicators=indicators,
         file_name=file_name,
+        selected_columns=selected_columns,
     )

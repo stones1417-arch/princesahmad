@@ -29,7 +29,6 @@ from apps.ops.models import (
 from apps.reporting.models import ShiftReport
 from apps.scheduling.models import (
     ShiftAssignment,
-    ShiftPlan,
 )
 from apps.roles.services.section_access import (
     filter_assignments_for_user,

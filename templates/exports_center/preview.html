@@ -8,7 +8,7 @@
 {% block extra_css %}
 <link
     rel="stylesheet"
-    href="{% static 'css/exports_center/exports-center.css' %}?v=20260726-17"
+    href="{% static 'css/exports_center/exports-center.css' %}?v=20260805-preview-02"
 >
 
 <style>
@@ -17,7 +17,9 @@
     ========================================================= */
 
     .xep-page,
-    .xep-page * {
+    .xep-page *,
+    .xep-page *::before,
+    .xep-page *::after {
         box-sizing: border-box;
     }
 
@@ -27,14 +29,19 @@
         --xep-green-deep: #043c31;
         --xep-green-soft: #eaf7f2;
         --xep-green-pale: #f6fcf9;
+
         --xep-gold: #d4aa45;
         --xep-gold-soft: #fff8e7;
+
         --xep-red: #df3e3e;
         --xep-red-soft: #fff1f1;
+
         --xep-purple: #7043ce;
         --xep-purple-soft: #f4f0ff;
+
         --xep-blue: #397bd5;
         --xep-blue-soft: #edf4ff;
+
         --xep-text: #14261f;
         --xep-muted: #78847f;
         --xep-border: #dce7e2;
@@ -251,7 +258,8 @@
 
         transition:
             transform 0.18s ease,
-            box-shadow 0.18s ease;
+            box-shadow 0.18s ease,
+            background 0.18s ease;
     }
 
     .xep-back-button {
@@ -441,7 +449,8 @@
 
         color: var(--xep-muted);
 
-        font-size: 7px;
+        font-size: 8px;
+        line-height: 1.5;
     }
 
     .xep-stat.featured .xep-stat-content span {
@@ -576,21 +585,46 @@
 
     .xep-table-wrap {
         width: 100%;
-        overflow-x: auto;
+        max-height: 650px;
+
+        overflow: auto;
+
+        scrollbar-width: thin;
+        scrollbar-color:
+            #b7cec3
+            #f1f6f3;
+    }
+
+    .xep-table-wrap::-webkit-scrollbar {
+        width: 9px;
+        height: 9px;
+    }
+
+    .xep-table-wrap::-webkit-scrollbar-track {
+        background: #f1f6f3;
+    }
+
+    .xep-table-wrap::-webkit-scrollbar-thumb {
+        border: 2px solid #f1f6f3;
+        border-radius: 999px;
+
+        background: #b7cec3;
     }
 
     .xep-table {
         width: 100%;
         min-width: 900px;
 
-        border-collapse: collapse;
+        border-collapse: separate;
         border-spacing: 0;
+
+        table-layout: auto;
     }
 
     .xep-table thead th {
         position: sticky;
         top: 0;
-        z-index: 2;
+        z-index: 5;
 
         padding: 14px 15px;
 
@@ -601,7 +635,7 @@
 
         text-align: right;
 
-        font-size: 9px;
+        font-size: 10px;
         font-weight: 900;
 
         white-space: nowrap;
@@ -609,20 +643,42 @@
 
     .xep-table thead th:first-child {
         width: 58px;
+        min-width: 58px;
+
         text-align: center;
     }
 
+    .xep-column-heading {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .xep-column-heading::before {
+        content: "";
+
+        width: 5px;
+        height: 5px;
+
+        border-radius: 50%;
+
+        background: var(--xep-gold);
+    }
+
     .xep-table tbody td {
+        max-width: 360px;
         padding: 13px 15px;
 
         border-bottom: 1px solid #edf2ef;
 
         color: #4f5c57;
 
-        font-size: 9px;
+        font-size: 10px;
         line-height: 1.7;
 
         vertical-align: middle;
+
+        overflow-wrap: anywhere;
     }
 
     .xep-table tbody tr:last-child td {
@@ -634,8 +690,12 @@
             background 0.17s ease;
     }
 
+    .xep-table tbody tr:nth-child(even) {
+        background: #fcfefd;
+    }
+
     .xep-table tbody tr:hover {
-        background: #fbfefc;
+        background: #f4faf7;
     }
 
     .xep-row-number {
@@ -660,8 +720,76 @@
         font-weight: 900;
     }
 
+    .xep-cell-value {
+        display: inline-block;
+
+        max-width: 100%;
+    }
+
     .xep-cell-empty {
         color: #a0aaa5;
+
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+
+    /* =========================================================
+       تذييل الجدول
+    ========================================================= */
+
+    .xep-table-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+
+        min-height: 58px;
+        padding: 13px 18px;
+
+        border-top: 1px solid var(--xep-border);
+
+        color: var(--xep-muted);
+        background: #fbfdfc;
+
+        font-size: 9px;
+        line-height: 1.7;
+    }
+
+    .xep-table-footer strong {
+        color: var(--xep-green-dark);
+
+        font-size: 10px;
+        font-weight: 900;
+    }
+
+    .xep-preview-limit-note {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+
+        color: #8a6a1d;
+
+        font-weight: 800;
+    }
+
+    .xep-preview-limit-note::before {
+        content: "i";
+
+        width: 18px;
+        height: 18px;
+
+        display: grid;
+        place-items: center;
+
+        border-radius: 50%;
+
+        color: #8a6a1d;
+        background: var(--xep-gold-soft);
+
+        font-family: Arial, sans-serif;
+        font-size: 10px;
+        font-weight: 900;
     }
 
 
@@ -954,6 +1082,20 @@
             rgba(18, 52, 41, 0.08);
     }
 
+    .xep-export-button[aria-disabled="true"] {
+        opacity: 0.48;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    .xep-export-selection-status {
+        min-height: 18px;
+        margin: 10px 0 0;
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 9px;
+        line-height: 1.6;
+    }
+
     .xep-export-button > span {
         display: flex;
         align-items: center;
@@ -1083,6 +1225,168 @@
         text-align: center;
     }
 
+    .xep-section-switcher {
+        margin: 0 0 16px;
+        padding: 12px 14px;
+
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+
+        border: 1px solid var(--xep-border);
+        border-radius: 8px;
+        background: var(--xep-white);
+    }
+
+    .xep-section-switcher-label {
+        color: var(--xep-text);
+        font-size: 12px;
+        font-weight: 900;
+    }
+
+    .xep-section-options {
+        display: inline-flex;
+        gap: 4px;
+        padding: 3px;
+
+        border: 1px solid var(--xep-border);
+        border-radius: 7px;
+        background: var(--xep-background);
+    }
+
+    .xep-section-option {
+        min-width: 64px;
+        min-height: 32px;
+        padding: 0 10px;
+
+        border: 0;
+        border-radius: 5px;
+        background: transparent;
+        color: var(--xep-muted);
+
+        font: inherit;
+        font-size: 11px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .xep-section-option[aria-pressed="true"] {
+        background: var(--xep-green);
+        color: var(--xep-white);
+    }
+
+    .xep-column-selector-actions {
+        margin: 14px 0 10px;
+        display: flex;
+        gap: 6px;
+    }
+
+    .xep-column-selector-action {
+        min-height: 30px;
+        padding: 0 9px;
+        border: 1px solid var(--xep-border);
+        border-radius: 5px;
+        color: var(--xep-green-dark);
+        background: var(--xep-background);
+        font: inherit;
+        font-size: 9px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .xep-column-selector-list {
+        max-height: 300px;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 5px;
+        overflow: auto;
+        list-style: none;
+    }
+
+    .xep-column-selector-option {
+        min-width: 0;
+        padding: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid var(--xep-border);
+        border-radius: 5px;
+        background: #fbfdfc;
+        color: var(--xep-text);
+        font-size: 9px;
+        cursor: pointer;
+    }
+
+    .xep-column-selector-option input {
+        width: 15px;
+        height: 15px;
+        accent-color: var(--xep-green);
+    }
+
+    .xep-preview-tools {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .xep-preview-search,
+    .xep-preview-page-size {
+        min-height: 34px;
+        border: 1px solid var(--xep-border);
+        border-radius: 5px;
+        background: var(--xep-white);
+        color: var(--xep-text);
+        font: inherit;
+        font-size: 10px;
+    }
+
+    .xep-preview-search {
+        width: min(220px, 42vw);
+        padding: 0 10px;
+    }
+
+    .xep-preview-page-size {
+        padding: 0 6px;
+    }
+
+    .xep-preview-state {
+        min-height: 180px;
+        padding: 30px;
+        display: grid;
+        place-items: center;
+        color: var(--xep-muted);
+        text-align: center;
+        font-size: 11px;
+    }
+
+    .xep-pagination {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 5px;
+        padding: 12px;
+    }
+
+    .xep-page-button {
+        min-width: 32px;
+        min-height: 30px;
+        border: 1px solid var(--xep-border);
+        border-radius: 5px;
+        background: var(--xep-white);
+        color: var(--xep-green-dark);
+        font: inherit;
+        font-size: 9px;
+        cursor: pointer;
+    }
+
+    .xep-page-button.is-active {
+        border-color: var(--xep-green);
+        background: var(--xep-green);
+        color: var(--xep-white);
+    }
+
 
     /* =========================================================
        التجاوب
@@ -1140,7 +1444,8 @@
             grid-template-columns: 1fr;
         }
 
-        .xep-table-heading {
+        .xep-table-heading,
+        .xep-table-footer {
             align-items: flex-start;
             flex-direction: column;
         }
@@ -1149,17 +1454,19 @@
 {% endblock %}
 
 {% block content %}
-<main class="xep-page">
-
+<main
+    id="mainContent"
+    class="xep-page"
+    role="main"
+    data-preview-page
+    data-preview-data-url="{{ preview_data_url }}"
+>
     <!-- ==================================================
          رأس صفحة المعاينة
     ================================================== -->
     <section class="xep-hero">
-
         <div class="xep-hero-content">
-
             <div class="xep-eyebrow">
-
                 <span class="xep-eyebrow-icon">
                     <svg
                         viewBox="0 0 24 24"
@@ -1196,7 +1503,6 @@
         </div>
 
         <div class="xep-hero-actions">
-
             <a
                 href="javascript:history.back()"
                 class="xep-back-button"
@@ -1214,6 +1520,7 @@
             <a
                 href="{% url 'exports_center:filters' report_key=report_key %}{% if query_string %}?{{ query_string }}{% endif %}"
                 class="xep-filters-button"
+                data-filter-link
             >
                 <svg
                     viewBox="0 0 24 24"
@@ -1269,13 +1576,55 @@
         </div>
     </section>
 
+    {% if supports_section_filter %}
+        <section
+            class="xep-section-switcher"
+            data-section-switcher
+            aria-label="فلتر القسم التشغيلي"
+        >
+            <span class="xep-section-switcher-label">
+                القسم التشغيلي:
+            </span>
+
+            <div class="xep-section-options">
+                <button
+                    type="button"
+                    class="xep-section-option"
+                    data-section-value="all"
+                    aria-pressed="{% if filters.section == 'all' or not filters.section and not filters.operational_section %}true{% else %}false{% endif %}"
+                >
+                    الكل
+                </button>
+
+                <button
+                    type="button"
+                    class="xep-section-option"
+                    data-section-value="male"
+                    aria-pressed="{% if filters.section == 'male' or filters.operational_section == 'male' %}true{% else %}false{% endif %}"
+                >
+                    رجالي
+                </button>
+
+                <button
+                    type="button"
+                    class="xep-section-option"
+                    data-section-value="female"
+                    aria-pressed="{% if filters.section == 'female' or filters.operational_section == 'female' %}true{% else %}false{% endif %}"
+                >
+                    نسائي
+                </button>
+            </div>
+        </section>
+    {% endif %}
+
     <!-- ==================================================
          مؤشرات المعاينة
     ================================================== -->
-    <section class="xep-stats">
-
+    <section
+        class="xep-stats"
+        aria-label="مؤشرات المعاينة"
+    >
         <article class="xep-stat featured">
-
             <span class="xep-stat-icon">
                 <svg
                     viewBox="0 0 24 24"
@@ -1293,7 +1642,9 @@
                 </small>
 
                 <strong>
+                    <span id="xepAjaxTotalRecords">
                     {{ records_count|default:0 }}
+                    </span>
                 </strong>
 
                 <span>
@@ -1303,7 +1654,6 @@
         </article>
 
         <article class="xep-stat">
-
             <span class="xep-stat-icon preview">
                 <svg
                     viewBox="0 0 24 24"
@@ -1327,7 +1677,9 @@
                 </small>
 
                 <strong>
+                    <span id="xepAjaxFilteredRecords">
                     {{ preview_count|default:0 }}
+                    </span>
                 </strong>
 
                 <span>
@@ -1337,7 +1689,6 @@
         </article>
 
         <article class="xep-stat">
-
             <span class="xep-stat-icon filters">
                 <svg
                     viewBox="0 0 24 24"
@@ -1365,7 +1716,6 @@
         </article>
 
         <article class="xep-stat">
-
             <span class="xep-stat-icon ready">
                 <svg
                     viewBox="0 0 24 24"
@@ -1387,27 +1737,31 @@
                 </small>
 
                 <strong>
-                    جاهز
+                    {% if preview_rows %}
+                        جاهز
+                    {% else %}
+                        دون نتائج
+                    {% endif %}
                 </strong>
 
                 <span>
-                    متاح للمعاينة والتصدير
+                    {% if preview_rows %}
+                        متاح للمعاينة والتصدير
+                    {% else %}
+                        عدّل الفلاتر للحصول على نتائج
+                    {% endif %}
                 </span>
             </div>
         </article>
     </section>
 
     <div class="xep-layout">
-
         <!-- ==================================================
              جدول المعاينة
         ================================================== -->
         <section class="xep-table-card">
-
             <header class="xep-table-heading">
-
                 <div class="xep-table-heading-copy">
-
                     <span class="xep-table-heading-icon">
                         <svg
                             viewBox="0 0 24 24"
@@ -1432,38 +1786,90 @@
                     </div>
                 </div>
 
-                <span class="xep-table-meta">
-                    المعاينة جاهزة
-                </span>
+                {% if preview_rows %}
+                    <span class="xep-table-meta">
+                        المعاينة جاهزة
+                    </span>
+                {% else %}
+                    <span class="xep-table-meta">
+                        لا توجد نتائج
+                    </span>
+                {% endif %}
+
+                <div class="xep-preview-tools">
+                    <input
+                        id="xepSearchInput"
+                        class="xep-preview-search"
+                        type="search"
+                        placeholder="بحث في النتائج"
+                        aria-label="بحث في نتائج المعاينة"
+                    >
+
+                    <button
+                        id="xepSearchClear"
+                        type="button"
+                        class="xep-column-selector-action"
+                    >
+                        مسح
+                    </button>
+
+                    <select
+                        id="xepPageSize"
+                        class="xep-preview-page-size"
+                        aria-label="عدد السجلات في الصفحة"
+                    >
+                        {% for page_size in allowed_page_sizes %}
+                            <option value="{{ page_size }}"{% if page_size == 50 %} selected{% endif %}>
+                                {{ page_size }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
             </header>
 
+            <div id="xepLoadingState" class="xep-preview-state" hidden>
+                جار تحميل المعاينة...
+            </div>
+
+            <div id="xepAjaxEmptyState" class="xep-preview-state" hidden>
+                لا توجد بيانات مطابقة للفلاتر المحددة.
+            </div>
+
+            <div id="xepAjaxErrorState" class="xep-preview-state" hidden>
+                <span data-error-message>تعذر تحميل بيانات المعاينة.</span>
+            </div>
+
             {% if preview_rows %}
-
-                <div class="xep-table-wrap">
-
+                <div
+                    id="xepTableRegion"
+                    class="xep-table-wrap"
+                    role="region"
+                    aria-label="جدول معاينة التقرير"
+                    tabindex="0"
+                >
                     <table class="xep-table">
-
-                        <thead>
+                        <thead id="xepTableHead">
                             <tr>
-                                <th>
+                                <th scope="col">
                                     #
                                 </th>
 
                                 {% for column in columns %}
-                                    <th>
-                                        {{ column.label|default:column }}
+                                    <th scope="col">
+                                        <span class="xep-column-heading">
+                                            {{ column.header|default:column.key }}
+                                        </span>
                                     </th>
                                 {% empty %}
-                                    <th>
+                                    <th scope="col">
                                         البيانات
                                     </th>
                                 {% endfor %}
                             </tr>
                         </thead>
 
-                        <tbody>
+                        <tbody id="xepTableBody">
                             {% for row in preview_rows %}
-
                                 <tr>
                                     <td class="xep-row-number">
                                         <span>
@@ -1472,39 +1878,75 @@
                                     </td>
 
                                     {% for item in row.values %}
-
                                         <td>
                                             {% if item.value is not None and item.value != "" %}
-                                                {{ item.value }}
+                                                <span
+                                                    class="xep-cell-value"
+                                                    title="{{ item.value }}"
+                                                >
+                                                    {{ item.value }}
+                                                </span>
                                             {% else %}
-                                                <span class="xep-cell-empty">
+                                                <span
+                                                    class="xep-cell-empty"
+                                                    aria-label="قيمة فارغة"
+                                                >
                                                     —
                                                 </span>
                                             {% endif %}
                                         </td>
-
                                     {% empty %}
-
                                         <td>
                                             <span class="xep-cell-empty">
                                                 لا توجد بيانات
                                             </span>
                                         </td>
-
                                     {% endfor %}
                                 </tr>
-
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
 
+                <footer class="xep-table-footer">
+                    <span>
+                        يتم عرض
+                        <strong>
+                            <span id="xepStartRecord">1</span>
+                        </strong>
+                        سجل من أصل
+                        <strong>
+                            <span id="xepPaginationTotal">
+                            {{ records_count|default:0 }}
+                            </span>
+                        </strong>
+                        سجل مطابق.
+                    </span>
+
+                    {% if records_count > preview_count %}
+                        <span class="xep-preview-limit-note">
+                            التصدير يشمل جميع النتائج، وليس المعروض فقط.
+                        </span>
+                    {% else %}
+                        <span>
+                            جميع السجلات المطابقة ظاهرة في المعاينة.
+                        </span>
+                    {% endif %}
+                </footer>
+                <div id="xepPagination" class="xep-pagination"></div>
             {% else %}
+                <div id="xepTableRegion" hidden>
+                    <div class="xep-table-wrap">
+                        <table class="xep-table">
+                            <thead id="xepTableHead"></thead>
+                            <tbody id="xepTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="xepPagination" class="xep-pagination"></div>
 
                 <div class="xep-empty">
-
                     <div class="xep-empty-content">
-
                         <div class="xep-empty-illustration">
                             <svg
                                 viewBox="0 0 64 64"
@@ -1535,7 +1977,7 @@
                         </p>
 
                         <a
-                            href="{% url 'exports_center:filters' report_key=report_key %}"
+                            href="{% url 'exports_center:filters' report_key=report_key %}{% if query_string %}?{{ query_string }}{% endif %}"
                             class="xep-empty-button"
                         >
                             <svg
@@ -1553,7 +1995,6 @@
                         </a>
                     </div>
                 </div>
-
             {% endif %}
         </section>
 
@@ -1561,11 +2002,50 @@
              الشريط الجانبي
         ================================================== -->
         <aside class="xep-sidebar">
+            <section class="xep-sidebar-card" data-column-selector>
+                <div class="xep-sidebar-heading">
+                    <span class="xep-sidebar-heading-icon">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M4 5h16"></path>
+                            <path d="M4 12h16"></path>
+                            <path d="M4 19h16"></path>
+                        </svg>
+                    </span>
+
+                    <div>
+                        <h3>الأعمدة</h3>
+                        <small>تطبق على المعاينة والتصدير</small>
+                    </div>
+                </div>
+
+                <div class="xep-column-selector-actions">
+                    <button type="button" class="xep-column-selector-action" data-select-all-columns>
+                        تحديد الكل
+                    </button>
+                    <button type="button" class="xep-column-selector-action" data-clear-all-columns>
+                        إلغاء الكل
+                    </button>
+                </div>
+
+                <ul class="xep-column-selector-list">
+                    {% for column in available_columns %}
+                        <li>
+                            <label class="xep-column-selector-option">
+                                <input
+                                    type="checkbox"
+                                    value="{{ column.key }}"
+                                    data-column-checkbox
+                                    {% if column.selected %}checked{% endif %}
+                                >
+                                <span>{{ column.header }}</span>
+                            </label>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </section>
 
             <section class="xep-sidebar-card highlight">
-
                 <div class="xep-sidebar-heading">
-
                     <span class="xep-sidebar-heading-icon">
                         <svg
                             viewBox="0 0 24 24"
@@ -1593,83 +2073,137 @@
                     وليس فقط السجلات الظاهرة في المعاينة.
                 </p>
 
-                <div class="xep-export-list">
+                <p
+                    class="xep-export-selection-status"
+                    data-export-selection-status
+                    aria-live="polite"
+                ></p>
 
-                    {% if export_urls.excel %}
-                        <a
-                            href="{{ export_urls.excel }}"
-                            class="xep-export-button excel"
-                        >
-                            <span>
-                                <span class="xep-format-icon">
-                                    X
-                                </span>
-
-                                Excel
-                            </span>
-
-                            <svg
-                                viewBox="0 0 24 24"
-                                aria-hidden="true"
+                {% if preview_rows %}
+                    <div class="xep-export-list">
+                        {% if export_urls.excel %}
+                            <form
+                                method="post"
+                                action="{% url 'exports_center:export' report_key=report_key export_format='excel' %}"
+                                class="xep-export-form"
+                                data-export-form
+                                data-export-format="excel"
                             >
-                                <path d="M12 3v12"></path>
-                                <path d="m7 10 5 5 5-5"></path>
-                            </svg>
-                        </a>
-                    {% endif %}
+                                {% csrf_token %}
+                                <input type="hidden" name="report_key" value="{{ report_key }}">
+                                <input type="hidden" name="export_format" value="excel">
+                                {% for field in export_form_fields %}
+                                    <input type="hidden" name="{{ field.name }}" value="{{ field.value }}">
+                                {% endfor %}
+                                <button
+                                    type="submit"
+                                    class="xep-export-button excel"
+                                    data-export-link
+                                >
+                                    <span>
+                                        <span class="xep-format-icon">
+                                            X
+                                        </span>
 
-                    {% if export_urls.pdf %}
-                        <a
-                            href="{{ export_urls.pdf }}"
-                            class="xep-export-button pdf"
-                        >
-                            <span>
-                                <span class="xep-format-icon">
-                                    PDF
-                                </span>
+                                        Excel
+                                    </span>
 
-                                PDF
-                            </span>
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        aria-hidden="true"
+                                    >
+                                        <path d="M12 3v12"></path>
+                                        <path d="m7 10 5 5 5-5"></path>
+                                    </svg>
+                                </button>
+                            </form>
+                        {% endif %}
 
-                            <svg
-                                viewBox="0 0 24 24"
-                                aria-hidden="true"
+                        {% if export_urls.pdf %}
+                            <form
+                                method="post"
+                                action="{% url 'exports_center:export' report_key=report_key export_format='pdf' %}"
+                                class="xep-export-form"
+                                data-export-form
+                                data-export-format="pdf"
                             >
-                                <path d="M12 3v12"></path>
-                                <path d="m7 10 5 5 5-5"></path>
-                            </svg>
-                        </a>
-                    {% endif %}
+                                {% csrf_token %}
+                                <input type="hidden" name="report_key" value="{{ report_key }}">
+                                <input type="hidden" name="export_format" value="pdf">
+                                {% for field in export_form_fields %}
+                                    <input type="hidden" name="{{ field.name }}" value="{{ field.value }}">
+                                {% endfor %}
+                                <button
+                                    type="submit"
+                                    class="xep-export-button pdf"
+                                    data-export-link
+                                >
+                                    <span>
+                                        <span class="xep-format-icon">
+                                            PDF
+                                        </span>
 
-                    {% if export_urls.csv %}
-                        <a
-                            href="{{ export_urls.csv }}"
-                            class="xep-export-button csv"
-                        >
-                            <span>
-                                <span class="xep-format-icon">
-                                    CSV
-                                </span>
+                                        PDF
+                                    </span>
 
-                                CSV
-                            </span>
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        aria-hidden="true"
+                                    >
+                                        <path d="M12 3v12"></path>
+                                        <path d="m7 10 5 5 5-5"></path>
+                                    </svg>
+                                </button>
+                            </form>
+                        {% endif %}
 
-                            <svg
-                                viewBox="0 0 24 24"
-                                aria-hidden="true"
+                        {% if export_urls.csv %}
+                            <form
+                                method="post"
+                                action="{% url 'exports_center:export' report_key=report_key export_format='csv' %}"
+                                class="xep-export-form"
+                                data-export-form
+                                data-export-format="csv"
                             >
-                                <path d="M12 3v12"></path>
-                                <path d="m7 10 5 5 5-5"></path>
-                            </svg>
-                        </a>
-                    {% endif %}
-                </div>
+                                {% csrf_token %}
+                                <input type="hidden" name="report_key" value="{{ report_key }}">
+                                <input type="hidden" name="export_format" value="csv">
+                                {% for field in export_form_fields %}
+                                    <input type="hidden" name="{{ field.name }}" value="{{ field.value }}">
+                                {% endfor %}
+                                <button
+                                    type="submit"
+                                    class="xep-export-button csv"
+                                    data-export-link
+                                >
+                                    <span>
+                                        <span class="xep-format-icon">
+                                            CSV
+                                        </span>
+
+                                        CSV
+                                    </span>
+
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        aria-hidden="true"
+                                    >
+                                        <path d="M12 3v12"></path>
+                                        <path d="m7 10 5 5 5-5"></path>
+                                    </svg>
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="xep-no-filters">
+                        لا يمكن تصدير التقرير لعدم وجود سجلات مطابقة.
+                    </div>
+                {% endif %}
             </section>
 
             <section class="xep-sidebar-card">
-
                 <div class="xep-sidebar-heading">
-
                     <span class="xep-sidebar-heading-icon">
                         <svg
                             viewBox="0 0 24 24"
@@ -1692,36 +2226,32 @@
                     </div>
                 </div>
 
-                {% if filters %}
-
+                {% if applied_filters %}
                     <ul class="xep-filter-list">
-
-                        {% for key, value in filters.items %}
-
+                        {% for item in applied_filters %}
                             <li class="xep-filter-item">
-
                                 <strong>
-                                    {{ key }}
+                                    {{ item.label }}
                                 </strong>
 
-                                <span title="{{ value }}">
-                                    {{ value }}
+                                <span title="{{ item.value }}">
+                                    {{ item.value }}
                                 </span>
                             </li>
-
                         {% endfor %}
                     </ul>
-
                 {% else %}
-
                     <div class="xep-no-filters">
                         لا توجد فلاتر مطبقة، ويتم عرض جميع البيانات
                         المتاحة في التقرير.
                     </div>
-
                 {% endif %}
             </section>
         </aside>
     </div>
 </main>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/exports_center/preview.js' %}"></script>
 {% endblock %}

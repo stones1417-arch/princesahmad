@@ -400,6 +400,50 @@ def _extract_filters(
     return filters
 
 
+def _parse_export_request(
+    request: HttpRequest,
+) -> tuple[dict[str, Any], list[str] | None]:
+    """
+    قراءة قيمة الفلاتر والأعمدة من مصدر الطلب الموحد.
+
+    كل نقطة دخول تصدير تستخرج البيانات من نفس الطبقة الواسعة،
+    بحيث لا يختلف behavior بين preview و export و submit.
+    """
+    source = (
+        request.POST
+        if request.method == "POST"
+        else request.GET
+    )
+    filters = _extract_filters(request)
+    selected_columns = extract_selected_columns(source)
+    return filters, selected_columns
+
+
+def _build_export_form_fields(
+    filters: dict[str, Any],
+    selected_columns: list[str] | None,
+) -> list[dict[str, str]]:
+    """Flatten canonical filters into safely escaped POST form fields."""
+    fields: list[dict[str, str]] = []
+
+    for key, raw_value in filters.items():
+        values = (
+            raw_value
+            if isinstance(raw_value, (list, tuple))
+            else [raw_value]
+        )
+        for value in values:
+            fields.append({"name": str(key), "value": str(value)})
+
+    if selected_columns is not None:
+        for column in selected_columns:
+            fields.append(
+                {"name": "selected_columns", "value": str(column)}
+            )
+
+    return fields
+
+
 def _create_report_filter_form_class(
     report_key: str,
 ) -> type[FilterForm]:
@@ -1805,6 +1849,8 @@ def filters_view(
     صفحة تحديد فلاتر تقرير معين.
     """
 
+    _require_export_permission(request)
+
     report = _get_report_or_404(
         report_key
     )
@@ -1900,30 +1946,29 @@ def preview_view(
 
     started_at = time.perf_counter()
 
+    _require_export_permission(request)
+
     report = _get_report_or_404(
         report_key
     )
 
-    filters = export_service.normalize_filters(
-        _extract_filters(
-            request
+    try:
+        raw_filters, selected_columns = (
+            _parse_export_request(request)
         )
-    )
+        filters = export_service.normalize_filters(
+            raw_filters
+        )
 
-    selected_columns = extract_selected_columns(
-        request.GET
-    )
-
-    preview_limit = (
-        _normalize_preview_limit(
-            request.GET.get(
-                "preview_limit",
-                DEFAULT_PREVIEW_LIMIT,
+        preview_limit = (
+            _normalize_preview_limit(
+                request.GET.get(
+                    "preview_limit",
+                    DEFAULT_PREVIEW_LIMIT,
+                )
             )
         )
-    )
 
-    try:
         preview_data = preview_report(
             report_key=report.key,
             filters=filters,
@@ -2083,6 +2128,10 @@ def preview_view(
         ),
         "filters": filters,
         "selected_columns": selected_columns,
+        "export_form_fields": _build_export_form_fields(
+            filters,
+            selected_columns,
+        ),
         "supports_section_filter": (
             supports_section_filter
         ),
@@ -2154,14 +2203,10 @@ def preview_data_view(
 
     started_at = time.perf_counter()
 
+    _require_export_permission(request)
+
     report = _get_report_or_404(
         report_key
-    )
-
-    filters = export_service.normalize_filters(
-        _extract_filters(
-            request
-        )
     )
 
     search_term = (
@@ -2200,11 +2245,14 @@ def preview_data_view(
             )
         )
     )
-    selected_columns = extract_selected_columns(
-        request.GET
-    )
-
     try:
+        raw_filters, selected_columns = (
+            _parse_export_request(request)
+        )
+        filters = export_service.normalize_filters(
+            raw_filters
+        )
+
         preview_data = preview_report(
             report_key=report.key,
             filters=filters,
@@ -2445,12 +2493,8 @@ def export_view(
         )
     )
 
-    filters = _extract_filters(
-        request
-    )
-
-    selected_columns = extract_selected_columns(
-        request.POST
+    filters, selected_columns = (
+        _parse_export_request(request)
     )
 
     try:
@@ -2569,12 +2613,8 @@ def export_submit_view(
         report_key
     )
 
-    filters = _extract_filters(
-        request
-    )
-
-    selected_columns = extract_selected_columns(
-        request.POST
+    filters, selected_columns = (
+        _parse_export_request(request)
     )
 
     try:

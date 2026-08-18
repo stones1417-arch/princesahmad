@@ -3,8 +3,11 @@ from django.core.exceptions import ValidationError
 from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group, Permission
 from django.test import TestCase
 from django.urls import reverse
+
+from apps.roles.models import Role, UserRole
 
 
 User = get_user_model()
@@ -33,6 +36,20 @@ class PreviewAjaxViewTests(TestCase):
             password="StrongPassword123!",
             is_staff=True,
         )
+        group = Group.objects.create(name="preview-ajax-exporters")
+        group.permissions.add(
+            Permission.objects.get(
+                content_type__app_label="roles",
+                codename="export_report",
+            )
+        )
+        role = Role.objects.create(
+            code="preview-ajax-exporter",
+            name="Preview Ajax exporter",
+            group=group,
+            operational_section=Role.OperationalSection.ALL,
+        )
+        UserRole.objects.create(user=cls.user, role=role)
 
     def setUp(self):
         self.client.force_login(

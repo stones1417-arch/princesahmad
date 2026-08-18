@@ -3,6 +3,25 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterable
 
+from apps.exports_center.definitions.doors import (
+    DOORS_COLUMNS_DEFINITION,
+    DOORS_FILTERS_DEFINITION,
+)
+from apps.exports_center.definitions.employees import (
+    EMPLOYEES_COLUMNS_DEFINITION,
+    EMPLOYEES_FILTERS_DEFINITION,
+)
+from apps.exports_center.definitions.incidents import (
+    INCIDENTS_COLUMNS_DEFINITION,
+    INCIDENTS_FILTERS_DEFINITION,
+)
+from apps.exports_center.definitions.maintenance import (
+    MAINTENANCE_COLUMNS_DEFINITION,
+)
+from apps.hr.models import Employee
+from apps.exports_center.definitions.reports import (
+    REPORTS_COLUMNS_DEFINITION,
+)
 from apps.roles.services.permission_registry import (
     PlatformPermissions,
 )
@@ -75,6 +94,89 @@ DOOR_DIRECTION_NUMBERS = {
 DOOR_DIRECTION_LABELS = dict(
     DOOR_DIRECTION_CHOICES
 )
+
+SECTION_LABELS = {
+    key: value
+    for key, value in (
+        MAINTENANCE_COLUMNS_DEFINITION[0]
+        .get("section_labels", {})
+        .items()
+    )
+}
+
+SECTION_LABELS.update(
+    {
+        "male": "رجالي",
+        "female": "نسائي",
+        "shared": "رجالي ونسائي",
+    }
+)
+
+SECTION_LABELS.update(
+    {
+        # توافق خلفي للقيم الفارغة أو غير المعروفة.
+        "": "غير محدد",
+    }
+)
+
+
+def _find_definition_entry(
+    definition: tuple[dict[str, Any], ...],
+    key: str,
+) -> dict[str, Any]:
+    """
+    إرجاع عنصر تعريف حسب المفتاح مع fallback آمن.
+    """
+    for entry in definition:
+        if str(entry.get("key", "")).strip() == key:
+            return entry
+
+    return {}
+
+
+def _definition_choices(
+    definition: tuple[dict[str, Any], ...],
+    key: str,
+    fallback: tuple[tuple[str, str], ...],
+) -> tuple[tuple[str, str], ...]:
+    """
+    قراءة choices من التعريف المعياري.
+    """
+    entry = _find_definition_entry(
+        definition,
+        key,
+    )
+
+    raw_choices = entry.get("choices")
+    if not raw_choices:
+        return fallback
+
+    return tuple(
+        (
+            str(choice_key),
+            str(choice_label),
+        )
+        for choice_key, choice_label in raw_choices
+    )
+
+
+def _definition_header(
+    definition: tuple[dict[str, Any], ...],
+    key: str,
+    fallback: str,
+) -> str:
+    """
+    قراءة عنوان العمود من التعريف المعياري.
+    """
+    entry = _find_definition_entry(
+        definition,
+        key,
+    )
+
+    return str(
+        entry.get("header")
+        or fallback
+    )
 
 
 # ==================================================
@@ -444,6 +546,20 @@ def get_door_direction(
     return "غير محدد"
 
 
+def format_section_label(
+    value: Any,
+) -> str:
+    """
+    إرجاع الوصف العربي للقسم التشغيلي.
+    """
+    section_key = safe_text(value).strip().lower()
+
+    return SECTION_LABELS.get(
+        section_key,
+        "غير محدد",
+    )
+
+
 # ==================================================
 # الفلاتر المشتركة
 # ==================================================
@@ -508,6 +624,39 @@ ACTIVE_FILTER = ExportFilter(
     ),
 )
 
+SECTION_FILTER = ExportFilter(
+    key="section",
+    label="القسم التشغيلي",
+    filter_type=FILTER_TYPE_CHOICE,
+    parameter="section",
+    choices=_definition_choices(
+        INCIDENTS_FILTERS_DEFINITION,
+        "section",
+        (
+            ("all", "الكل"),
+            ("male", "رجالي"),
+            ("female", "نسائي"),
+        ),
+    ),
+)
+
+OPERATIONAL_SECTION_FILTER = ExportFilter(
+    key="operational_section",
+    label="القسم التشغيلي",
+    filter_type=FILTER_TYPE_CHOICE,
+    parameter="operational_section",
+    choices=_definition_choices(
+        DOORS_FILTERS_DEFINITION,
+        "operational_section",
+        (
+            ("all", "الكل"),
+            ("male", "رجالي"),
+            ("female", "نسائي"),
+            ("shared", "مشترك"),
+        ),
+    ),
+)
+
 
 # ==================================================
 # أعمدة الموظفين
@@ -525,6 +674,19 @@ EMPLOYEE_COLUMNS = (
         header="الاسم الكامل",
         source="full_name",
         width=28,
+    ),
+    ExportColumn(
+        key="operational_section",
+        header=_definition_header(
+            EMPLOYEES_COLUMNS_DEFINITION,
+            "operational_section",
+            "القسم التشغيلي",
+        ),
+        getter=lambda item: display_method(
+            item,
+            "get_operational_section_display",
+        ),
+        width=16,
     ),
     ExportColumn(
         key="national_id",
@@ -738,6 +900,15 @@ DOOR_DISTRIBUTION_COLUMNS = (
         width=22,
     ),
     ExportColumn(
+        key="section",
+        header="القسم التشغيلي",
+        getter=lambda item: display_method(
+            item,
+            "get_section_display",
+        ),
+        width=16,
+    ),
+    ExportColumn(
         key="door_direction",
         header="جهة الباب",
         getter=lambda item: get_door_direction(
@@ -844,6 +1015,19 @@ LOCATION_COLUMNS = (
         width=22,
     ),
     ExportColumn(
+        key="operational_section",
+        header=_definition_header(
+            DOORS_COLUMNS_DEFINITION,
+            "operational_section",
+            "القسم التشغيلي",
+        ),
+        getter=lambda item: display_method(
+            item,
+            "get_operational_section_display",
+        ),
+        width=18,
+    ),
+    ExportColumn(
         key="direction",
         header="جهة الباب",
         getter=lambda item: get_door_direction(
@@ -892,6 +1076,12 @@ BREAK_COLUMNS = (
         key="employee_number",
         header="الرقم الوظيفي",
         source="employee.employee_number",
+        width=16,
+    ),
+    ExportColumn(
+        key="operational_section",
+        header="القسم التشغيلي",
+        source="operational_section_label",
         width=16,
     ),
     ExportColumn(
@@ -991,6 +1181,22 @@ INCIDENT_COLUMNS = (
         width=14,
     ),
     ExportColumn(
+        key="section",
+        header=_definition_header(
+            INCIDENTS_COLUMNS_DEFINITION,
+            "section",
+            "القسم التشغيلي",
+        ),
+        getter=lambda item: format_section_label(
+            getattr(
+                item,
+                "section",
+                "",
+            )
+        ),
+        width=16,
+    ),
+    ExportColumn(
         key="description",
         header="وصف البلاغ",
         source="description",
@@ -1059,6 +1265,22 @@ MAINTENANCE_COLUMNS = (
         header="الوردية",
         source="door_shift.shift_plan.shift_type.name",
         width=20,
+    ),
+    ExportColumn(
+        key="section",
+        header=_definition_header(
+            REPORTS_COLUMNS_DEFINITION,
+            "section",
+            "القسم التشغيلي",
+        ),
+        getter=lambda item: format_section_label(
+            getattr(
+                item,
+                "section",
+                "",
+            )
+        ),
+        width=16,
     ),
     ExportColumn(
         key="description",
@@ -1197,6 +1419,18 @@ REPORT_COLUMNS = (
                 ),
                 "date",
                 None,
+            )
+        ),
+        width=16,
+    ),
+    ExportColumn(
+        key="section",
+        header="القسم التشغيلي",
+        getter=lambda item: format_section_label(
+            getattr(
+                item,
+                "section",
+                "",
             )
         ),
         width=16,
@@ -1385,6 +1619,20 @@ REPORT_REGISTRY: dict[
                 filter_type=FILTER_TYPE_CHOICE,
                 parameter="job_title",
             ),
+            ExportFilter(
+                key="operational_section",
+                label="القسم التشغيلي",
+                filter_type=FILTER_TYPE_CHOICE,
+                parameter="operational_section",
+                choices=_definition_choices(
+                    EMPLOYEES_FILTERS_DEFINITION,
+                    "operational_section",
+                    (
+                        ("all", "الكل"),
+                        *Employee.OperationalSection.choices,
+                    ),
+                ),
+            ),
             ACTIVE_FILTER,
         ),
         landscape=True,
@@ -1405,6 +1653,7 @@ REPORT_REGISTRY: dict[
         filters=(
             *DATE_RANGE_FILTERS,
             SHIFT_FILTER,
+            SECTION_FILTER,
             EMPLOYEE_FILTER,
             ExportFilter(
                 key="is_confirmed",
@@ -1435,6 +1684,7 @@ REPORT_REGISTRY: dict[
         filters=(
             *DATE_RANGE_FILTERS,
             SHIFT_FILTER,
+            SECTION_FILTER,
             EMPLOYEE_FILTER,
             ZONE_FILTER,
             DOOR_DIRECTION_FILTER,
@@ -1458,6 +1708,7 @@ REPORT_REGISTRY: dict[
         columns=LOCATION_COLUMNS,
         filters=(
             ZONE_FILTER,
+            OPERATIONAL_SECTION_FILTER,
             DOOR_DIRECTION_FILTER,
             ACTIVE_FILTER,
         ),
@@ -1500,6 +1751,7 @@ REPORT_REGISTRY: dict[
         filters=(
             *DATE_RANGE_FILTERS,
             SHIFT_FILTER,
+            SECTION_FILTER,
             DOOR_DIRECTION_FILTER,
             ExportFilter(
                 key="incident_status",
@@ -1533,6 +1785,7 @@ REPORT_REGISTRY: dict[
         filters=(
             *DATE_RANGE_FILTERS,
             SHIFT_FILTER,
+            SECTION_FILTER,
             DOOR_DIRECTION_FILTER,
             ExportFilter(
                 key="maintenance_status",
@@ -1566,6 +1819,7 @@ REPORT_REGISTRY: dict[
         filters=(
             *DATE_RANGE_FILTERS,
             SHIFT_FILTER,
+            SECTION_FILTER,
             ExportFilter(
                 key="report_status",
                 label="حالة التقرير",

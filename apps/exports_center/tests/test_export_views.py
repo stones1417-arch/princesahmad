@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import shutil
 import tempfile
+from io import BytesIO
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -9,6 +10,7 @@ from django.contrib.auth.models import Group, Permission
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.http import QueryDict
+from openpyxl import load_workbook
 
 from apps.exports_center.models import ExportLog
 from apps.hr.models import Employee
@@ -49,6 +51,43 @@ class ExportWorkflowTests(TestCase):
         self.assertEqual(export_log.status, ExportLog.ExportStatus.SUCCESS)
         self.assertEqual(response["X-Export-Log-ID"], str(export_log.pk))
         self.assertTrue(export_log.file.storage.exists(export_log.file.name))
+
+    def test_pdf_ui_post_contract_returns_valid_pdf(self):
+        response = self.client.post(
+            reverse(
+                "exports_center:export",
+                kwargs={"report_key": "employees", "export_format": "pdf"},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertGreater(len(response.content), 4)
+        self.assertTrue(response.content.startswith(b"%PDF"))
+
+    def test_excel_ui_post_contract_returns_openable_workbook(self):
+        response = self.client.post(
+            reverse(
+                "exports_center:export",
+                kwargs={"report_key": "employees", "export_format": "excel"},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("spreadsheetml", response["Content-Type"])
+        workbook = load_workbook(BytesIO(response.content), read_only=True)
+        self.assertGreaterEqual(len(workbook.sheetnames), 1)
+
+    def test_pdf_get_is_rejected_because_ui_uses_post(self):
+        response = self.client.get(
+            reverse(
+                "exports_center:export",
+                kwargs={"report_key": "employees", "export_format": "pdf"},
+            )
+        )
+
+        self.assertEqual(response.status_code, 405)
+        self.assertEqual(response["Allow"], "POST")
 
     def test_stored_export_can_be_downloaded_again(self):
         first_response = self.client.post(

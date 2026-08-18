@@ -20,6 +20,9 @@ from apps.exports_center.services.csv_engine import (
     CSVExportResult,
     build_csv_export,
 )
+from apps.exports_center.services.column_selector import (
+    select_export_columns,
+)
 from apps.exports_center.services.excel_engine import (
     ExcelExportResult,
     build_excel_export,
@@ -198,6 +201,7 @@ class ExportService:
         queryset=None,
         indicators: dict[str, Any] | None = None,
         file_name: str | None = None,
+        selected_columns=None,
         allow_empty: bool = True,
     ) -> ExportServiceResult:
         """
@@ -234,6 +238,7 @@ class ExportService:
             queryset = select_report_queryset(
                 normalized_report_key,
                 normalized_filters,
+                user=user,
             )
 
         records_count = queryset.count()
@@ -261,6 +266,7 @@ class ExportService:
                 user=user,
                 indicators=indicators,
                 file_name=file_name,
+                selected_columns=selected_columns,
             )
 
         if normalized_format == EXPORT_FORMAT_PDF:
@@ -271,6 +277,7 @@ class ExportService:
                 user=user,
                 indicators=indicators,
                 file_name=file_name,
+                selected_columns=selected_columns,
             )
 
         if normalized_format == EXPORT_FORMAT_CSV:
@@ -281,6 +288,7 @@ class ExportService:
                 user=user,
                 indicators=indicators,
                 file_name=file_name,
+                selected_columns=selected_columns,
             )
 
         raise UnsupportedExportFormatError(
@@ -298,6 +306,7 @@ class ExportService:
         queryset=None,
         indicators: dict[str, Any] | None = None,
         file_name: str | None = None,
+        selected_columns=None,
         allow_empty: bool = True,
     ) -> HttpResponse:
         """
@@ -311,6 +320,7 @@ class ExportService:
             queryset=queryset,
             indicators=indicators,
             file_name=file_name,
+            selected_columns=selected_columns,
             allow_empty=allow_empty,
         )
 
@@ -321,7 +331,9 @@ class ExportService:
         *,
         report_key: str,
         filters: Mapping[str, Any] | None = None,
+        user=None,
         limit: int = 50,
+        selected_columns=None,
     ) -> dict[str, Any]:
         """
         تجهيز بيانات المعاينة دون إنشاء ملف.
@@ -336,6 +348,13 @@ class ExportService:
             normalized_report_key
         )
 
+        select_export_columns(
+            report=report,
+            export_format=FORMAT_EXCEL,
+            selected_columns=selected_columns,
+            reject_unknown=True,
+        )
+
         normalized_filters = (
             self.normalize_filters(
                 filters or {}
@@ -345,6 +364,7 @@ class ExportService:
         queryset = select_report_queryset(
             normalized_report_key,
             normalized_filters,
+            user=user,
         )
 
         records_count = queryset.count()
@@ -388,6 +408,7 @@ class ExportService:
         user,
         indicators: dict[str, Any],
         file_name: str | None,
+        selected_columns,
     ) -> ExportServiceResult:
         """
         إنشاء ملف Excel وإرجاع نتيجة موحدة.
@@ -400,6 +421,7 @@ class ExportService:
                 user=user,
                 indicators=indicators,
                 file_name=file_name,
+                selected_columns=selected_columns,
             )
         )
 
@@ -431,6 +453,7 @@ class ExportService:
         user,
         indicators: dict[str, Any],
         file_name: str | None,
+        selected_columns,
     ) -> ExportServiceResult:
         """
         إنشاء ملف PDF وإرجاع نتيجة موحدة.
@@ -443,6 +466,7 @@ class ExportService:
                 user=user,
                 indicators=indicators,
                 file_name=file_name,
+                selected_columns=selected_columns,
             )
         )
 
@@ -471,6 +495,7 @@ class ExportService:
         user,
         indicators: dict[str, Any],
         file_name: str | None,
+        selected_columns,
     ) -> ExportServiceResult:
         """
         إنشاء ملف CSV وإرجاع نتيجة موحدة.
@@ -483,6 +508,7 @@ class ExportService:
                 user=user,
                 indicators=indicators,
                 file_name=file_name,
+                selected_columns=selected_columns,
             )
         )
 
@@ -588,29 +614,89 @@ class ExportService:
                         cleaned_values
                     )
 
-            return normalized
-
-        for key, value in filters.items():
-            normalized_value = (
-                self._normalize_filter_value(
-                    value
+        else:
+            for key, value in filters.items():
+                normalized_value = (
+                    self._normalize_filter_value(
+                        value
+                    )
                 )
-            )
 
-            if normalized_value in (
-                None,
-                "",
-                [],
-                (),
-                {},
-            ):
-                continue
+                if normalized_value in (
+                    None,
+                    "",
+                    [],
+                    (),
+                    {},
+                ):
+                    continue
 
-            normalized[key] = (
-                normalized_value
-            )
+                normalized[key] = (
+                    normalized_value
+                )
+
+        normalized = self._canonicalize_section_filters(
+            normalized
+        )
 
         return normalized
+
+    @staticmethod
+    def _canonicalize_section_filters(
+        filters: dict[str, Any],
+    ) -> dict[str, Any]:
+        """
+        توحيد مفاتيح القسم داخل الفلاتر.
+
+        - عند تمرير operational_section بقيمة male/female نضيف section بنفس القيمة.
+        - نحافظ على القيم الأخرى كما هي.
+        """
+        section_value = str(
+            filters.get("section")
+            or ""
+        ).strip().lower()
+
+        operational_section_value = str(
+            filters.get("operational_section")
+            or ""
+        ).strip().lower()
+
+        valid_values = {
+            "all",
+            "male",
+            "female",
+        }
+
+        valid_operational_values = {
+            *valid_values,
+            "shared",
+        }
+
+        if section_value:
+            if section_value not in valid_values:
+                raise ExportServiceError(
+                    "قيمة القسم التشغيلي غير صالحة. "
+                    "القيم المقبولة: الكل، رجالي، نسائي."
+                )
+
+            filters["section"] = section_value
+
+        if (
+            operational_section_value
+            and operational_section_value
+            not in valid_operational_values
+        ):
+            raise ExportServiceError(
+                "قيمة القسم التشغيلي غير صالحة."
+            )
+
+        if (
+            section_value in {"", "all"}
+            and operational_section_value in {"male", "female"}
+        ):
+            filters["section"] = operational_section_value
+
+        return filters
 
     @staticmethod
     def _normalize_filter_value(
@@ -729,6 +815,7 @@ def export_report(
     queryset=None,
     indicators: dict[str, Any] | None = None,
     file_name: str | None = None,
+    selected_columns=None,
     allow_empty: bool = True,
 ) -> ExportServiceResult:
     """
@@ -742,6 +829,7 @@ def export_report(
         queryset=queryset,
         indicators=indicators,
         file_name=file_name,
+        selected_columns=selected_columns,
         allow_empty=allow_empty,
     )
 
@@ -755,6 +843,7 @@ def export_report_response(
     queryset=None,
     indicators: dict[str, Any] | None = None,
     file_name: str | None = None,
+    selected_columns=None,
     allow_empty: bool = True,
 ) -> HttpResponse:
     """
@@ -768,6 +857,7 @@ def export_report_response(
         queryset=queryset,
         indicators=indicators,
         file_name=file_name,
+        selected_columns=selected_columns,
         allow_empty=allow_empty,
     )
 
@@ -776,7 +866,9 @@ def preview_report(
     *,
     report_key: str,
     filters: Mapping[str, Any] | None = None,
+    user=None,
     limit: int = 50,
+    selected_columns=None,
 ) -> dict[str, Any]:
     """
     تجهيز معاينة التقرير.
@@ -784,7 +876,9 @@ def preview_report(
     return export_service.preview(
         report_key=report_key,
         filters=filters,
+        user=user,
         limit=limit,
+        selected_columns=selected_columns,
     )
 
 

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import csv
+
 from dataclasses import dataclass
 from datetime import date, datetime
+from decimal import Decimal
 from io import StringIO
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 from urllib.parse import quote
 
 from django.http import HttpResponse
@@ -19,6 +21,9 @@ from apps.exports_center.registry import (
 from apps.exports_center.selectors import (
     build_report_indicators,
     select_report_queryset,
+)
+from apps.exports_center.services.column_selector import (
+    select_export_columns,
 )
 
 
@@ -55,7 +60,10 @@ class CSVExportResult:
         """
         حجم الملف بالبايت.
         """
-        return len(self.content)
+
+        return len(
+            self.content
+        )
 
 
 # ==================================================
@@ -69,11 +77,15 @@ class CSVExportEngine:
     الخصائص:
     - ترميز UTF-8 مع BOM لدعم العربية في Excel.
     - استخدام أعمدة التقرير المسجلة في registry.py.
-    - تطبيق نفس selectors المستخدمة في Excel.
+    - تطبيق نفس selectors المستخدمة في Excel وPDF.
     - دعم الفلاتر.
+    - دعم اختيار الأعمدة قبل التصدير.
+    - الحفاظ على ترتيب الأعمدة الذي اختاره المستخدم.
+    - رفض الأعمدة غير الموجودة أو غير المصرح بها.
     - دعم أسماء الملفات الآمنة.
     - دعم القيم المعقدة.
     - منع حقن صيغ Excel داخل CSV.
+    - معالجة الملفات الكبيرة باستخدام iterator.
     """
 
     def __init__(
@@ -102,10 +114,22 @@ class CSVExportEngine:
         user=None,
         indicators: dict[str, Any] | None = None,
         file_name: str | None = None,
+        selected_columns: (
+            str
+            | Iterable[str]
+            | None
+        ) = None,
     ) -> CSVExportResult:
         """
         إنشاء ملف CSV كامل.
+
+        عند عدم تمرير queryset يتم جلب البيانات
+        تلقائيًا من selectors.py.
+
+        عند عدم تمرير selected_columns يتم استخدام
+        جميع أعمدة التقرير المتاحة لصيغة CSV.
         """
+
         report = get_report_definition(
             report_key
         )
@@ -120,8 +144,17 @@ class CSVExportEngine:
 
         normalized_filters = (
             self._normalize_filters(
-                filters or {}
+                filters
+                or {}
             )
+        )
+
+        columns = select_export_columns(
+            report=report,
+            export_format=FORMAT_CSV,
+            selected_columns=selected_columns,
+            require_at_least_one=True,
+            reject_unknown=True,
         )
 
         if queryset is None:
@@ -139,14 +172,20 @@ class CSVExportEngine:
             )
 
         content = self._build_content(
-            report=report,
             queryset=queryset,
+            columns=columns,
         )
 
         resolved_file_name = (
             file_name
             or self._build_file_name(
                 report
+            )
+        )
+
+        resolved_file_name = (
+            self._ensure_csv_extension(
+                resolved_file_name
             )
         )
 
@@ -168,10 +207,16 @@ class CSVExportEngine:
         user=None,
         indicators: dict[str, Any] | None = None,
         file_name: str | None = None,
+        selected_columns: (
+            str
+            | Iterable[str]
+            | None
+        ) = None,
     ) -> HttpResponse:
         """
         إنشاء استجابة تنزيل CSV مباشرة.
         """
+
         result = self.build(
             report_key=report_key,
             queryset=queryset,
@@ -179,6 +224,7 @@ class CSVExportEngine:
             user=user,
             indicators=indicators,
             file_name=file_name,
+            selected_columns=selected_columns,
         )
 
         response = HttpResponse(
@@ -203,6 +249,17 @@ class CSVExportEngine:
             result.file_size
         )
 
+        response[
+            "X-Content-Type-Options"
+        ] = "nosniff"
+
+        response[
+            "Cache-Control"
+        ] = (
+            "private, no-store, "
+            "max-age=0"
+        )
+
         return response
 
     # ==================================================
@@ -212,42 +269,46 @@ class CSVExportEngine:
     def _build_content(
         self,
         *,
-        report: ExportReportDefinition,
         queryset,
+        columns: tuple[ExportColumn, ...],
     ) -> bytes:
-        columns = report.get_columns(
-            FORMAT_CSV
-        )
+        """
+        بناء محتوى CSV باستخدام الأعمدة المختارة فقط.
+        """
 
         stream = StringIO(
             newline=""
         )
 
-        writer = csv.writer(
-            stream,
-            delimiter=self.delimiter,
-            quotechar=self.quotechar,
-            quoting=csv.QUOTE_MINIMAL,
-            lineterminator=self.lineterminator,
-        )
+        try:
+            writer = csv.writer(
+                stream,
+                delimiter=self.delimiter,
+                quotechar=self.quotechar,
+                quoting=csv.QUOTE_MINIMAL,
+                lineterminator=self.lineterminator,
+            )
 
-        self._write_headers(
-            writer=writer,
-            columns=columns,
-        )
-
-        for record in queryset.iterator(
-            chunk_size=1000
-        ):
-            self._write_record(
+            self._write_headers(
                 writer=writer,
-                record=record,
                 columns=columns,
             )
 
-        text_content = stream.getvalue()
+            for record in queryset.iterator(
+                chunk_size=1000
+            ):
+                self._write_record(
+                    writer=writer,
+                    record=record,
+                    columns=columns,
+                )
 
-        stream.close()
+            text_content = (
+                stream.getvalue()
+            )
+
+        finally:
+            stream.close()
 
         return text_content.encode(
             self.encoding
@@ -263,9 +324,20 @@ class CSVExportEngine:
         writer,
         columns: tuple[ExportColumn, ...],
     ) -> None:
+        """
+        كتابة رؤوس الأعمدة المختارة.
+        """
+
         writer.writerow(
             [
-                column.header
+                str(
+                    getattr(
+                        column,
+                        "header",
+                        "",
+                    )
+                    or ""
+                )
                 for column in columns
             ]
         )
@@ -281,6 +353,10 @@ class CSVExportEngine:
         record,
         columns: tuple[ExportColumn, ...],
     ) -> None:
+        """
+        كتابة صف واحد داخل ملف CSV.
+        """
+
         row_values: list[Any] = []
 
         for column in columns:
@@ -317,6 +393,7 @@ class CSVExportEngine:
 
         يمنع CSV Injection عند فتح الملف في Excel.
         """
+
         if value is None:
             return ""
 
@@ -355,10 +432,22 @@ class CSVExportEngine:
 
         if isinstance(
             value,
+            Decimal,
+        ):
+            return format(
+                value,
+                "f",
+            )
+
+        if isinstance(
+            value,
             dict,
         ):
             value = " | ".join(
-                f"{key}: {item}"
+                (
+                    f"{key}: "
+                    f"{self._safe_nested_value(item)}"
+                )
                 for key, item
                 in value.items()
             )
@@ -372,12 +461,16 @@ class CSVExportEngine:
             ),
         ):
             value = "، ".join(
-                str(item)
+                self._safe_nested_value(
+                    item
+                )
                 for item in value
             )
 
         else:
-            value = str(value)
+            value = str(
+                value
+            )
 
         value = self._normalize_text(
             value
@@ -387,6 +480,65 @@ class CSVExportEngine:
             value
         )
 
+    def _safe_nested_value(
+        self,
+        value: Any,
+    ) -> str:
+        """
+        تحويل القيم المتداخلة إلى نص نظيف.
+        """
+
+        if value is None:
+            return ""
+
+        if isinstance(
+            value,
+            bool,
+        ):
+            return (
+                "نعم"
+                if value
+                else "لا"
+            )
+
+        if isinstance(
+            value,
+            datetime,
+        ):
+            if timezone.is_aware(
+                value
+            ):
+                value = timezone.localtime(
+                    value
+                )
+
+            return value.strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+
+        if isinstance(
+            value,
+            date,
+        ):
+            return value.strftime(
+                "%Y-%m-%d"
+            )
+
+        if isinstance(
+            value,
+            Decimal,
+        ):
+            return format(
+                value,
+                "f",
+            )
+
+        return self._normalize_text(
+            str(
+                value
+            )
+        )
+
     @staticmethod
     def _normalize_text(
         value: str,
@@ -394,11 +546,23 @@ class CSVExportEngine:
         """
         تنظيف النص من المحارف غير المناسبة.
         """
+
         return (
-            str(value)
-            .replace("\x00", "")
-            .replace("\r\n", "\n")
-            .replace("\r", "\n")
+            str(
+                value
+            )
+            .replace(
+                "\x00",
+                "",
+            )
+            .replace(
+                "\r\n",
+                "\n",
+            )
+            .replace(
+                "\r",
+                "\n",
+            )
             .strip()
         )
 
@@ -414,8 +578,10 @@ class CSVExportEngine:
         +
         -
         @
+        أو Tab
         كصيغ قابلة للتنفيذ.
         """
+
         if not value:
             return ""
 
@@ -442,18 +608,71 @@ class CSVExportEngine:
     def _normalize_filters(
         filters: Mapping[str, Any],
     ) -> dict[str, Any]:
-        normalized: dict[str, Any] = {}
+        """
+        تنظيف الفلاتر قبل تمريرها إلى selectors.
+        """
+
+        normalized: dict[
+            str,
+            Any
+        ] = {}
+
+        lists_method = getattr(
+            filters,
+            "lists",
+            None,
+        )
+
+        if callable(
+            lists_method
+        ):
+            for key, values in lists_method():
+                cleaned_values = [
+                    (
+                        value.strip()
+                        if isinstance(
+                            value,
+                            str,
+                        )
+                        else value
+                    )
+                    for value in values
+                    if value not in (
+                        None,
+                        "",
+                    )
+                ]
+
+                if not cleaned_values:
+                    continue
+
+                normalized[key] = (
+                    cleaned_values[0]
+                    if len(
+                        cleaned_values
+                    ) == 1
+                    else cleaned_values
+                )
+
+            return normalized
 
         for key, value in filters.items():
             if isinstance(
                 value,
                 str,
             ):
-                normalized[key] = (
-                    value.strip()
-                )
-            else:
-                normalized[key] = value
+                value = value.strip()
+
+            if value in (
+                None,
+                "",
+                [],
+                (),
+                {},
+            ):
+                continue
+
+            normalized[key] = value
 
         return normalized
 
@@ -465,14 +684,59 @@ class CSVExportEngine:
     def _build_file_name(
         report: ExportReportDefinition,
     ) -> str:
-        timestamp = timezone.localtime().strftime(
-            "%Y%m%d_%H%M%S"
+        """
+        إنشاء اسم افتراضي لملف CSV.
+        """
+
+        timestamp = (
+            timezone.localtime()
+            .strftime(
+                "%Y%m%d_%H%M%S"
+            )
         )
 
         return (
             f"{report.filename_prefix}_"
             f"{timestamp}.csv"
         )
+
+    @staticmethod
+    def _ensure_csv_extension(
+        file_name: str,
+    ) -> str:
+        """
+        تنظيف اسم الملف وضمان امتداد CSV.
+        """
+
+        normalized_name = (
+            str(
+                file_name
+                or "export"
+            )
+            .replace(
+                '"',
+                "",
+            )
+            .replace(
+                "\r",
+                "",
+            )
+            .replace(
+                "\n",
+                "",
+            )
+            .strip()
+        )
+
+        if not normalized_name:
+            normalized_name = "export"
+
+        if not normalized_name.lower().endswith(
+            ".csv"
+        ):
+            normalized_name += ".csv"
+
+        return normalized_name
 
 
 # ==================================================
@@ -494,10 +758,16 @@ def build_csv_export(
     user=None,
     indicators: dict[str, Any] | None = None,
     file_name: str | None = None,
+    selected_columns: (
+        str
+        | Iterable[str]
+        | None
+    ) = None,
 ) -> CSVExportResult:
     """
     إنشاء ملف CSV باستخدام المحرك الافتراضي.
     """
+
     return csv_export_engine.build(
         report_key=report_key,
         queryset=queryset,
@@ -505,6 +775,7 @@ def build_csv_export(
         user=user,
         indicators=indicators,
         file_name=file_name,
+        selected_columns=selected_columns,
     )
 
 
@@ -516,10 +787,16 @@ def build_csv_response(
     user=None,
     indicators: dict[str, Any] | None = None,
     file_name: str | None = None,
+    selected_columns: (
+        str
+        | Iterable[str]
+        | None
+    ) = None,
 ) -> HttpResponse:
     """
     إنشاء استجابة تنزيل CSV مباشرة.
     """
+
     return csv_export_engine.build_response(
         report_key=report_key,
         queryset=queryset,
@@ -527,4 +804,5 @@ def build_csv_response(
         user=user,
         indicators=indicators,
         file_name=file_name,
+        selected_columns=selected_columns,
     )

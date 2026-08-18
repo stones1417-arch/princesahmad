@@ -36,6 +36,9 @@ from apps.exports_center.selectors import (
     build_report_indicators,
     select_report_queryset,
 )
+from apps.exports_center.services.column_selector import (
+    select_export_columns,
+)
 
 
 # ==================================================
@@ -98,6 +101,10 @@ class ExcelExportResult:
 
     @property
     def file_size(self) -> int:
+        """
+        حجم الملف بالبايت.
+        """
+
         return len(self.content)
 
 
@@ -116,6 +123,9 @@ class ExcelExportEngine:
     - اتجاه من اليمين إلى اليسار.
     - ورقة مؤشرات.
     - ورقة بيانات.
+    - اختيار الأعمدة قبل التصدير.
+    - الحفاظ على ترتيب الأعمدة الذي اختاره المستخدم.
+    - رفض الأعمدة غير الموجودة أو غير المصرح بها.
     - رأس جدول أخضر.
     - خط أبيض عريض.
     - حدود للخلايا.
@@ -153,13 +163,22 @@ class ExcelExportEngine:
         user=None,
         indicators: dict[str, Any] | None = None,
         file_name: str | None = None,
+        selected_columns: (
+            str
+            | Iterable[str]
+            | None
+        ) = None,
     ) -> ExcelExportResult:
         """
         إنشاء ملف Excel كامل.
 
         عند عدم تمرير queryset يتم جلبه تلقائيًا
         من selectors.py.
+
+        عند عدم تمرير selected_columns يتم استخدام
+        جميع أعمدة التقرير المتاحة لصيغة Excel.
         """
+
         report = get_report_definition(
             report_key
         )
@@ -172,8 +191,18 @@ class ExcelExportEngine:
                 "لا يدعم صيغة Excel."
             )
 
-        normalized_filters = self._normalize_filters(
-            filters or {}
+        normalized_filters = (
+            self._normalize_filters(
+                filters or {}
+            )
+        )
+
+        columns = select_export_columns(
+            report=report,
+            export_format=FORMAT_EXCEL,
+            selected_columns=selected_columns,
+            require_at_least_one=True,
+            reject_unknown=True,
         )
 
         if queryset is None:
@@ -193,6 +222,7 @@ class ExcelExportEngine:
         workbook = self._build_workbook(
             report=report,
             queryset=queryset,
+            columns=columns,
             filters=normalized_filters,
             user=user,
             indicators=indicators,
@@ -200,14 +230,27 @@ class ExcelExportEngine:
         )
 
         stream = BytesIO()
-        workbook.save(stream)
 
-        content = stream.getvalue()
+        try:
+            workbook.save(
+                stream
+            )
+
+            content = stream.getvalue()
+
+        finally:
+            stream.close()
 
         resolved_file_name = (
             file_name
             or self._build_file_name(
                 report
+            )
+        )
+
+        resolved_file_name = (
+            self._ensure_excel_extension(
+                resolved_file_name
             )
         )
 
@@ -229,10 +272,16 @@ class ExcelExportEngine:
         user=None,
         indicators: dict[str, Any] | None = None,
         file_name: str | None = None,
+        selected_columns: (
+            str
+            | Iterable[str]
+            | None
+        ) = None,
     ) -> HttpResponse:
         """
         إنشاء استجابة HTTP مباشرة لتنزيل Excel.
         """
+
         result = self.build(
             report_key=report_key,
             queryset=queryset,
@@ -240,6 +289,7 @@ class ExcelExportEngine:
             user=user,
             indicators=indicators,
             file_name=file_name,
+            selected_columns=selected_columns,
         )
 
         response = HttpResponse(
@@ -267,6 +317,17 @@ class ExcelExportEngine:
             result.file_size
         )
 
+        response[
+            "X-Content-Type-Options"
+        ] = "nosniff"
+
+        response[
+            "Cache-Control"
+        ] = (
+            "private, no-store, "
+            "max-age=0"
+        )
+
         return response
 
     # ==================================================
@@ -278,11 +339,16 @@ class ExcelExportEngine:
         *,
         report: ExportReportDefinition,
         queryset,
+        columns: tuple[ExportColumn, ...],
         filters: dict[str, Any],
         user,
         indicators: dict[str, Any],
         records_count: int,
     ) -> Workbook:
+        """
+        بناء مصنف Excel باستخدام الأعمدة المختارة فقط.
+        """
+
         workbook = Workbook()
 
         default_sheet = workbook.active
@@ -305,6 +371,7 @@ class ExcelExportEngine:
             workbook=workbook,
             report=report,
             queryset=queryset,
+            columns=columns,
             filters=filters,
             user=user,
             records_count=records_count,
@@ -329,16 +396,17 @@ class ExcelExportEngine:
         workbook: Workbook,
         report: ExportReportDefinition,
         queryset,
+        columns: tuple[ExportColumn, ...],
         filters: dict[str, Any],
         user,
         records_count: int,
     ) -> None:
+        """
+        إنشاء ورقة البيانات باستخدام الأعمدة المعتمدة.
+        """
+
         sheet = workbook.create_sheet(
             title="البيانات"
-        )
-
-        columns = report.get_columns(
-            FORMAT_EXCEL
         )
 
         visible_columns = max(
@@ -833,11 +901,34 @@ class ExcelExportEngine:
                 wrap_text=True,
             )
 
+            column_width = getattr(
+                column,
+                "width",
+                18,
+            )
+
+            try:
+                resolved_width = float(
+                    column_width
+                )
+
+            except (
+                TypeError,
+                ValueError,
+            ):
+                resolved_width = 18
+
             sheet.column_dimensions[
                 get_column_letter(
                     column_index
                 )
-            ].width = column.width
+            ].width = max(
+                8,
+                min(
+                    resolved_width,
+                    80,
+                ),
+            )
 
         sheet.row_dimensions[
             header_row
@@ -884,6 +975,14 @@ class ExcelExportEngine:
                 value=value,
             )
 
+            wrap_text = bool(
+                getattr(
+                    column,
+                    "wrap_text",
+                    False,
+                )
+            )
+
             self._style_cell(
                 cell,
                 fill=row_fill,
@@ -892,15 +991,21 @@ class ExcelExportEngine:
                 font_size=9,
                 horizontal=(
                     "right"
-                    if column.wrap_text
+                    if wrap_text
                     else "center"
                 ),
-                wrap_text=column.wrap_text,
+                wrap_text=wrap_text,
             )
 
-            if column.number_format:
-                cell.number_format = (
-                    column.number_format
+            number_format = getattr(
+                column,
+                "number_format",
+                None,
+            )
+
+            if number_format:
+                cell.number_format = str(
+                    number_format
                 )
 
         sheet.row_dimensions[
@@ -1289,8 +1394,11 @@ class ExcelExportEngine:
         records_count: int,
         filters: dict[str, Any],
     ) -> str:
-        exported_at = timezone.localtime().strftime(
-            "%Y-%m-%d %H:%M"
+        exported_at = (
+            timezone.localtime()
+            .strftime(
+                "%Y-%m-%d %H:%M"
+            )
         )
 
         exported_by = self._display_user(
@@ -1335,13 +1443,22 @@ class ExcelExportEngine:
         ignored_keys = {
             "csrfmiddlewaretoken",
             "page",
+            "page_size",
             "preview",
+            "preview_limit",
             "export_format",
             "format",
             "report_key",
+            "selected_columns",
+            "columns",
+            "search",
+            "sort",
+            "direction",
+            "action",
+            "submit",
         }
 
-        formatted_parts = []
+        formatted_parts: list[str] = []
 
         for key, value in filters.items():
             if key in ignored_keys:
@@ -1393,6 +1510,7 @@ class ExcelExportEngine:
             "employee": "الموظف",
             "employee_id": "الموظف",
             "technician": "الفني",
+            "technician_id": "الفني",
             "priority": "الأولوية",
             "job_title": "المسمى الوظيفي",
             "work_status": "حالة الموظف",
@@ -1400,6 +1518,10 @@ class ExcelExportEngine:
             "is_confirmed": "حالة التأكيد",
             "report_type": "نوع التقرير",
             "role": "الدور",
+            "shift_type": "نوع الوردية",
+            "shift_type_id": "نوع الوردية",
+            "rest_days": "أيام الراحة",
+            "incident_type": "نوع البلاغ",
             "q": "البحث",
             "search": "البحث",
         }
@@ -1416,10 +1538,32 @@ class ExcelExportEngine:
     def _display_filter_value(
         value: Any,
     ) -> str:
-        if hasattr(value, "__str__"):
-            return str(value)
+        if isinstance(
+            value,
+            bool,
+        ):
+            return (
+                "نعم"
+                if value
+                else "لا"
+            )
 
-        return ""
+        if isinstance(
+            value,
+            (
+                list,
+                tuple,
+                set,
+            ),
+        ):
+            return "، ".join(
+                str(item)
+                for item in value
+            )
+
+        return str(
+            value
+        )
 
     @staticmethod
     def _display_user(
@@ -1434,7 +1578,9 @@ class ExcelExportEngine:
             None,
         )
 
-        if callable(get_full_name):
+        if callable(
+            get_full_name
+        ):
             full_name = (
                 get_full_name()
                 or ""
@@ -1443,10 +1589,31 @@ class ExcelExportEngine:
             if full_name:
                 return full_name
 
-        return getattr(
+        employee = getattr(
             user,
-            "username",
-            "",
+            "employee",
+            None,
+        )
+
+        if employee:
+            employee_name = getattr(
+                employee,
+                "full_name",
+                "",
+            )
+
+            if employee_name:
+                return str(
+                    employee_name
+                )
+
+        return str(
+            getattr(
+                user,
+                "username",
+                "",
+            )
+            or ""
         )
 
     # ==================================================
@@ -1508,6 +1675,7 @@ class ExcelExportEngine:
                                 item,
                             )
                         )
+
                         continue
 
                     item_label = (
@@ -1535,7 +1703,10 @@ class ExcelExportEngine:
                 value,
                 dict,
             ):
-                for child_key, child_value in value.items():
+                for (
+                    child_key,
+                    child_value,
+                ) in value.items():
                     rows.append(
                         (
                             f"{label} - "
@@ -1562,18 +1733,65 @@ class ExcelExportEngine:
     def _safe_excel_value(
         value: Any,
     ) -> Any:
+        """
+        تحويل القيمة إلى قيمة آمنة لملف Excel.
+
+        يمنع Formula Injection عند بدء النص بأحد
+        رموز الصيغ المعروفة.
+        """
+
         if value is None:
             return ""
 
-        if isinstance(value, datetime):
-            if timezone.is_aware(value):
-                value = timezone.localtime(value).replace(tzinfo=None)
+        if isinstance(
+            value,
+            datetime,
+        ):
+            if timezone.is_aware(
+                value
+            ):
+                value = (
+                    timezone.localtime(
+                        value
+                    )
+                    .replace(
+                        tzinfo=None
+                    )
+                )
+
             return value
 
-        if isinstance(value, str):
-            cleaned = value.replace("\x00", "")
-            if cleaned.startswith(("=", "+", "-", "@", "\t")):
+        if isinstance(
+            value,
+            str,
+        ):
+            cleaned = (
+                value
+                .replace(
+                    "\x00",
+                    "",
+                )
+                .replace(
+                    "\r\n",
+                    "\n",
+                )
+                .replace(
+                    "\r",
+                    "\n",
+                )
+            )
+
+            if cleaned.startswith(
+                (
+                    "=",
+                    "+",
+                    "-",
+                    "@",
+                    "\t",
+                )
+            ):
                 return f"'{cleaned}"
+
             return cleaned
 
         if isinstance(
@@ -1610,24 +1828,76 @@ class ExcelExportEngine:
                 in value.items()
             )
 
-        return str(value)
+        return str(
+            value
+        )
 
     @staticmethod
     def _normalize_filters(
         filters: Mapping[str, Any],
     ) -> dict[str, Any]:
+        """
+        تنظيف الفلاتر قبل تمريرها إلى selectors.
+        """
+
         normalized: dict[str, Any] = {}
+
+        lists_method = getattr(
+            filters,
+            "lists",
+            None,
+        )
+
+        if callable(
+            lists_method
+        ):
+            for key, values in lists_method():
+                cleaned_values = [
+                    (
+                        value.strip()
+                        if isinstance(
+                            value,
+                            str,
+                        )
+                        else value
+                    )
+                    for value in values
+                    if value not in (
+                        None,
+                        "",
+                    )
+                ]
+
+                if not cleaned_values:
+                    continue
+
+                normalized[key] = (
+                    cleaned_values[0]
+                    if len(
+                        cleaned_values
+                    ) == 1
+                    else cleaned_values
+                )
+
+            return normalized
 
         for key, value in filters.items():
             if isinstance(
                 value,
                 str,
             ):
-                normalized[key] = (
-                    value.strip()
-                )
-            else:
-                normalized[key] = value
+                value = value.strip()
+
+            if value in (
+                None,
+                "",
+                [],
+                (),
+                {},
+            ):
+                continue
+
+            normalized[key] = value
 
         return normalized
 
@@ -1639,14 +1909,55 @@ class ExcelExportEngine:
     def _build_file_name(
         report: ExportReportDefinition,
     ) -> str:
-        timestamp = timezone.localtime().strftime(
-            "%Y%m%d_%H%M%S"
+        timestamp = (
+            timezone.localtime()
+            .strftime(
+                "%Y%m%d_%H%M%S"
+            )
         )
 
         return (
             f"{report.filename_prefix}_"
             f"{timestamp}.xlsx"
         )
+
+    @staticmethod
+    def _ensure_excel_extension(
+        file_name: str,
+    ) -> str:
+        """
+        تنظيف اسم الملف وضمان امتداد xlsx.
+        """
+
+        normalized_name = (
+            str(
+                file_name
+                or "export"
+            )
+            .replace(
+                '"',
+                "",
+            )
+            .replace(
+                "\r",
+                "",
+            )
+            .replace(
+                "\n",
+                "",
+            )
+            .strip()
+        )
+
+        if not normalized_name:
+            normalized_name = "export"
+
+        if not normalized_name.lower().endswith(
+            ".xlsx"
+        ):
+            normalized_name += ".xlsx"
+
+        return normalized_name
 
 
 # ==================================================
@@ -1668,10 +1979,16 @@ def build_excel_export(
     user=None,
     indicators: dict[str, Any] | None = None,
     file_name: str | None = None,
+    selected_columns: (
+        str
+        | Iterable[str]
+        | None
+    ) = None,
 ) -> ExcelExportResult:
     """
     إنشاء ملف Excel باستخدام المحرك الافتراضي.
     """
+
     return excel_export_engine.build(
         report_key=report_key,
         queryset=queryset,
@@ -1679,6 +1996,7 @@ def build_excel_export(
         user=user,
         indicators=indicators,
         file_name=file_name,
+        selected_columns=selected_columns,
     )
 
 
@@ -1690,10 +2008,16 @@ def build_excel_response(
     user=None,
     indicators: dict[str, Any] | None = None,
     file_name: str | None = None,
+    selected_columns: (
+        str
+        | Iterable[str]
+        | None
+    ) = None,
 ) -> HttpResponse:
     """
     إنشاء استجابة تنزيل Excel مباشرة.
     """
+
     return excel_export_engine.build_response(
         report_key=report_key,
         queryset=queryset,
@@ -1701,4 +2025,5 @@ def build_excel_response(
         user=user,
         indicators=indicators,
         file_name=file_name,
+        selected_columns=selected_columns,
     )
