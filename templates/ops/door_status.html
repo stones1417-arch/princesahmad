@@ -33,9 +33,9 @@
       لا توجد وردية نشطة حاليًا. فعّل وردية من صفحة حالات الورديات.
     </div>
 
-  {% else %}
+  {% endif %}
 
-    <div class="stats-grid">
+  <div class="stats-grid">
 
       <div class="stat-card total"><span>إجمالي الأبواب</span><strong>{{ total_count }}</strong></div>
 
@@ -147,36 +147,45 @@
 
           </div>
 
-          <div class="door-actions">
+          {% if active_shift %}
+            <div class="door-actions">
 
-            {% if shift.supervisor == user or user.is_staff %}
+              {% if shift.pk and can_update_doors or shift.pk and can_create_maintenance %}
 
+              {% if can_update_doors %}
               <button
                 type="button"
                 class="btn-edit"
-                onclick="openStateModal(
-                  '{{ shift.id }}',
-                  '{{ shift.door_number }}',
-                  '{{ shift.state }}',
-                  '{{ shift.notes|default_if_none:''|escapejs }}'
-                )">
+                data-door-state-action
+                data-door-id="{{ shift.id }}"
+                data-door-number="{{ shift.door_number }}"
+                data-door-state="{{ shift.state }}"
+                data-door-notes="{{ shift.notes|default_if_none:'' }}"
+                data-action-url="{% url 'ops:door-update-ajax' shift.id %}">
                 تعديل الحالة
               </button>
+              {% endif %}
 
+              {% if can_create_maintenance %}
               <button
                 type="button"
                 class="btn-maint"
-                onclick="openMaintenanceModal('{{ shift.id }}','{{ shift.door_number }}')">
+                data-maintenance-action
+                data-door-id="{{ shift.id }}"
+                data-door-number="{{ shift.door_number }}"
+                data-action-url="{% url 'ops:maintenance-create-ajax' shift.id %}">
                 طلب صيانة
               </button>
+              {% endif %}
 
-            {% else %}
+              {% else %}
 
-              <span class="muted">لا توجد صلاحية تعديل</span>
+                <span class="muted">لا توجد صلاحية تعديل</span>
 
-            {% endif %}
+              {% endif %}
 
-          </div>
+            </div>
+          {% endif %}
 
         </div>
 
@@ -192,8 +201,6 @@
 
     <section class="recent-door-history"><header><div><span>المراجعة التشغيلية</span><h3>آخر تغييرات حالات الأبواب</h3></div><a href="{% url 'audit:history-list' %}">عرض السجل الكامل</a></header><div>{% for item in recent_state_changes %}<article><i>{{ item.door_shift.door_number }}</i><p><strong>باب {{ item.door_shift.door_number }}</strong><span>{{ item.change_reason|default:"تحديث حالة الباب" }}</span></p><b>{% if item.changed_by %}{{ item.changed_by.get_full_name|default:item.changed_by.username }}{% else %}النظام{% endif %}</b><time>{{ item.changed_at|date:"H:i" }}</time></article>{% empty %}<div class="empty-box">لا توجد تغييرات مسجلة لهذه الوردية.</div>{% endfor %}</div></section>
 
-  {% endif %}
-
 </div>
 
 <div id="stateModal" class="modal-backdrop">
@@ -206,6 +213,7 @@
     </div>
 
     <input type="hidden" id="stateDoorId">
+    <input type="hidden" id="stateActionUrl">
 
     <div class="modal-body">
 
@@ -241,6 +249,7 @@
     </div>
 
     <input type="hidden" id="maintDoorId">
+    <input type="hidden" id="maintenanceActionUrl">
 
     <div class="modal-body">
 
@@ -649,12 +658,13 @@ function getCookie(name){
   return cookieValue;
 }
 
-function openStateModal(id, doorNumber, state, notes){
+function openStateModal(id, doorNumber, state, notes, actionUrl){
   document.getElementById("stateModal").classList.add("active");
   document.getElementById("stateDoorId").value = id;
   document.getElementById("stateDoorNumber").innerText = doorNumber;
   document.getElementById("newState").value = state;
   document.getElementById("stateNotes").value = notes || "";
+  document.getElementById("stateActionUrl").value = actionUrl;
 }
 
 function closeStateModal(){
@@ -665,12 +675,13 @@ function submitDoorState(){
   const id = document.getElementById("stateDoorId").value;
   const state = document.getElementById("newState").value;
   const notes = document.getElementById("stateNotes").value.trim();
+  const actionUrl = document.getElementById("stateActionUrl").value;
 
   const body = new URLSearchParams();
   body.append("state", state);
   body.append("notes", notes);
 
-  fetch(`/ops/doors/${id}/update/ajax/`, {
+  fetch(actionUrl, {
     method:"POST",
     headers:{
       "X-CSRFToken":getCookie("csrftoken"),
@@ -707,13 +718,14 @@ function submitDoorState(){
   });
 }
 
-function openMaintenanceModal(id, doorNumber){
+function openMaintenanceModal(id, doorNumber, actionUrl){
   document.getElementById("maintenanceModal").classList.add("active");
   document.getElementById("maintDoorId").value = id;
   document.getElementById("maintDoorNumber").innerText = doorNumber;
   document.getElementById("maintenancePriority").value = "medium";
   document.getElementById("maintenanceTechnician").value = "";
   document.getElementById("maintDescription").value = "";
+  document.getElementById("maintenanceActionUrl").value = actionUrl;
 }
 
 function closeMaintenanceModal(){
@@ -725,6 +737,7 @@ function submitMaintenanceRequest(){
   const desc = document.getElementById("maintDescription").value.trim();
   const priority = document.getElementById("maintenancePriority").value;
   const technician = document.getElementById("maintenanceTechnician").value.trim();
+  const actionUrl = document.getElementById("maintenanceActionUrl").value;
 
   if(!desc){
     alert("يرجى كتابة وصف المشكلة");
@@ -736,7 +749,7 @@ function submitMaintenanceRequest(){
   body.append("priority", priority);
   body.append("technician_name", technician);
 
-  fetch(`/ops/doors/${doorId}/maintenance/create/ajax/`, {
+  fetch(actionUrl, {
     method:"POST",
     headers:{
       "X-CSRFToken":getCookie("csrftoken"),
@@ -753,20 +766,19 @@ function submitMaintenanceRequest(){
 
     const card = document.getElementById(`door-card-${doorId}`);
 
-    card.classList.remove("open", "closed", "secured");
-    card.classList.add("maintenance");
-    card.dataset.state = "maintenance";
+    card.classList.remove("open", "closed", "secured", "maintenance");
+    card.classList.add(data.maintenance.state);
+    card.dataset.state = data.maintenance.state;
 
     const stateEl = document.getElementById(`state-${doorId}`);
-    stateEl.className = "status-pill maintenance";
-    stateEl.innerText = "تحت صيانة";
+    stateEl.className = `status-pill ${data.maintenance.state}`;
+    stateEl.innerText = data.maintenance.state_label;
 
     document.getElementById(`notes-${doorId}`).innerText =
       "تم إنشاء طلب صيانة: " + data.maintenance.request_number;
-function openDoorModal(card){
     closeMaintenanceModal();
-    activeDoorCard = card;
     alert("تم إنشاء طلب الصيانة بنجاح");
+    recalculateCounters();
   })
   .catch(() => {
     alert("تعذر الاتصال بالخادم");
@@ -830,6 +842,29 @@ function recalculateCounters(){
   document.getElementById("kpi-maintenance").innerText = counts.maintenance;
   document.getElementById("kpi-secured").innerText = counts.secured;
 }
+
+document.addEventListener("click", function(event){
+  const stateButton = event.target.closest("[data-door-state-action]");
+  if(stateButton){
+    openStateModal(
+      stateButton.dataset.doorId,
+      stateButton.dataset.doorNumber,
+      stateButton.dataset.doorState,
+      stateButton.dataset.doorNotes,
+      stateButton.dataset.actionUrl
+    );
+    return;
+  }
+
+  const maintenanceButton = event.target.closest("[data-maintenance-action]");
+  if(maintenanceButton){
+    openMaintenanceModal(
+      maintenanceButton.dataset.doorId,
+      maintenanceButton.dataset.doorNumber,
+      maintenanceButton.dataset.actionUrl
+    );
+  }
+});
 
 </script>
 

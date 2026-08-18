@@ -355,6 +355,28 @@ def door_status_view(request):
         1,
     ) if total_count else 0
 
+    has_scope = request.user.is_superuser or has_institutional_scope(
+        request.user
+    )
+    can_update_doors = request.user.is_superuser or (
+        has_scope
+        and any(
+            user_has_permission(request.user, permission)
+            for permission in (
+                PlatformPermissions.OPEN_DOOR,
+                PlatformPermissions.CLOSE_DOOR,
+                PlatformPermissions.MOVE_DOOR_TO_MAINTENANCE,
+            )
+        )
+    )
+    can_create_maintenance = request.user.is_superuser or (
+        has_scope
+        and user_has_permission(
+            request.user,
+            PlatformPermissions.CREATE_MAINTENANCE_REQUEST,
+        )
+    )
+
     context = {
         "active_shift": active_shift,
         "active_door_shifts": visible_door_rows,
@@ -365,6 +387,8 @@ def door_status_view(request):
         "secured_count": secured_count,
         "total_count": total_count,
         "readiness_rate": readiness_rate,
+        "can_update_doors": can_update_doors,
+        "can_create_maintenance": can_create_maintenance,
         "recent_state_changes": DoorStateHistory.objects.select_related(
             "door_shift", "changed_by"
         ).filter(
@@ -417,13 +441,28 @@ def update_door_status_ajax(request, pk):
         or ""
     ).strip()
 
+    maintenance = None
     try:
-        door, changed = DoorService.update_state(
-            request=request,
-            door_shift=door,
-            new_state=state,
-            reason=notes,
-        )
+        if state == DoorShift.DoorState.MAINTENANCE:
+            _require_ops_permission(
+                request,
+                PlatformPermissions.CREATE_MAINTENANCE_REQUEST,
+            )
+            maintenance = MaintenanceService.create_request(
+                request=request,
+                door=door,
+                description=notes,
+                priority=MaintenanceRequest.Priority.MEDIUM,
+            )
+            door.refresh_from_db()
+            changed = True
+        else:
+            door, changed = DoorService.update_state(
+                request=request,
+                door_shift=door,
+                new_state=state,
+                reason=notes,
+            )
 
     except ValidationError as error:
         return JsonResponse(
@@ -442,6 +481,12 @@ def update_door_status_ajax(request, pk):
         {
             "success": True,
             "changed": changed,
+            "maintenance_request_id": (
+                maintenance.id if maintenance else None
+            ),
+            "maintenance_status": (
+                maintenance.status if maintenance else None
+            ),
             "door": {
                 "id": door.id,
                 "door_number": door.door_number,
@@ -586,6 +631,10 @@ def create_maintenance_request_ajax(
                     if maintenance.created_at
                     else None
                 ),
+                "door_id": maintenance.door_shift_id,
+                "door_number": maintenance.door_shift.door_number,
+                "state": maintenance.door_shift.state,
+                "state_label": maintenance.door_shift.get_state_display(),
             },
         }
     )
@@ -709,8 +758,9 @@ def maintenance_requests_view(request):
 
     today = timezone.localdate()
 
-    all_requests = (
-        MaintenanceRequest.objects.all()
+    all_requests = _scoped_by_section(
+        MaintenanceRequest.objects,
+        request.user,
     )
 
     closed_statuses = (

@@ -400,6 +400,33 @@ class MaintenanceService:
             description or ""
         ).strip()
 
+        active_statuses = {
+            MaintenanceRequest.Status.NEW,
+            MaintenanceRequest.Status.APPROVED,
+            MaintenanceRequest.Status.ASSIGNED,
+            MaintenanceRequest.Status.IN_PROGRESS,
+            MaintenanceRequest.Status.OPEN,
+        }
+        existing_request = (
+            MaintenanceRequest.objects
+            .select_for_update()
+            .filter(
+                door_shift=locked_door,
+                status__in=active_statuses,
+            )
+            .order_by("-created_at")
+            .first()
+        )
+        if existing_request is not None:
+            raise ValidationError(
+                {
+                    "door": (
+                        "يوجد طلب صيانة نشط لهذا الباب بالفعل: "
+                        f"{existing_request.request_number}"
+                    )
+                }
+            )
+
         if not clean_description:
             raise ValidationError(
                 {
@@ -462,7 +489,7 @@ class MaintenanceService:
         maintenance.full_clean()
         maintenance.save()
 
-        change_door_state(
+        updated_door, _changed = change_door_state(
             door_shift=locked_door,
             new_state=(
                 DoorShift
@@ -478,6 +505,7 @@ class MaintenanceService:
         )
 
         maintenance.refresh_from_db()
+        maintenance.door_shift = updated_door
 
         return maintenance
 

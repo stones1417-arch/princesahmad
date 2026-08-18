@@ -476,6 +476,10 @@ class CommandCenterService:
 
                         "number": door.door_number,
 
+                        "sort_order": door.sort_order,
+
+                        "direction_key": item["direction_key"],
+
                         "name": str(door),
 
                         "zone": (

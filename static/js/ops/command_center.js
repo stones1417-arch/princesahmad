@@ -66,44 +66,45 @@
         {
             key: "south",
             label: "الجهة الجنوبية",
-            firstDoor: 1,
-            lastDoor: 6,
+            doorCodes: ["1", "2", "3", "4", "5", "6B"],
             startAngle: 96,
             endAngle: 128,
         },
         {
             key: "west",
             label: "الجهة الغربية",
-            firstDoor: 7,
-            lastDoor: 14,
+            doorCodes: ["6A", "7", "8", "9", "10", "11", "12", "13", "14"],
             startAngle: 138,
             endAngle: 198,
         },
         {
             key: "north",
             label: "الجهة الشمالية",
-            firstDoor: 15,
-            lastDoor: 27,
+            doorCodes: ["15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27"],
             startAngle: 208,
             endAngle: 332,
         },
         {
             key: "east",
             label: "الجهة الشرقية",
-            firstDoor: 28,
-            lastDoor: 35,
+            doorCodes: ["28", "29", "30", "31", "32", "33", "34", "35"],
             startAngle: 342,
             endAngle: 404,
         },
         {
             key: "southeast",
             label: "الجهة الجنوبية الشرقية",
-            firstDoor: 36,
-            lastDoor: 41,
+            doorCodes: ["36", "37", "38", "39", "40", "41"],
             startAngle: 50,
             endAngle: 82,
         },
     ];
+
+    const MAP_DOOR_CODES = DOOR_ARC_GROUPS.flatMap(
+        function (group) {
+            return group.doorCodes;
+        }
+    );
 
 
     /* =====================================================
@@ -506,6 +507,11 @@
     ===================================================== */
 
     function getDirectionByDoorNumber(number) {
+        const configuredGroup = getDoorArcGroup(number);
+        if (configuredGroup) {
+            return configuredGroup.label;
+        }
+
         const doorNumber = Number(number);
 
         if (
@@ -609,14 +615,13 @@
     ===================================================== */
 
     function getDoorArcGroup(doorNumber) {
-        const number = Number(doorNumber);
+        const doorCode = String(doorNumber || "").trim().toUpperCase();
 
         return (
             DOOR_ARC_GROUPS.find(
                 function (group) {
                     return (
-                        number >= group.firstDoor
-                        && number <= group.lastDoor
+                        group.doorCodes.includes(doorCode)
                     );
                 }
             )
@@ -629,13 +634,8 @@
         doorNumber,
         group
     ) {
-        const number = Number(doorNumber);
-
-        const doorsCount = (
-            group.lastDoor
-            - group.firstDoor
-            + 1
-        );
+        const doorCode = String(doorNumber || "").trim().toUpperCase();
+        const doorsCount = group.doorCodes.length;
 
         if (doorsCount <= 1) {
             return (
@@ -644,10 +644,7 @@
             ) / 2;
         }
 
-        const doorIndex = (
-            number
-            - group.firstDoor
-        );
+        const doorIndex = group.doorCodes.indexOf(doorCode);
 
         const progress = (
             doorIndex
@@ -757,9 +754,7 @@
 
         doorPoints.forEach(
             function (point) {
-                const doorNumber = Number(
-                    point.dataset.doorNumber
-                );
+                const doorNumber = point.dataset.doorNumber;
 
                 const group = getDoorArcGroup(
                     doorNumber
@@ -1345,11 +1340,11 @@
         door,
         groupLabel = ""
     ) {
-        const number = Number(
+        const number = String(
             door.number
             ?? door.door_number
             ?? door.id
-        );
+        ).trim().toUpperCase();
 
         const state = (
             door.state
@@ -1445,8 +1440,7 @@
                         );
 
                         if (
-                            normalizedDoor.number >= 1
-                            && normalizedDoor.number <= 41
+                            MAP_DOOR_CODES.includes(normalizedDoor.number)
                         ) {
                             result.push(
                                 normalizedDoor
@@ -1459,10 +1453,8 @@
 
         return result.sort(
             function (firstDoor, secondDoor) {
-                return (
-                    firstDoor.number
-                    - secondDoor.number
-                );
+                return Number(firstDoor.sort_order || 0)
+                    - Number(secondDoor.sort_order || 0);
             }
         );
     }
@@ -2113,9 +2105,9 @@
                 function (event) {
                     event.preventDefault();
 
-                    const doorNumber = Number(
-                        DOM.doorSearch?.value
-                    );
+                    const doorNumber = String(
+                        DOM.doorSearch?.value || ""
+                    ).trim().toUpperCase();
                     const doorPoint = DOM.doorMap?.querySelector(
                         `.door-point-${doorNumber}`
                     );
