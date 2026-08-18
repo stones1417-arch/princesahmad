@@ -2038,13 +2038,15 @@ def _apply_user_operational_scope(
         report_key or ""
     ).strip().lower()
 
-    if normalized_report_key in {
-        "employees",
-        "shift_assignments",
-    }:
+    if normalized_report_key == "employees":
         return filter_employees_for_user(
             queryset,
             user,
+        )
+
+    if normalized_report_key == "shift_assignments":
+        return queryset.filter(
+            employee__operational_section__in=allowed_sections,
         )
 
     if normalized_report_key == "breaks":

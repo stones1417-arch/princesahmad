@@ -2093,7 +2093,7 @@
                                 <input type="hidden" name="report_key" value="{{ report_key }}">
                                 <input type="hidden" name="export_format" value="excel">
                                 {% for field in export_form_fields %}
-                                    <input type="hidden" name="{{ field.name }}" value="{{ field.value }}">
+                                    <input type="hidden" name="{{ field.name }}" value="{{ field.value }}" data-preview-export-field>
                                 {% endfor %}
                                 <button
                                     type="submit"
@@ -2131,7 +2131,7 @@
                                 <input type="hidden" name="report_key" value="{{ report_key }}">
                                 <input type="hidden" name="export_format" value="pdf">
                                 {% for field in export_form_fields %}
-                                    <input type="hidden" name="{{ field.name }}" value="{{ field.value }}">
+                                    <input type="hidden" name="{{ field.name }}" value="{{ field.value }}" data-preview-export-field>
                                 {% endfor %}
                                 <button
                                     type="submit"
@@ -2169,7 +2169,7 @@
                                 <input type="hidden" name="report_key" value="{{ report_key }}">
                                 <input type="hidden" name="export_format" value="csv">
                                 {% for field in export_form_fields %}
-                                    <input type="hidden" name="{{ field.name }}" value="{{ field.value }}">
+                                    <input type="hidden" name="{{ field.name }}" value="{{ field.value }}" data-preview-export-field>
                                 {% endfor %}
                                 <button
                                     type="submit"

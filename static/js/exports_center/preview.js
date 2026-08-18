@@ -95,6 +95,10 @@
         "[data-export-link]"
     );
 
+    const exportForms = document.querySelectorAll(
+        "[data-export-form]"
+    );
+
     const exportSelectionStatus = document.querySelector(
         "[data-export-selection-status]"
     );
@@ -644,15 +648,26 @@
             window.location.href
         );
 
-        exportLinks.forEach(
-            (link) => {
-                const exportUrl = new URL(
-                    link.href,
-                    window.location.origin
+        exportForms.forEach(
+            (exportForm) => {
+                exportForm.querySelectorAll(
+                    "[data-preview-export-field]"
+                ).forEach(
+                    (field) => field.remove()
                 );
 
-                exportUrl.search = currentUrl.search;
-                link.href = exportUrl.toString();
+                currentUrl.searchParams.forEach(
+                    (value, name) => {
+                        const field = document.createElement(
+                            "input"
+                        );
+                        field.type = "hidden";
+                        field.name = name;
+                        field.value = value;
+                        field.dataset.previewExportField = "true";
+                        exportForm.appendChild(field);
+                    }
+                );
             }
         );
 

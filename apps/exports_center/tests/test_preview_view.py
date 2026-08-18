@@ -5,8 +5,13 @@ from django.contrib.auth.models import Group, Permission
 from django.test import TestCase
 from django.urls import reverse
 
-from apps.core.tests.factories import create_door, create_employee
+from apps.core.tests.factories import (
+    create_door,
+    create_employee,
+    create_shift_plan,
+)
 from apps.roles.models import Role, UserRole
+from apps.scheduling.models import ShiftAssignment
 
 
 class PreviewViewTests(TestCase):
@@ -22,13 +27,13 @@ class PreviewViewTests(TestCase):
                 codename="export_report",
             )
         )
-        role = Role.objects.create(
+        self.role = Role.objects.create(
             code="preview-exporter",
             name="Preview exporter",
             group=group,
             operational_section=Role.OperationalSection.ALL,
         )
-        UserRole.objects.create(user=self.user, role=role)
+        UserRole.objects.create(user=self.user, role=self.role)
         self.client.force_login(self.user)
 
     def test_preview_view_displays_operational_section_filter_label(self):
@@ -193,3 +198,62 @@ class PreviewViewTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 403)
+
+    def test_shift_assignments_preview_with_data_is_200(self):
+        employee = create_employee(
+            employee_number="shift-preview-1",
+            operational_section="male",
+        )
+        ShiftAssignment.objects.create(
+            shift_plan=create_shift_plan(),
+            employee=employee,
+            role=ShiftAssignment.OperationalRole.MONITOR,
+            notes="",
+        )
+
+        response = self.client.get(
+            reverse(
+                "exports_center:preview",
+                kwargs={"report_key": "shift_assignments"},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_shift_assignments_preview_respects_male_and_female_scope(self):
+        male = create_employee(
+            full_name="Scoped Male",
+            employee_number="shift-scope-m",
+            operational_section="male",
+        )
+        female = create_employee(
+            full_name="Scoped Female",
+            employee_number="shift-scope-f",
+            operational_section="female",
+        )
+        ShiftAssignment.objects.create(
+            shift_plan=create_shift_plan(),
+            employee=male,
+        )
+        ShiftAssignment.objects.create(
+            shift_plan=create_shift_plan(),
+            employee=female,
+        )
+        url = reverse(
+            "exports_center:preview",
+            kwargs={"report_key": "shift_assignments"},
+        )
+
+        self.role.operational_section = Role.OperationalSection.MALE
+        self.role.save(update_fields=["operational_section"])
+        male_response = self.client.get(url)
+        self.assertEqual(male_response.status_code, 200)
+        self.assertEqual(male_response.context["records_count"], 1)
+        self.assertEqual(male_response.context["records"][0].employee, male)
+
+        self.role.operational_section = Role.OperationalSection.FEMALE
+        self.role.save(update_fields=["operational_section"])
+        female_response = self.client.get(url)
+        self.assertEqual(female_response.status_code, 200)
+        self.assertEqual(female_response.context["records_count"], 1)
+        self.assertEqual(female_response.context["records"][0].employee, female)
