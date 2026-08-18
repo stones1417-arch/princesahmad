@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import tempfile
+from io import BytesIO
 from pathlib import Path
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
@@ -159,6 +161,109 @@ class OperationalReportWorkflowTests(TestCase):
         approve_url = reverse("reporting:approve", args=[report.pk])
         self.assertContains(detail, f'action="{approve_url}"')
         self.assertNotContains(detail, f'href="{approve_url}"')
+        self.assertEqual(self.client.get(approve_url).status_code, 405)
+
+    def test_platform_report_role_can_approve_without_legacy_model_permission(self):
+        self._finish_shift()
+        report = ReportService.generate_shift_report(
+            shift_plan=self.shift,
+            user=self.user,
+        )
+        group = Group.objects.create(name="institutional-report-approver")
+        group.permissions.add(
+            *Permission.objects.filter(
+                content_type__app_label="roles",
+                codename__in=("view_reports", "approve_report"),
+            )
+        )
+        role = Role.objects.create(
+            code="institutional-report-approver",
+            name="Institutional report approver",
+            group=group,
+            operational_section=Role.OperationalSection.ALL,
+        )
+        approver = get_user_model().objects.create_user(
+            username="institutional-report-approver"
+        )
+        UserRole.objects.create(user=approver, role=role)
+        self.assertFalse(
+            approver.has_perm("reporting.can_approve_shift_report")
+        )
+        self.client.force_login(approver)
+        response = self.client.post(
+            reverse("reporting:approve", args=[report.pk])
+        )
+        self.assertEqual(response.status_code, 302)
+        report.refresh_from_db()
+        self.assertEqual(report.status, ShiftReport.ReportStatus.APPROVED)
+        self.assertEqual(report.approved_by, approver)
+        self.assertIsNotNone(report.approved_at)
+        repeated = self.client.post(
+            reverse("reporting:approve", args=[report.pk])
+        )
+        self.assertEqual(repeated.status_code, 302)
+        report.refresh_from_db()
+        self.assertEqual(report.status, ShiftReport.ReportStatus.APPROVED)
+
+    def test_excel_uses_snapshot_and_accepts_missing_optional_values(self):
+        self._finish_shift()
+        report = ReportService.generate_shift_report(
+            shift_plan=self.shift,
+            user=self.user,
+        )
+        snapshot = report.snapshot_data
+        snapshot["maintenance_requests"] = [{}]
+        ShiftReport.objects.filter(pk=report.pk).update(
+            summary="",
+            recommendations="",
+            snapshot_data=snapshot,
+        )
+        with tempfile.TemporaryDirectory() as media_root:
+            with override_settings(MEDIA_ROOT=media_root):
+                response = self.client.get(
+                    reverse("reporting:export-excel", args=[report.pk])
+                )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            response["Content-Type"],
+        )
+        self.assertIn("attachment", response["Content-Disposition"])
+        workbook = load_workbook(BytesIO(response.content), read_only=True)
+        door_sheet = workbook["حالة الأبواب"]
+        door_codes = {
+            str(door_sheet.cell(row=row, column=1).value)
+            for row in range(6, door_sheet.max_row + 1)
+        }
+        self.assertEqual(report.total_doors, 42)
+        self.assertIn("6A", door_codes)
+        self.assertIn("6B", door_codes)
+        workbook.close()
+
+    def test_failed_excel_export_marks_export_log_failed(self):
+        self._finish_shift()
+        report = ReportService.generate_shift_report(
+            shift_plan=self.shift,
+            user=self.user,
+        )
+        with tempfile.TemporaryDirectory() as media_root:
+            with override_settings(MEDIA_ROOT=media_root):
+                with patch(
+                    "apps.reporting.views.Workbook.save",
+                    side_effect=RuntimeError("excel renderer failed"),
+                ):
+                    with self.assertRaises(RuntimeError):
+                        self.client.get(
+                            reverse(
+                                "reporting:export-excel",
+                                args=[report.pk],
+                            )
+                        )
+        export_log = ExportLog.objects.get(
+            report_key="operational_shift_report",
+            export_format=ExportLog.ExportFormat.EXCEL,
+        )
+        self.assertEqual(export_log.status, ExportLog.ExportStatus.FAILED)
 
     def test_unauthenticated_and_unauthorized_access_is_denied(self):
         self._finish_shift()
@@ -169,6 +274,7 @@ class OperationalReportWorkflowTests(TestCase):
         urls = (
             reverse("reporting:detail", args=[report.pk]),
             reverse("reporting:export-pdf", args=[report.pk]),
+            reverse("reporting:export-excel", args=[report.pk]),
         )
         self.client.logout()
         for url in urls:
@@ -180,6 +286,12 @@ class OperationalReportWorkflowTests(TestCase):
         self.client.force_login(unauthorized)
         for url in urls:
             self.assertEqual(self.client.get(url).status_code, 403)
+        self.assertEqual(
+            self.client.post(
+                reverse("reporting:approve", args=[report.pk])
+            ).status_code,
+            403,
+        )
 
     def test_section_scoped_user_cannot_view_or_export_all_scope_report(self):
         self._finish_shift()

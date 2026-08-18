@@ -2038,28 +2038,17 @@ def export_report_pdf_view(
 )
 @_logged_report_export(ExportLog.ExportFormat.EXCEL)
 def export_report_excel_view(request, pk):
-    """تصدير تقرير تشغيلي متعدد الأوراق بصيغة Excel مؤسسية."""
+    """تصدير snapshot التقرير التشغيلي بصيغة Excel مؤسسية."""
     report = get_object_or_404(
         _scoped_reports(request.user).select_related(
             "shift_plan", "shift_plan__shift_type", "created_by", "approved_by"
         ),
         pk=pk,
     )
-    door_shifts = DoorShift.objects.none()
-    assignments = DoorAssignment.objects.none()
-    maintenance_requests = MaintenanceRequest.objects.none()
-    if report.shift_plan:
-        door_shifts = DoorShift.objects.filter(
-            shift_plan=report.shift_plan,
-        ).select_related("supervisor").order_by("door_number")
-        assignments = DoorAssignment.objects.filter(
-            shift_plan=report.shift_plan,
-        ).select_related("door", "door__zone", "employee").order_by(
-            "door__door_number", "role", "employee__full_name"
-        )
-        maintenance_requests = MaintenanceRequest.objects.filter(
-            door_shift__shift_plan=report.shift_plan,
-        ).select_related("door_shift", "technician").order_by("-created_at")
+    snapshot = report.snapshot_data or {}
+    snapshot_doors = snapshot.get("doors") or []
+    snapshot_assignments = snapshot.get("door_assignments") or []
+    snapshot_maintenance = snapshot.get("maintenance_requests") or []
 
     workbook = Workbook()
     summary = workbook.active
@@ -2223,11 +2212,46 @@ def export_report_excel_view(request, pk):
     summary.freeze_panes = "A5"
     summary.print_area = "A1:F32"
 
-    door_data = [(d.door_number, d.get_state_display(), "نعم" if d.is_active else "لا", display_user(d.supervisor), d.notes or "—", timezone.localtime(d.updated_at).strftime("%Y-%m-%d %H:%M")) for d in door_shifts]
+    door_data = [
+        (
+            item.get("door_number", "—"),
+            item.get("state", "—"),
+            "نعم",
+            item.get("supervisor") or "—",
+            item.get("notes") or "—",
+            "—",
+        )
+        for item in snapshot_doors
+        if isinstance(item, dict)
+    ]
     table_sheet("حالة الأبواب", "سجل حالة الأبواب", ["رقم الباب", "الحالة", "نشط", "المشرف", "ملاحظات", "آخر تحديث"], door_data, {"A": 14, "B": 18, "C": 12, "D": 25, "E": 38, "F": 22}, "2563EB")
-    assignment_data = [(a.door.door_number, a.employee.employee_number, a.employee.full_name, a.get_role_display(), a.employee.phone_number or "—", "نشط" if a.is_active else "غير نشط", a.notes or "—") for a in assignments]
+    assignment_data = [
+        (
+            item.get("door_number", "—"),
+            "—",
+            item.get("employee", "—"),
+            item.get("role", "—"),
+            "—",
+            "نشط" if item.get("is_active") else "غير نشط",
+            "—",
+        )
+        for item in snapshot_assignments
+        if isinstance(item, dict)
+    ]
     table_sheet("توزيع الموظفين", "التوزيع التشغيلي للموظفين", ["الباب", "الرقم الوظيفي", "الموظف", "الدور", "الجوال", "الحالة", "ملاحظات"], assignment_data, {"A": 12, "B": 18, "C": 28, "D": 22, "E": 18, "F": 14, "G": 34}, "0F6B50")
-    maintenance_data = [(m.request_number or "—", m.door_shift.door_number, m.get_priority_display(), m.get_status_display(), m.description, display_user(m.technician), timezone.localtime(m.created_at).strftime("%Y-%m-%d %H:%M")) for m in maintenance_requests]
+    maintenance_data = [
+        (
+            item.get("request_number", "—"),
+            item.get("door_number", "—"),
+            item.get("priority", "—"),
+            item.get("status", "—"),
+            item.get("description", "—"),
+            item.get("technician", "—"),
+            item.get("created_at", "—"),
+        )
+        for item in snapshot_maintenance
+        if isinstance(item, dict)
+    ]
     table_sheet("طلبات الصيانة", "طلبات الصيانة المرتبطة بالوردية", ["رقم الطلب", "الباب", "الأولوية", "الحالة", "وصف المشكلة", "الفني", "تاريخ الإنشاء"], maintenance_data, {"A": 22, "B": 11, "C": 15, "D": 20, "E": 44, "F": 24, "G": 22}, "C9A548")
 
     content = workbook.create_sheet("الملخص والتوصيات")

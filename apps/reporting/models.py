@@ -707,8 +707,9 @@ class ShiftReport(models.Model):
                 "لا يمكن الاعتماد بواسطة مستخدم غير نشط."
             )
 
-        if not user.has_perm(
-            "reporting.can_approve_shift_report"
+        if not (
+            user.has_perm("reporting.can_approve_shift_report")
+            or user.has_perm("roles.approve_report")
         ):
             raise PermissionDenied(
                 "ليس لديك صلاحية اعتماد تقارير الورديات."
