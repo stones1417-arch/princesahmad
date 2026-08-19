@@ -20,13 +20,13 @@
   {% if form.non_field_errors %}<div class="settings-alert error">{{ form.non_field_errors }}</div>{% endif %}
 
   <nav class="settings-tabs" aria-label="أقسام إعدادات النظام">
-    <a href="#general">الإعدادات العامة</a><a href="#operations">التشغيل</a>
+    <a href="#general" class="active" aria-current="location">الإعدادات العامة</a><a href="#operations">التشغيل</a>
     <a href="#communications">الإشعارات والاتصالات</a><a href="#reports">التقارير والتصدير</a>
     <a href="#maintenance">الصيانة</a><a href="#integrations">التكاملات والخدمات</a>
     <a href="#security">الأمن والحماية</a><a href="#information">معلومات النظام</a>
   </nav>
 
-  <form method="post" class="settings-form" novalidate>
+  <form method="post" class="settings-form" id="systemSettingsForm" novalidate>
     {% csrf_token %}{{ form.updated_at }}
     <section id="general" class="settings-card">
       <header><span>01</span><div><h2>الإعدادات العامة</h2><p>هوية المنصة وبيانات التواصل الآمنة.</p></div></header>
@@ -50,15 +50,28 @@
     <section id="communications" class="settings-card">
       <header><span>03</span><div><h2>الإشعارات والاتصالات</h2><p>مفاتيح تشغيل آمنة لا تحتوي بيانات اعتماد.</p></div></header>
       <div class="toggle-grid">
-        <label>{{ form.communications_enabled }}<span>الاتصالات العامة<small>تشغيل أو إيقاف الإرسال الخارجي مركزيًا.</small></span></label>
-        <label>{{ form.email_notifications_enabled }}<span>إشعارات البريد<small>البريد الافتراضي: {{ default_from_email|default:"غير مهيأ" }}</small></span></label>
-        <label>{{ form.sms_notifications_enabled }}<span>إشعارات SMS<small>المزود: {{ sms_provider|default:"4jawaly" }}</small></span></label>
+        <label class="toggle-card">{{ form.communications_enabled }}<span class="toggle-switch" aria-hidden="true"></span><span class="toggle-copy">الاتصالات العامة<small>تشغيل أو إيقاف الإرسال الخارجي مركزيًا.</small></span><span class="toggle-state" aria-hidden="true"></span></label>
+        <label class="toggle-card">{{ form.email_notifications_enabled }}<span class="toggle-switch" aria-hidden="true"></span><span class="toggle-copy">إشعارات البريد<small>البريد الافتراضي: {{ default_from_email|default:"غير مهيأ" }}</small></span><span class="toggle-state" aria-hidden="true"></span></label>
+        <label class="toggle-card">{{ form.sms_notifications_enabled }}<span class="toggle-switch" aria-hidden="true"></span><span class="toggle-copy">إشعارات SMS<small>المزود: {{ sms_provider|default:"4jawaly" }}</small></span><span class="toggle-state" aria-hidden="true"></span></label>
       </div>
       {% for field in form %}{% if field.name == 'communications_enabled' or field.name == 'email_notifications_enabled' or field.name == 'sms_notifications_enabled' %}{% for error in field.errors %}<small class="field-error">{{ field.label }}: {{ error }}</small>{% endfor %}{% endif %}{% endfor %}
     </section>
 
-    <section id="reports" class="settings-card compact"><header><span>04</span><div><h2>التقارير والتصدير</h2><p>تنسيقات PDF وExcel وCSV وأرشفة التصدير تخضع لعقود النظام الحالية. لا توجد خيارات تشغيلية آمنة إضافية.</p></div></header></section>
-    <section id="maintenance" class="settings-card compact"><header><span>05</span><div><h2>الصيانة</h2><p>الأولوية ودورة الموافقة تُدار من نموذج طلب الصيانة وخدماته المتخصصة.</p></div></header></section>
+    <section id="reports" class="settings-card">
+      <header><span>04</span><div><h2>التقارير والتصدير</h2><p>حالة صيغ التصدير والتخزين المتاحة وفق عقود النظام الحالية.</p></div></header>
+      <div class="availability-grid" aria-label="صيغ التصدير المتاحة">
+        <span><b>PDF</b><small>متاح</small></span><span><b>Excel</b><small>متاح</small></span><span><b>CSV</b><small>متاح</small></span>
+        <span><b>أرشيف التصدير</b><small>متاح</small></span><span><b>Cloudinary / Raw</b><small>{% if environment.cloudinary %}مهيأ{% else %}يحتاج تهيئة{% endif %}</small></span>
+      </div>
+      <a class="section-link" href="{% url 'exports_center:dashboard' %}">فتح مركز التصدير <span aria-hidden="true">←</span></a>
+    </section>
+    <section id="maintenance" class="settings-card">
+      <header><span>05</span><div><h2>الصيانة</h2><p>المسار المؤسسي المعتمد لمعالجة طلبات الصيانة.</p></div></header>
+      <ol class="workflow-stepper" aria-label="مراحل طلب الصيانة">
+        <li><i>1</i><span>الطلب</span></li><li><i>2</i><span>مراجعة العمليات</span></li><li><i>3</i><span>معتمد</span></li><li><i>4</i><span>قيد التنفيذ</span></li><li><i>5</i><span>مكتمل</span></li>
+      </ol>
+      <p class="read-only-note">مخطط إرشادي للقراءة فقط؛ تُدار الحالات من خدمة الصيانة.</p>
+    </section>
 
     <section id="integrations" class="settings-card">
       <header><span>06</span><div><h2>التكاملات والخدمات</h2><p>حالة آمنة دون عرض عناوين الاتصال أو مفاتيح الوصول.</p></div></header>
@@ -86,17 +99,54 @@
         <span>CSRF Secure <b>{% if security.secure_csrf %}Enabled ✓{% else %}Disabled{% endif %}</b></span>
         <span>HSTS <b>{% if security.hsts_enabled %}Enabled ✓{% else %}Not enabled{% endif %}</b></span>
         <span>Allowed hosts <b>{% if security.allowed_hosts_configured %}Configured{% else %}Not configured{% endif %}</b></span>
+        <span>X-Frame Protection <b>تدار بسياسة المنصة</b></span>
+        <span>Content-Type Protection <b>تدار بسياسة المنصة</b></span>
       </div>
     </section>
 
     <section id="information" class="settings-card">
       <header><span>08</span><div><h2>معلومات النظام</h2><p>آخر تغييرات إعدادات النظام المسجلة رقابيًا.</p></div></header>
+      <div class="information-grid" aria-label="ملخص النظام">
+        <span>البيئة <b>{% if security.debug_disabled %}Production-ready{% else %}Development{% endif %}</b></span>
+        <span>قاعدة البيانات <b>{% if environment.database %}PostgreSQL configured{% else %}Not configured{% endif %}</b></span>
+        <span>الأبواب النشطة <b>{{ metrics.active_doors }}</b></span>
+        <span>عامل الخلفية <b>{% if environment.celery %}Configured{% else %}Not configured{% endif %}</b></span>
+        <span>المنطقة الزمنية <b>{{ configuration.timezone }}</b></span>
+        <span>التخزين <b>{% if environment.cloudinary %}Cloud storage configured{% else %}Local / not configured{% endif %}</b></span>
+      </div>
+      <h3>سجل التغييرات الأخير</h3>
       <div class="history-list">
         {% for item in history %}<article><strong>{{ item.description }}</strong><small>{{ item.user|default:"النظام" }} · {{ item.created_at|date:"Y/m/d H:i" }}</small></article>{% empty %}<p>لا توجد تغييرات مسجلة بعد.</p>{% endfor %}
       </div>
     </section>
 
-    {% if can_change %}<footer class="settings-actions"><button type="submit">حفظ إعدادات النظام</button></footer>{% endif %}
+    {% if can_change %}<footer class="settings-actions" id="settingsActions" hidden aria-live="polite"><div><strong>هناك تغييرات غير محفوظة</strong><small>احفظ التعديلات أو ألغها للعودة إلى القيم الحالية.</small></div><span><button type="reset" class="button-secondary">إلغاء التغييرات</button><button type="submit">حفظ التغييرات</button></span></footer>{% endif %}
   </form>
 </main>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+(() => {
+  const form = document.getElementById("systemSettingsForm");
+  const actions = document.getElementById("settingsActions");
+  if (form && actions) {
+    const initial = new FormData(form);
+    const changed = () => {
+      const current = new FormData(form);
+      const keys = new Set([...initial.keys(), ...current.keys()]);
+      return [...keys].some((key) => String(initial.get(key) ?? "") !== String(current.get(key) ?? ""));
+    };
+    form.addEventListener("input", () => { actions.hidden = !changed(); });
+    form.addEventListener("change", () => { actions.hidden = !changed(); });
+    form.addEventListener("reset", () => requestAnimationFrame(() => { actions.hidden = true; }));
+  }
+  const tabs = [...document.querySelectorAll(".settings-tabs a")];
+  tabs.forEach((tab) => tab.addEventListener("click", () => {
+    tabs.forEach((item) => { item.classList.remove("active"); item.removeAttribute("aria-current"); });
+    tab.classList.add("active"); tab.setAttribute("aria-current", "location");
+  }));
+})();
+</script>
 {% endblock %}
