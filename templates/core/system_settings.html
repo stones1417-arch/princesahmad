@@ -28,6 +28,7 @@
 
   <form method="post" class="settings-form" id="systemSettingsForm" novalidate>
     {% csrf_token %}{{ form.updated_at }}
+    <div class="system-settings-columns">
     <section id="general" class="settings-card">
       <header><span>01</span><div><h2>الإعدادات العامة</h2><p>هوية المنصة وبيانات التواصل الآمنة.</p></div></header>
       <div class="settings-fields">
@@ -72,6 +73,7 @@
       </ol>
       <p class="read-only-note">مخطط إرشادي للقراءة فقط؛ تُدار الحالات من خدمة الصيانة.</p>
     </section>
+    </div>
 
     <section id="integrations" class="settings-card">
       <header><span>06</span><div><h2>التكاملات والخدمات</h2><p>حالة آمنة دون عرض عناوين الاتصال أو مفاتيح الوصول.</p></div></header>
