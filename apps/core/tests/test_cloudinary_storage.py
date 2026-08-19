@@ -19,6 +19,20 @@ class CloudinaryStorageTests(SimpleTestCase):
             "django.core.files.storage.FileSystemStorage",
         )
 
+    def test_documents_use_cloudinary_raw_resource_type(self):
+        self.assertEqual(self.storage._get_resource_type("exports/report.xlsx"), "raw")
+        self.assertEqual(self.storage._get_resource_type("exports/report.pdf"), "raw")
+
+    def test_images_and_videos_keep_their_cloudinary_resource_types(self):
+        self.assertEqual(self.storage._get_resource_type("profiles/avatar.JPEG"), "image")
+        self.assertEqual(self.storage._get_resource_type("profiles/avatar.png"), "image")
+        self.assertEqual(self.storage._get_resource_type("profiles/avatar.webp"), "image")
+        self.assertEqual(self.storage._get_resource_type("evidence/clip.mp4"), "video")
+
+    def test_unknown_document_types_use_safe_raw_resource_type(self):
+        self.assertEqual(self.storage._get_resource_type("exports/report.unknown"), "raw")
+        self.assertEqual(self.storage._get_resource_type("exports/README"), "raw")
+
     @patch(
         "apps.core.storage.MediaCloudinaryStorage._save",
         return_value="profiles/avatar.jpg",

@@ -9,6 +9,10 @@ from django.utils import timezone
 from apps.exports_center.models import ExportLog
 
 
+class ExportStorageError(RuntimeError):
+    """The generated export could not be archived in configured storage."""
+
+
 def create_processing_log(
     *,
     request: HttpRequest,
@@ -57,11 +61,16 @@ def complete_export_log(
     """
     حفظ الملف وتحويل العملية إلى مكتملة.
     """
-    export_log.file.save(
-        export_log.file_name,
-        ContentFile(content),
-        save=False,
-    )
+    try:
+        export_log.file.save(
+            export_log.file_name,
+            ContentFile(content),
+            save=False,
+        )
+    except OSError as error:
+        raise ExportStorageError(
+            "تعذر حفظ ملف التصدير في التخزين الدائم."
+        ) from error
     export_log.storage_path = export_log.file.name
 
     export_log.status = ExportLog.ExportStatus.SUCCESS

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from cloudinary_storage.storage import MediaCloudinaryStorage
+from cloudinary_storage.storage import MediaCloudinaryStorage, RESOURCE_TYPES
 
 
 logger = logging.getLogger(__name__)
@@ -10,6 +10,22 @@ logger = logging.getLogger(__name__)
 
 class SafeCloudinaryMediaStorage(MediaCloudinaryStorage):
     """Cloudinary storage that fails explicitly instead of falling back locally."""
+
+    IMAGE_EXTENSIONS = {
+        ".avif", ".bmp", ".gif", ".heic", ".jpeg", ".jpg", ".png", ".svg", ".webp",
+    }
+    VIDEO_EXTENSIONS = {
+        ".avi", ".m4v", ".mkv", ".mov", ".mp4", ".mpeg", ".webm",
+    }
+
+    def _get_resource_type(self, name):
+        """Store documents as raw resources while retaining media behavior."""
+        extension = "." + name.rsplit(".", 1)[-1].lower() if "." in name else ""
+        if extension in self.IMAGE_EXTENSIONS:
+            return RESOURCE_TYPES["IMAGE"]
+        if extension in self.VIDEO_EXTENSIONS:
+            return RESOURCE_TYPES["VIDEO"]
+        return RESOURCE_TYPES["RAW"]
 
     def _save(self, name, content):
         try:

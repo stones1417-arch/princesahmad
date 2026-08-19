@@ -144,6 +144,9 @@ class OperationalReportWorkflowTests(TestCase):
                 self.assertEqual(logs.count(), 2)
                 self.assertTrue(all(log.status == "success" for log in logs))
                 self.assertTrue(all(log.download_count == 1 for log in logs))
+                self.assertTrue(all(log.file for log in logs))
+                self.assertTrue(all(log.storage_path for log in logs))
+                self.assertTrue(all(log.file.storage.exists(log.file.name) for log in logs))
 
     def test_create_and_approve_buttons_match_post_contract(self):
         self._finish_shift()
@@ -264,6 +267,50 @@ class OperationalReportWorkflowTests(TestCase):
             export_format=ExportLog.ExportFormat.EXCEL,
         )
         self.assertEqual(export_log.status, ExportLog.ExportStatus.FAILED)
+
+    def test_storage_failure_returns_service_unavailable_without_partial_success(self):
+        self._finish_shift()
+        report = ReportService.generate_shift_report(
+            shift_plan=self.shift,
+            user=self.user,
+        )
+        with patch(
+            "django.core.files.storage.FileSystemStorage._save",
+            side_effect=OSError("storage unavailable"),
+        ):
+            response = self.client.get(
+                reverse("reporting:export-excel", args=[report.pk])
+            )
+        self.assertEqual(response.status_code, 503)
+        export_log = ExportLog.objects.get(
+            report_key="operational_shift_report",
+            export_format=ExportLog.ExportFormat.EXCEL,
+        )
+        self.assertEqual(export_log.status, ExportLog.ExportStatus.FAILED)
+        self.assertFalse(export_log.file)
+        self.assertEqual(export_log.download_count, 0)
+
+    def test_pdf_storage_failure_uses_same_archival_contract(self):
+        self._finish_shift()
+        report = ReportService.generate_shift_report(
+            shift_plan=self.shift,
+            user=self.user,
+        )
+        with patch(
+            "django.core.files.storage.FileSystemStorage._save",
+            side_effect=OSError("storage unavailable"),
+        ):
+            response = self.client.get(
+                reverse("reporting:export-pdf", args=[report.pk])
+            )
+        self.assertEqual(response.status_code, 503)
+        export_log = ExportLog.objects.get(
+            report_key="operational_shift_report",
+            export_format=ExportLog.ExportFormat.PDF,
+        )
+        self.assertEqual(export_log.status, ExportLog.ExportStatus.FAILED)
+        self.assertFalse(export_log.file)
+        self.assertEqual(export_log.download_count, 0)
 
     def test_unauthenticated_and_unauthorized_access_is_denied(self):
         self._finish_shift()

@@ -28,6 +28,7 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 from apps.distribution.models import DoorAssignment
 from apps.exports_center.models import ExportLog
 from apps.exports_center.services.export_logger import (
+    ExportStorageError,
     complete_export_log,
     create_processing_log,
     fail_export_log,
@@ -65,11 +66,19 @@ def _logged_report_export(export_format):
             try:
                 response = view_func(request, pk, *args, **kwargs)
                 content = bytes(response.content)
-                complete_export_log(
-                    export_log=export_log,
-                    content=content,
-                    records_count=1,
-                )
+                try:
+                    complete_export_log(
+                        export_log=export_log,
+                        content=content,
+                        records_count=1,
+                    )
+                except ExportStorageError as error:
+                    fail_export_log(export_log=export_log, exception=error)
+                    return HttpResponse(
+                        "تعذر حفظ ملف التصدير في التخزين الدائم. حاول لاحقًا.",
+                        status=503,
+                        content_type="text/plain; charset=utf-8",
+                    )
                 export_log.register_download()
                 return response
             except Exception as error:
