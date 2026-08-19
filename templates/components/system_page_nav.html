@@ -2,6 +2,9 @@
   <span class="system-page-nav-label"><i></i> نطاق النظام</span>
   <div>
     <a href="{% url 'dashboard:system-center' %}" {% if request.resolver_match.url_name == 'system-center' %}class="active" aria-current="page"{% endif %}>مركز النظام</a>
+    {% if perms.core.view_systemconfiguration %}
+      <a href="{% url 'core:system-settings' %}" {% if request.resolver_match.url_name == 'system-settings' %}class="active" aria-current="page"{% endif %}>إعدادات النظام</a>
+    {% endif %}
     <a href="{% url 'audit:history-list' %}" {% if request.resolver_match.app_name == 'audit' %}class="active" aria-current="page"{% endif %}>سجل المراجعة</a>
     <a href="{% url 'dashboard:system-logs' %}" {% if request.resolver_match.url_name == 'system-logs' %}class="active" aria-current="page"{% endif %}>نشاط النظام</a>
     <a href="{% url 'admin:index' %}">إدارة البيانات <span aria-hidden="true">↗</span></a>

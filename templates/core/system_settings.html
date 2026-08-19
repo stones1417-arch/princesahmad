@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}إعدادات النظام | منصة أبواب{% endblock %}
+{% block body_class %}app-body settings-center-body{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/core/system_settings.css' %}">{% endblock %}
+
+{% block content %}
+<main class="settings-center" dir="rtl">
+  {% include "components/system_page_nav.html" %}
+  <header class="settings-hero">
+    <div>
+      <span class="settings-kicker">مركز التحكم المؤسسي</span>
+      <h1>إعدادات النظام</h1>
+      <p>إدارة إعدادات المنصة والخدمات وسياسات التشغيل</p>
+    </div>
+    <span class="settings-role-badge">صلاحية مدير النظام</span>
+  </header>
+
+  {% if form.non_field_errors %}<div class="settings-alert error">{{ form.non_field_errors }}</div>{% endif %}
+
+  <nav class="settings-tabs" aria-label="أقسام إعدادات النظام">
+    <a href="#general">الإعدادات العامة</a><a href="#operations">التشغيل</a>
+    <a href="#communications">الإشعارات والاتصالات</a><a href="#reports">التقارير والتصدير</a>
+    <a href="#maintenance">الصيانة</a><a href="#integrations">التكاملات والخدمات</a>
+    <a href="#security">الأمن والحماية</a><a href="#information">معلومات النظام</a>
+  </nav>
+
+  <form method="post" class="settings-form" novalidate>
+    {% csrf_token %}{{ form.updated_at }}
+    <section id="general" class="settings-card">
+      <header><span>01</span><div><h2>الإعدادات العامة</h2><p>هوية المنصة وبيانات التواصل الآمنة.</p></div></header>
+      <div class="settings-fields">
+        {% for field in form %}{% if field.name != 'updated_at' and field.name != 'communications_enabled' and field.name != 'email_notifications_enabled' and field.name != 'sms_notifications_enabled' %}
+          <label><span>{{ field.label }}</span>{{ field }}{% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</label>
+        {% endif %}{% endfor %}
+      </div>
+    </section>
+
+    <section id="operations" class="settings-card">
+      <header><span>02</span><div><h2>إعدادات التشغيل</h2><p>مؤشرات مشتقة من البيانات الرئيسية وليست إعدادات يدوية.</p></div></header>
+      <div class="metric-grid">
+        <article><strong>{{ metrics.active_doors }}</strong><span>الأبواب النشطة</span></article>
+        <article><strong>{{ metrics.shift_types }}</strong><span>أنواع الورديات</span></article>
+        <article><strong>{{ metrics.operational_sections }}</strong><span>الأقسام التشغيلية</span></article>
+        <article><strong>{{ metrics.duplicate_doors }}</strong><span>أرقام أبواب مكررة</span></article>
+      </div>
+    </section>
+
+    <section id="communications" class="settings-card">
+      <header><span>03</span><div><h2>الإشعارات والاتصالات</h2><p>مفاتيح تشغيل آمنة لا تحتوي بيانات اعتماد.</p></div></header>
+      <div class="toggle-grid">
+        <label>{{ form.communications_enabled }}<span>الاتصالات العامة<small>تشغيل أو إيقاف الإرسال الخارجي مركزيًا.</small></span></label>
+        <label>{{ form.email_notifications_enabled }}<span>إشعارات البريد<small>البريد الافتراضي: {{ default_from_email|default:"غير مهيأ" }}</small></span></label>
+        <label>{{ form.sms_notifications_enabled }}<span>إشعارات SMS<small>المزود: {{ sms_provider|default:"4jawaly" }}</small></span></label>
+      </div>
+      {% for field in form %}{% if field.name == 'communications_enabled' or field.name == 'email_notifications_enabled' or field.name == 'sms_notifications_enabled' %}{% for error in field.errors %}<small class="field-error">{{ field.label }}: {{ error }}</small>{% endfor %}{% endif %}{% endfor %}
+    </section>
+
+    <section id="reports" class="settings-card compact"><header><span>04</span><div><h2>التقارير والتصدير</h2><p>تنسيقات PDF وExcel وCSV وأرشفة التصدير تخضع لعقود النظام الحالية. لا توجد خيارات تشغيلية آمنة إضافية.</p></div></header></section>
+    <section id="maintenance" class="settings-card compact"><header><span>05</span><div><h2>الصيانة</h2><p>الأولوية ودورة الموافقة تُدار من نموذج طلب الصيانة وخدماته المتخصصة.</p></div></header></section>
+
+    <section id="integrations" class="settings-card">
+      <header><span>06</span><div><h2>التكاملات والخدمات</h2><p>حالة آمنة دون عرض عناوين الاتصال أو مفاتيح الوصول.</p></div></header>
+      <div class="status-grid">
+        {% for service in service_statuses %}<article class="status-{{ service.status }}"><i></i><div><strong>{{ service.label }}</strong><small>{{ service.detail }}</small></div><span>{{ service.status }}</span></article>{% endfor %}
+      </div>
+      <h3>إعدادات البيئة</h3>
+      <div class="environment-grid">
+        <span>Database <b>{% if environment.database %}Configured{% else %}Not configured{% endif %}</b></span>
+        <span>Redis <b>{% if environment.redis %}Configured{% else %}Not configured{% endif %}</b></span>
+        <span>Cloudinary <b>{% if environment.cloudinary %}Configured{% else %}Not configured{% endif %}</b></span>
+        <span>SMTP <b>{% if environment.smtp %}Configured{% else %}Not configured{% endif %}</b></span>
+        <span>SMS credentials <b>{% if environment.sms_credentials %}Configured{% else %}Not configured{% endif %}</b></span>
+        <span>SMS sender <b>{% if environment.sms_sender %}Configured{% else %}Missing{% endif %}</b></span>
+        <span>Celery <b>{% if environment.celery %}Configured{% else %}Not configured{% endif %}</b></span>
+      </div>
+    </section>
+
+    <section id="security" class="settings-card">
+      <header><span>07</span><div><h2>الأمن والحماية</h2><p>حالة read-only؛ تُدار هذه السياسات من بيئة النشر.</p></div></header>
+      <div class="security-grid">
+        <span>DEBUG <b>{% if security.debug_disabled %}Disabled ✓{% else %}Enabled ⚠{% endif %}</b></span>
+        <span>HTTPS Redirect <b>{% if security.https_redirect %}Enabled ✓{% else %}Disabled{% endif %}</b></span>
+        <span>Secure Session Cookie <b>{% if security.secure_session %}Enabled ✓{% else %}Disabled{% endif %}</b></span>
+        <span>CSRF Secure <b>{% if security.secure_csrf %}Enabled ✓{% else %}Disabled{% endif %}</b></span>
+        <span>HSTS <b>{% if security.hsts_enabled %}Enabled ✓{% else %}Not enabled{% endif %}</b></span>
+        <span>Allowed hosts <b>{% if security.allowed_hosts_configured %}Configured{% else %}Not configured{% endif %}</b></span>
+      </div>
+    </section>
+
+    <section id="information" class="settings-card">
+      <header><span>08</span><div><h2>معلومات النظام</h2><p>آخر تغييرات إعدادات النظام المسجلة رقابيًا.</p></div></header>
+      <div class="history-list">
+        {% for item in history %}<article><strong>{{ item.description }}</strong><small>{{ item.user|default:"النظام" }} · {{ item.created_at|date:"Y/m/d H:i" }}</small></article>{% empty %}<p>لا توجد تغييرات مسجلة بعد.</p>{% endfor %}
+      </div>
+    </section>
+
+    {% if can_change %}<footer class="settings-actions"><button type="submit">حفظ إعدادات النظام</button></footer>{% endif %}
+  </form>
+</main>
+{% endblock %}

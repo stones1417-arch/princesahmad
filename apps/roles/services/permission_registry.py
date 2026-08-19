@@ -38,6 +38,8 @@ class PlatformPermissions:
     MANAGE_USERS = "roles.manage_users"
     MANAGE_BACKUPS = "roles.manage_backups"
     MANAGE_ROLES = "roles.manage_roles"
+    VIEW_SYSTEM_SETTINGS = "core.view_systemconfiguration"
+    CHANGE_SYSTEM_SETTINGS = "core.change_systemconfiguration"
 
 
 PERMISSION_LABELS = {
@@ -72,6 +74,8 @@ PERMISSION_LABELS = {
     PlatformPermissions.MANAGE_USERS: "إدارة المستخدمين",
     PlatformPermissions.MANAGE_BACKUPS: "إدارة النسخ الاحتياطية",
     PlatformPermissions.MANAGE_ROLES: "إدارة الأدوار والصلاحيات",
+    PlatformPermissions.VIEW_SYSTEM_SETTINGS: "عرض إعدادات النظام",
+    PlatformPermissions.CHANGE_SYSTEM_SETTINGS: "تعديل إعدادات النظام",
 }
 
 

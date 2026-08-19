@@ -16,6 +16,7 @@ from apps.communications.services.recipient_resolver import (
     InvalidRecipientError,
     RecipientResolver,
 )
+from apps.core.system_settings import SystemSettingsService
 
 
 logger = logging.getLogger("communications")
@@ -99,6 +100,20 @@ class AssignmentMessageService:
         event_type="assignment_created",
         correlation_id=None,
     ):
+        if not SystemSettingsService.get_effective_value(
+            "communications_enabled"
+        ):
+            return []
+        enabled_channels = tuple(
+            channel
+            for channel in channels
+            if not (
+                channel == "sms"
+                and not SystemSettingsService.get_effective_value(
+                    "sms_notifications_enabled"
+                )
+            )
+        )
         return [
             self._dispatch_channel(
                 assignment,
@@ -107,7 +122,7 @@ class AssignmentMessageService:
                 event_type=event_type,
                 correlation_id=correlation_id,
             )
-            for channel in channels
+            for channel in enabled_channels
             if channel in ASSIGNMENT_CHANNELS
         ]
 
@@ -118,7 +133,12 @@ class AssignmentMessageService:
             raise ValueError("لا يمكن إعادة محاولة رسالة تم إرسالها.")
         if log.status == CommunicationLog.Status.SKIPPED:
             raise ValueError("لا يمكن إعادة المحاولة قبل تحديث رقم جوال الموظف.")
-        if not settings.OPERATIONAL_MESSAGING_ENABLED:
+        if not (
+            settings.OPERATIONAL_MESSAGING_ENABLED
+            and SystemSettingsService.get_effective_value(
+                "communications_enabled"
+            )
+        ):
             return log
         return self._dispatch_channel(
             log.related_assignment,
@@ -168,7 +188,12 @@ class AssignmentMessageService:
             event_type=event_type,
             correlation_id=base_key,
         )
-        if not settings.OPERATIONAL_MESSAGING_ENABLED:
+        if not (
+            settings.OPERATIONAL_MESSAGING_ENABLED
+            and SystemSettingsService.get_effective_value(
+                "communications_enabled"
+            )
+        ):
             return log
 
         try:

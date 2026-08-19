@@ -1494,7 +1494,11 @@ class AuthenticaProvider(
     @staticmethod
     def _ensure_communications_enabled(
     ) -> None:
-        if not settings.COMMUNICATIONS_ENABLED:
+        from apps.core.system_settings import SystemSettingsService
+
+        if not SystemSettingsService.get_effective_value(
+            "communications_enabled"
+        ):
             raise ProviderConnectionError(
                 "الإرسال الخارجي معطل "
                 "في إعدادات المنصة."
