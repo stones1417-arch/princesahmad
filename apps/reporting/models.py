@@ -719,10 +719,6 @@ class ShiftReport(models.Model):
             report = (
                 ShiftReport.objects
                 .select_for_update()
-                .select_related(
-                    "approved_by",
-                    "shift_plan",
-                )
                 .get(
                     pk=self.pk
                 )

@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
+from django.db import connection
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from openpyxl import load_workbook
@@ -166,6 +167,20 @@ class OperationalReportWorkflowTests(TestCase):
         self.assertNotContains(detail, f'href="{approve_url}"')
         self.assertEqual(self.client.get(approve_url).status_code, 405)
 
+        draft = ShiftReport.objects.create(
+            report_type=ShiftReport.ReportType.MANUAL,
+            summary="Draft approval regression",
+            created_by=self.user,
+        )
+        draft_response = self.client.post(
+            reverse("reporting:approve", args=[draft.pk])
+        )
+        self.assertEqual(draft_response.status_code, 302)
+        draft.refresh_from_db()
+        self.assertEqual(draft.status, ShiftReport.ReportStatus.DRAFT)
+        self.assertIsNone(draft.approved_by_id)
+        self.assertIsNone(draft.approved_at)
+
     def test_platform_report_role_can_approve_without_legacy_model_permission(self):
         self._finish_shift()
         report = ReportService.generate_shift_report(
@@ -207,6 +222,42 @@ class OperationalReportWorkflowTests(TestCase):
         self.assertEqual(repeated.status_code, 302)
         report.refresh_from_db()
         self.assertEqual(report.status, ShiftReport.ReportStatus.APPROVED)
+
+    def test_approval_locks_only_report_row_without_nullable_joins(self):
+        self._finish_shift()
+        report = ReportService.generate_shift_report(
+            shift_plan=self.shift,
+            user=self.user,
+        )
+        self.assertEqual(report.status, ShiftReport.ReportStatus.FINAL)
+        self.assertIsNone(report.approved_by_id)
+        self.assertIsNone(report.approved_at)
+
+        executed_sql = []
+
+        def capture_sql(execute, sql, params, many, context):
+            executed_sql.append(sql)
+            return execute(sql, params, many, context)
+
+        with connection.execute_wrapper(capture_sql):
+            response = self.client.post(
+                reverse("reporting:approve", args=[report.pk])
+            )
+
+        self.assertEqual(response.status_code, 302)
+        locking_queries = [
+            sql
+            for sql in executed_sql
+            if "FOR UPDATE" in sql.upper()
+            and "reporting_shiftreport" in sql.lower()
+        ]
+        self.assertEqual(len(locking_queries), 1)
+        self.assertNotIn(" JOIN ", locking_queries[0].upper())
+
+        report.refresh_from_db()
+        self.assertEqual(report.status, ShiftReport.ReportStatus.APPROVED)
+        self.assertEqual(report.approved_by, self.user)
+        self.assertIsNotNone(report.approved_at)
 
     def test_excel_uses_snapshot_and_accepts_missing_optional_values(self):
         self._finish_shift()
