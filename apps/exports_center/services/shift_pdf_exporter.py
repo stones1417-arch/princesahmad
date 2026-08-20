@@ -6,6 +6,7 @@ from django.http import HttpRequest, HttpResponse
 from django.template.loader import render_to_string
 
 from apps.exports_center.models import ExportLog
+from apps.reporting.services import ReportService
 
 from .export_logger import (
     complete_export_log,
@@ -20,55 +21,9 @@ from .shift_data_service import (
 
 def _render_pdf_bytes(html: str) -> bytes:
     """
-    تحويل HTML إلى ملف PDF باستخدام Playwright.
+    تحويل HTML إلى PDF عبر المحرك الخادمي المؤسسي المشترك.
     """
-    try:
-        from playwright.sync_api import sync_playwright
-    except ImportError as exc:
-        raise RuntimeError(
-            "مكتبة Playwright غير مثبتة. "
-            "نفّذ الأمر: pip install playwright "
-            "ثم: playwright install chromium"
-        ) from exc
-
-    with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(
-            headless=True,
-            args=[
-                "--no-sandbox",
-                "--disable-dev-shm-usage",
-            ],
-        )
-
-        try:
-            page = browser.new_page(
-                viewport={
-                    "width": 1440,
-                    "height": 1000,
-                }
-            )
-
-            page.set_content(
-                html,
-                wait_until="networkidle",
-            )
-
-            page.emulate_media(media="print")
-
-            return page.pdf(
-                format="A4",
-                landscape=True,
-                print_background=True,
-                margin={
-                    "top": "10mm",
-                    "right": "8mm",
-                    "bottom": "12mm",
-                    "left": "8mm",
-                },
-            )
-
-        finally:
-            browser.close()
+    return ReportService.render_pdf(html)
 
 
 def export_shift_pdf_response(

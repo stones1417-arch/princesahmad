@@ -15,9 +15,27 @@ from apps.distribution.models import DoorAssignment
 from apps.locations.door_directions import OFFICIAL_DOOR_CODES
 from apps.ops.models import DoorShift
 from apps.scheduling.models import ShiftPlan
+from apps.exports_center.services.shift_pdf_exporter import _render_pdf_bytes
 
 
 class AbwabProductionSmokeTestCommandTests(TestCase):
+    def test_shift_pdf_uses_server_renderer_without_playwright(self):
+        html = (
+            '<html lang="ar" dir="rtl"><body>'
+            '<h1>التقرير التشغيلي للوردية</h1>'
+            '<p>القسم التشغيلي — الأبواب 6A و6B</p>'
+            '</body></html>'
+        )
+        with patch(
+            "apps.exports_center.services.shift_pdf_exporter."
+            "ReportService.render_pdf",
+            return_value=b"%PDF-server-renderer",
+        ) as render_pdf:
+            content = _render_pdf_bytes(html)
+
+        self.assertEqual(content[:4], b"%PDF")
+        render_pdf.assert_called_once_with(html)
+
     def seed_master_doors(self):
         zone = create_zone(name="smoke-master-zone")
         return [
