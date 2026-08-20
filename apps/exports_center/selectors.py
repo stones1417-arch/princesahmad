@@ -1193,6 +1193,7 @@ def door_distribution_selector(
         )
         .order_by(
             "-shift_plan__date",
+            "door__sort_order",
             "door__door_number",
             "role",
             "employee__employee_number",
@@ -1282,6 +1283,7 @@ def locations_selector(
             "zone"
         )
         .order_by(
+            "sort_order",
             "door_number",
             "name",
         )
