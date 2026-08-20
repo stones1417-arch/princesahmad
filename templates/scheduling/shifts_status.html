@@ -876,29 +876,24 @@ html[data-theme="dark"] .form-group textarea {
 
                     <div class="shift-actions">
 
-                        {% if perms.scheduling.can_activate_shift %}
-
-                            {% if shift.is_active %}
-
+                        {% if shift.is_finished %}
+                            <span class="status-badge status-ended">منتهية</span>
+                        {% elif shift.is_active %}
+                            {% if can_finish_shift %}
                                 <button
                                     type="button"
-                                    class="disabled"
-                                    disabled
+                                    class="finish-shift-button"
+                                    data-finish-url="{% url 'scheduling:finish-shift' shift.id %}"
+                                    data-shift-name="{{ shift.shift_type.name }}"
+                                    data-shift-date="{{ shift.date|date:'Y-m-d' }}"
+                                    data-active-door-count="{{ shift.active_door_count }}"
+                                    data-assignment-count="{{ shift.assignment_count }}"
                                 >
-                                    مفعّلة
+                                    إنهاء الوردية
                                 </button>
-
-                            {% elif shift.is_finished %}
-
-                                <button
-                                    type="button"
-                                    class="disabled"
-                                    disabled
-                                >
-                                    منتهية
-                                </button>
-
-                            {% else %}
+                            {% endif %}
+                        {% else %}
+                            {% if perms.scheduling.can_activate_shift %}
 
                                 <button
                                     type="button"
@@ -908,9 +903,7 @@ html[data-theme="dark"] .form-group textarea {
                                     <span aria-hidden="true">▶</span>
                                     تفعيل الوردية
                                 </button>
-
                             {% endif %}
-
                         {% endif %}
 
 
@@ -935,6 +928,37 @@ html[data-theme="dark"] .form-group textarea {
 
     {% endif %}
 
+</div>
+
+
+<div
+    id="finishShiftModal"
+    class="shift-modal-backdrop"
+    aria-hidden="true"
+>
+    <div class="shift-modal-form" role="dialog" aria-modal="true" aria-labelledby="finishShiftTitle">
+        <header class="shift-modal-header">
+            <div>
+                <span class="shift-modal-kicker">إنهاء الوردية</span>
+                <h3 id="finishShiftTitle">تأكيد إنهاء الوردية</h3>
+            </div>
+            <button type="button" id="finishShiftTopClose" class="shift-modal-close" aria-label="إغلاق">×</button>
+        </header>
+
+        <div class="shift-info">
+            <div><strong>اسم الوردية:</strong> <span id="finishShiftName">—</span></div>
+            <div><strong>التاريخ:</strong> <span id="finishShiftDate">—</span></div>
+            <div><strong>عدد الأبواب النشطة:</strong> <span id="finishShiftDoorCount">0</span></div>
+            <div><strong>عدد الموظفين المكلفين:</strong> <span id="finishShiftAssignmentCount">0</span></div>
+        </div>
+
+        <p>سيتم إنهاء الوردية والانتقال مباشرة إلى إعداد التقرير التشغيلي.</p>
+
+        <div class="modal-actions">
+            <button type="button" id="finishShiftCancel" class="secondary">إلغاء</button>
+            <button type="button" id="finishShiftConfirm">تأكيد إنهاء الوردية</button>
+        </div>
+    </div>
 </div>
 
 
@@ -2382,6 +2406,70 @@ document.addEventListener(
                     }
                 }
             );
+        });
+
+        const finishModal = document.getElementById("finishShiftModal");
+        const finishConfirm = document.getElementById("finishShiftConfirm");
+        const finishCancel = document.getElementById("finishShiftCancel");
+        const finishTopClose = document.getElementById("finishShiftTopClose");
+        let pendingFinishUrl = "";
+
+        function closeFinishModal() {
+            pendingFinishUrl = "";
+            finishModal.classList.remove("is-open");
+            finishModal.setAttribute("aria-hidden", "true");
+            document.body.classList.remove("shift-modal-open");
+        }
+
+        document.querySelectorAll(".finish-shift-button").forEach(function (button) {
+            button.addEventListener("click", function () {
+                pendingFinishUrl = button.dataset.finishUrl;
+                document.getElementById("finishShiftName").textContent = button.dataset.shiftName || "—";
+                document.getElementById("finishShiftDate").textContent = button.dataset.shiftDate || "—";
+                document.getElementById("finishShiftDoorCount").textContent = button.dataset.activeDoorCount || "0";
+                document.getElementById("finishShiftAssignmentCount").textContent = button.dataset.assignmentCount || "0";
+                finishModal.classList.add("is-open");
+                finishModal.setAttribute("aria-hidden", "false");
+                document.body.classList.add("shift-modal-open");
+                finishConfirm.focus();
+            });
+        });
+
+        finishCancel.addEventListener("click", closeFinishModal);
+        finishTopClose.addEventListener("click", closeFinishModal);
+        finishModal.addEventListener("click", function (event) {
+            if (event.target === finishModal) {
+                closeFinishModal();
+            }
+        });
+
+        finishConfirm.addEventListener("click", async function () {
+            if (!pendingFinishUrl || finishConfirm.disabled) {
+                return;
+            }
+            const originalText = finishConfirm.textContent;
+            finishConfirm.disabled = true;
+            finishConfirm.textContent = "جاري إنهاء الوردية...";
+
+            try {
+                const response = await fetch(pendingFinishUrl, {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": getCSRFToken(),
+                        "X-Requested-With": "XMLHttpRequest"
+                    },
+                    credentials: "same-origin"
+                });
+                const data = await readResponse(response);
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || "تعذر إنهاء الوردية.");
+                }
+                window.location.href = data.redirect_url;
+            } catch (error) {
+                window.alert(error.message || "تعذر إنهاء الوردية.");
+                finishConfirm.disabled = false;
+                finishConfirm.textContent = originalText;
+            }
         });
 
 

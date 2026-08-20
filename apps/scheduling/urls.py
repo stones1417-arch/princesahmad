@@ -30,6 +30,12 @@ urlpatterns = [
     ),
 
     path(
+        "shifts/<int:pk>/finish/",
+        views.finish_shift_ajax,
+        name="finish-shift",
+    ),
+
+    path(
         "shifts/upsert/ajax/",
         views.upsert_shift_plan_ajax,
         name="shift-upsert-ajax",

@@ -13,6 +13,7 @@ from django.shortcuts import (
     redirect,
     render,
 )
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -28,6 +29,8 @@ from apps.roles.services.section_access import (
     get_allowed_sections,
     has_institutional_scope,
 )
+from apps.reporting.models import ShiftReport
+from apps.reporting.services import ReportService
 
 from .models import (
     Season,
@@ -36,7 +39,7 @@ from .models import (
     ShiftPlan,
     ShiftType,
 )
-from .services import activate_shift
+from .services import activate_shift, finish_shift
 
 
 # ==================================================
@@ -47,6 +50,7 @@ VIEW_SHIFT_PERMISSION = PlatformPermissions.VIEW_SHIFTS
 ADD_SHIFT_PERMISSION = PlatformPermissions.CREATE_SHIFT
 CHANGE_SHIFT_PERMISSION = PlatformPermissions.CREATE_SHIFT
 ACTIVATE_SHIFT_PERMISSION = PlatformPermissions.ACTIVATE_SHIFT
+FINISH_SHIFT_PERMISSION = PlatformPermissions.FINISH_SHIFT
 VIEW_ASSIGNMENT_PERMISSION = PlatformPermissions.VIEW_SHIFTS
 ADD_ASSIGNMENT_PERMISSION = PlatformPermissions.ASSIGN_EMPLOYEES
 CHANGE_ASSIGNMENT_PERMISSION = PlatformPermissions.ASSIGN_EMPLOYEES
@@ -314,6 +318,17 @@ def shifts_status_view(request):
                 official_names
             ),
         )
+        .annotate(
+            active_door_count=Count(
+                "door_shifts",
+                filter=Q(door_shifts__is_active=True),
+                distinct=True,
+            ),
+            assignment_count=Count(
+                "assignments",
+                distinct=True,
+            ),
+        )
         .order_by(
             "shift_type__start_time",
             "shift_type__id",
@@ -356,6 +371,13 @@ def shifts_status_view(request):
             "shifts_active_count": shifts.filter(is_active=True).count(),
             "shifts_finished_count": shifts.filter(is_finished=True).count(),
             "shifts_ready_count": shifts.filter(is_active=False, is_finished=False).count(),
+            "can_finish_shift": (
+                request.user.is_superuser
+                or (
+                    user_has_permission(request.user, FINISH_SHIFT_PERMISSION)
+                    and has_institutional_scope(request.user)
+                )
+            ),
         },
     )
 
@@ -457,6 +479,61 @@ def activate_shift_ajax(
                     else ""
                 ),
             },
+        }
+    )
+
+
+@login_required
+@require_POST
+@permission_required(
+    FINISH_SHIFT_PERMISSION,
+    ajax=True,
+    message="ليس لديك صلاحية إنهاء الورديات.",
+)
+def finish_shift_ajax(request, pk):
+    """End an active shift and open its operational report."""
+    _require_scheduling_scope(request, FINISH_SHIFT_PERMISSION)
+
+    try:
+        with transaction.atomic():
+            shift = get_object_or_404(
+                ShiftPlan.objects.select_related("shift_type"),
+                pk=pk,
+            )
+            if not shift.is_active or shift.is_finished:
+                raise ValidationError("لا يمكن إنهاء وردية غير نشطة أو منتهية مسبقًا.")
+
+            finished_shift = finish_shift(shift)
+            report = ShiftReport.objects.filter(
+                shift_plan=finished_shift,
+            ).first()
+            if report is None:
+                report = ReportService.generate_shift_report(
+                    shift_plan=finished_shift,
+                    user=request.user,
+                )
+
+            success_message = (
+                "تم إنهاء الوردية بنجاح، يرجى مراجعة التقرير واعتماده."
+            )
+            messages.success(request, success_message)
+            redirect_url = reverse("reporting:detail", args=[report.pk])
+    except ValidationError as error:
+        error_message = (
+            "؛ ".join(error.messages)
+            if hasattr(error, "messages")
+            else str(error)
+        )
+        return JsonResponse(
+            {"success": False, "error": error_message},
+            status=400,
+        )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "redirect_url": redirect_url,
+            "message": success_message,
         }
     )
 
