@@ -63,14 +63,15 @@
 
     </div>
 
-    <div class="filter-card">
+    <div class="filter-card" role="search" aria-label="البحث وتصفية الأبواب">
       <input
         id="searchInput"
         type="text"
         placeholder="بحث برقم الباب أو اسم المشرف"
-        onkeyup="applyDoorFilters()">
+        oninput="applyDoorFilters()"
+        aria-label="البحث برقم الباب أو اسم المشرف">
 
-      <select id="stateFilter" onchange="applyDoorFilters()">
+      <select id="stateFilter" onchange="applyDoorFilters()" aria-label="تصفية حسب الحالة">
         <option value="all">كل الحالات</option>
         <option value="open">مفتوح</option>
         <option value="closed">مغلق</option>
@@ -78,10 +79,21 @@
         <option value="secured">مؤمّن</option>
       </select>
 
-      <select id="directionFilter" onchange="applyDoorFilters()"><option value="all">كل الجهات</option><option value="south">الجهة الجنوبية</option><option value="west">الجهة الغربية</option><option value="north">الجهة الشمالية</option><option value="east">الجهة الشرقية</option><option value="southeast">الجهة الجنوبية الشرقية</option></select>
+      <select id="directionFilter" onchange="applyDoorFilters()" aria-label="تصفية حسب الجهة"><option value="all">كل الجهات</option><option value="south">الجهة الجنوبية</option><option value="west">الجهة الغربية</option><option value="north">الجهة الشمالية</option><option value="east">الجهة الشرقية</option><option value="southeast">الجهة الجنوبية الشرقية</option></select>
 
-      <button type="button" onclick="resetDoorFilters()">
-        إعادة تعيين
+      <select id="supervisorFilter" onchange="applyDoorFilters()" aria-label="تصفية حسب مشرف الوردية">
+        <option value="all">كل المشرفين</option>
+        <option value="unassigned">غير مسند</option>
+      </select>
+
+      <select id="maintenanceFilter" onchange="applyDoorFilters()" aria-label="تصفية حسب الصيانة المفتوحة">
+        <option value="all">كل حالات الصيانة</option>
+        <option value="open">توجد صيانة مفتوحة</option>
+        <option value="none">لا توجد صيانة مفتوحة</option>
+      </select>
+
+      <button type="button" onclick="resetDoorFilters()" aria-label="مسح جميع فلاتر الأبواب">
+        مسح الفلاتر
       </button>
     </div>
 
@@ -95,6 +107,7 @@
           data-state="{{ shift.state }}"
           data-direction="{{ shift.direction_key }}"
           data-door-number="{{ shift.door_number }}"
+          data-maintenance-open="{% if shift.open_maintenance_count %}true{% else %}false{% endif %}"
           data-supervisor="
             {% if shift.supervisor and shift.supervisor.employee %}
               {{ shift.supervisor.employee.full_name }}
@@ -131,16 +144,16 @@
                 {% elif shift.supervisor %}
                   {{ shift.supervisor.username }}
                 {% else %}
-                  —
+                  <span class="neutral-badge">غير مسند</span>
                 {% endif %}
               </strong>
             </div>
 
-            <div class="door-live-metrics"><span>بلاغات مفتوحة <b>{{ shift.open_incidents_count }}</b></span><span>صيانة مفتوحة <b>{{ shift.open_maintenance_count }}</b></span></div>
+            <div class="door-live-metrics"><span>بلاغات مفتوحة <b>{{ shift.open_incidents_count }}</b></span><span>صيانة مفتوحة <b id="maintenance-count-{{ shift.id }}">{{ shift.open_maintenance_count }}</b></span></div>
 
             <div class="info-row">
               <span>الملاحظات</span>
-              <strong id="notes-{{ shift.id }}">
+              <strong id="notes-{{ shift.id }}" class="door-notes" title="{{ shift.notes|default:'لا توجد ملاحظات' }}">
                 {{ shift.notes|default:"لا توجد ملاحظات" }}
               </strong>
             </div>
@@ -161,21 +174,33 @@
                 data-door-number="{{ shift.door_number }}"
                 data-door-state="{{ shift.state }}"
                 data-door-notes="{{ shift.notes|default_if_none:'' }}"
-                data-action-url="{% url 'ops:door-update-ajax' shift.id %}">
+                data-action-url="{% url 'ops:door-update-ajax' shift.id %}"
+                aria-label="تعديل حالة الباب {{ shift.door_number }}">
                 تعديل الحالة
               </button>
               {% endif %}
 
               {% if can_create_maintenance %}
-              <button
-                type="button"
-                class="btn-maint"
-                data-maintenance-action
-                data-door-id="{{ shift.id }}"
-                data-door-number="{{ shift.door_number }}"
-                data-action-url="{% url 'ops:maintenance-create-ajax' shift.id %}">
-                طلب صيانة
-              </button>
+                {% if shift.open_maintenance_count %}
+                  <a
+                    class="btn-maint maintenance-active"
+                    href="{% url 'ops:maintenance-list' %}?q={{ shift.door_number|urlencode }}"
+                    data-maintenance-view
+                    aria-label="عرض طلب الصيانة المفتوح للباب {{ shift.door_number }}">
+                    عرض طلب الصيانة
+                  </a>
+                {% else %}
+                  <button
+                    type="button"
+                    class="btn-maint"
+                    data-maintenance-action
+                    data-door-id="{{ shift.id }}"
+                    data-door-number="{{ shift.door_number }}"
+                    data-action-url="{% url 'ops:maintenance-create-ajax' shift.id %}"
+                    aria-label="إنشاء طلب صيانة للباب {{ shift.door_number }}">
+                    طلب صيانة
+                  </button>
+                {% endif %}
               {% endif %}
 
               {% else %}
@@ -203,13 +228,13 @@
 
 </div>
 
-<div id="stateModal" class="modal-backdrop">
+<div id="stateModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="stateModalTitle">
 
   <div class="modal-box">
 
     <div class="modal-head">
-      <h3>تعديل حالة الباب <span id="stateDoorNumber"></span></h3>
-      <button onclick="closeStateModal()">×</button>
+      <h3 id="stateModalTitle">تعديل حالة الباب <span id="stateDoorNumber"></span></h3>
+      <button type="button" onclick="closeStateModal()" aria-label="إغلاق نافذة تعديل الحالة">×</button>
     </div>
 
     <input type="hidden" id="stateDoorId">
@@ -231,21 +256,21 @@
     </div>
 
     <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeStateModal()">إلغاء</button>
-      <button class="btn-save" onclick="submitDoorState()">حفظ التغيير</button>
+      <button type="button" class="btn-cancel" onclick="closeStateModal()">إلغاء</button>
+      <button type="button" class="btn-save" onclick="submitDoorState()">حفظ التغيير</button>
     </div>
 
   </div>
 
 </div>
 
-<div id="maintenanceModal" class="modal-backdrop">
+<div id="maintenanceModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="maintenanceModalTitle">
 
   <div class="modal-box">
 
     <div class="modal-head maintenance-title">
-      <h3>طلب صيانة - باب <span id="maintDoorNumber"></span></h3>
-      <button onclick="closeMaintenanceModal()">×</button>
+      <h3 id="maintenanceModalTitle">طلب صيانة - باب <span id="maintDoorNumber"></span></h3>
+      <button type="button" onclick="closeMaintenanceModal()" aria-label="إغلاق نافذة طلب الصيانة">×</button>
     </div>
 
     <input type="hidden" id="maintDoorId">
@@ -270,8 +295,8 @@
     </div>
 
     <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeMaintenanceModal()">إلغاء</button>
-      <button class="btn-save maintenance" onclick="submitMaintenanceRequest()">إرسال الطلب</button>
+      <button type="button" class="btn-cancel" onclick="closeMaintenanceModal()">إلغاء</button>
+      <button type="button" class="btn-save maintenance" onclick="submitMaintenanceRequest()">إرسال الطلب</button>
     </div>
 
   </div>
@@ -637,6 +662,20 @@
 
 </style>
 
+<style>
+/* Institutional door-card polish — presentation only. */
+.filter-card{position:sticky;top:12px;z-index:30;grid-template-columns:minmax(260px,2fr) repeat(4,minmax(145px,1fr)) 150px;border:1px solid #dfe7e3;box-shadow:0 12px 32px rgba(15,63,48,.1)}
+.filter-card input,.filter-card select,.filter-card button{min-width:0;font:inherit}.filter-card button{background:#f4f7f5;color:#0b6048;border:1px solid #b9cec5}.filter-card input:focus-visible,.filter-card select:focus-visible,.filter-card button:focus-visible,.door-actions :is(button,a):focus-visible,.modal-box :is(button,input,select,textarea):focus-visible{outline:3px solid rgba(15,123,92,.28);outline-offset:2px;border-color:#0f7b5c}
+.doors-grid{grid-template-columns:repeat(4,minmax(0,1fr));align-items:stretch}
+.door-card{display:flex;min-width:0;min-height:420px;flex-direction:column;border:1px solid #dde5e1;border-inline-start-width:7px;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+.door-card.open{border-inline-start-color:#168a4a}.door-card.closed{border-inline-start-color:#c93636}.door-card.maintenance{border-inline-start-color:#c3911f}.door-card.secured{border-inline-start-color:#276ea8}.door-card:hover{transform:translateY(-2px);box-shadow:0 16px 36px rgba(15,63,48,.11)}
+.door-number{font-size:30px;line-height:1.2;letter-spacing:-.02em;color:#123d31}.status-pill{border:1px solid currentColor;font-size:11px}.door-body{display:flex;flex:1;flex-direction:column;background:#f8faf9}.info-row{align-items:center;min-height:38px}.neutral-badge{display:inline-flex;padding:5px 9px;border:1px solid #d8dfdc;border-radius:999px;background:#eef2f0;color:#64716b;font-size:10px;font-weight:850}.door-live-metrics{order:3;margin:9px 0}.door-live-metrics span{border:1px solid #e4eae7}.door-notes{display:-webkit-box;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;line-height:1.65;text-overflow:ellipsis;overflow-wrap:anywhere}
+.door-actions{min-height:48px;margin-top:auto;align-items:stretch;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.door-actions .btn-edit,.door-actions .btn-maint{width:100%;min-height:46px;padding:10px 12px;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;border:0;border-radius:12px;text-align:center;text-decoration:none;font-size:11px;font-weight:900;cursor:pointer}.door-actions .btn-edit{background:#0b7658;color:#fff}.door-actions .btn-edit:hover{background:#075d46}.door-actions .btn-maint{background:#b2872d;color:#fff}.door-actions .btn-maint:hover{background:#8f6a1f}.door-actions .maintenance-active{background:#7c2d3d;color:#fff}.door-actions .maintenance-active:hover{background:#642331}
+@media(max-width:1250px){.filter-card{grid-template-columns:repeat(3,minmax(0,1fr))}.filter-card #searchInput{grid-column:span 2}.doors-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.filter-card{position:static;grid-template-columns:1fr}.filter-card #searchInput{grid-column:auto}.doors-grid{grid-template-columns:1fr}.door-card{min-height:0}.door-actions{grid-template-columns:1fr}.doors-page{overflow-x:hidden}}
+@media(prefers-reduced-motion:reduce){.door-card{transition:none}.door-card:hover{transform:none}}
+</style>
+
 <script>
 
 function getCookie(name){
@@ -658,8 +697,24 @@ function getCookie(name){
   return cookieValue;
 }
 
-function openStateModal(id, doorNumber, state, notes, actionUrl){
-  document.getElementById("stateModal").classList.add("active");
+let lastModalTrigger = null;
+
+function openDoorModal(modal, trigger){
+  lastModalTrigger = trigger || document.activeElement;
+  modal.classList.add("active");
+  modal.setAttribute("aria-hidden", "false");
+  const firstControl = modal.querySelector("button, input, select, textarea, a[href]");
+  firstControl?.focus();
+}
+
+function closeDoorModal(modal){
+  modal.classList.remove("active");
+  modal.setAttribute("aria-hidden", "true");
+  lastModalTrigger?.focus();
+}
+
+function openStateModal(id, doorNumber, state, notes, actionUrl, trigger){
+  openDoorModal(document.getElementById("stateModal"), trigger);
   document.getElementById("stateDoorId").value = id;
   document.getElementById("stateDoorNumber").innerText = doorNumber;
   document.getElementById("newState").value = state;
@@ -668,7 +723,7 @@ function openStateModal(id, doorNumber, state, notes, actionUrl){
 }
 
 function closeStateModal(){
-  document.getElementById("stateModal").classList.remove("active");
+  closeDoorModal(document.getElementById("stateModal"));
 }
 
 function submitDoorState(){
@@ -709,6 +764,16 @@ function submitDoorState(){
     document.getElementById(`updated-${id}`).innerText = data.door.updated_at;
     document.getElementById(`notes-${id}`).innerText =
       data.door.notes || "لا توجد ملاحظات";
+    document.getElementById(`notes-${id}`).title =
+      data.door.notes || "لا توجد ملاحظات";
+    const stateButton = card.querySelector("[data-door-state-action]");
+    if(stateButton){
+      stateButton.dataset.doorState = data.door.state;
+      stateButton.dataset.doorNotes = data.door.notes || "";
+    }
+    if(data.maintenance_request_id){
+      setMaintenanceActive(card, data.maintenance_request_id);
+    }
 
     closeStateModal();
     recalculateCounters();
@@ -718,8 +783,8 @@ function submitDoorState(){
   });
 }
 
-function openMaintenanceModal(id, doorNumber, actionUrl){
-  document.getElementById("maintenanceModal").classList.add("active");
+function openMaintenanceModal(id, doorNumber, actionUrl, trigger){
+  openDoorModal(document.getElementById("maintenanceModal"), trigger);
   document.getElementById("maintDoorId").value = id;
   document.getElementById("maintDoorNumber").innerText = doorNumber;
   document.getElementById("maintenancePriority").value = "medium";
@@ -729,7 +794,25 @@ function openMaintenanceModal(id, doorNumber, actionUrl){
 }
 
 function closeMaintenanceModal(){
-  document.getElementById("maintenanceModal").classList.remove("active");
+  closeDoorModal(document.getElementById("maintenanceModal"));
+}
+
+function setMaintenanceActive(card, requestId){
+  if(!card) return;
+  card.dataset.maintenanceOpen = "true";
+  const doorId = card.id.replace("door-card-", "");
+  const count = document.getElementById(`maintenance-count-${doorId}`);
+  if(count) count.innerText = Math.max(1, Number(count.innerText) || 0);
+  const action = card.querySelector("[data-maintenance-action]");
+  if(action){
+    const link = document.createElement("a");
+    link.className = "btn-maint maintenance-active";
+    link.dataset.maintenanceView = "";
+    link.href = `/ops/maintenance/?q=${encodeURIComponent(card.dataset.doorNumber || requestId || "")}`;
+    link.textContent = "عرض طلب الصيانة";
+    link.setAttribute("aria-label", `عرض طلب الصيانة المفتوح للباب ${card.dataset.doorNumber || ""}`);
+    action.replaceWith(link);
+  }
 }
 
 function submitMaintenanceRequest(){
@@ -776,6 +859,9 @@ function submitMaintenanceRequest(){
 
     document.getElementById(`notes-${doorId}`).innerText =
       "تم إنشاء طلب صيانة: " + data.maintenance.request_number;
+    document.getElementById(`notes-${doorId}`).title =
+      "تم إنشاء طلب صيانة: " + data.maintenance.request_number;
+    setMaintenanceActive(card, data.maintenance.id);
     closeMaintenanceModal();
     alert("تم إنشاء طلب الصيانة بنجاح");
     recalculateCounters();
@@ -789,11 +875,15 @@ function applyDoorFilters(){
   const search = document.getElementById("searchInput").value.toLowerCase().trim();
   const state = document.getElementById("stateFilter").value;
   const direction = document.getElementById("directionFilter").value;
+  const supervisor = document.getElementById("supervisorFilter").value;
+  const maintenance = document.getElementById("maintenanceFilter").value;
 
   document.querySelectorAll(".door-card").forEach(card => {
     const text = card.innerText.toLowerCase();
     const cardState = card.dataset.state;
     const cardDirection = card.dataset.direction;
+    const cardSupervisor = (card.dataset.supervisor || "").trim();
+    const hasMaintenance = card.dataset.maintenanceOpen === "true";
 
     let visible = true;
 
@@ -807,6 +897,12 @@ function applyDoorFilters(){
     if(direction !== "all" && cardDirection !== direction){
       visible = false;
     }
+    if(supervisor !== "all" && (supervisor === "unassigned" ? cardSupervisor : cardSupervisor !== supervisor)){
+      visible = false;
+    }
+    if(maintenance !== "all" && (maintenance === "open") !== hasMaintenance){
+      visible = false;
+    }
 
     card.style.display = visible ? "" : "none";
   });
@@ -816,6 +912,8 @@ function resetDoorFilters(){
   document.getElementById("searchInput").value = "";
   document.getElementById("stateFilter").value = "all";
   document.getElementById("directionFilter").value = "all";
+  document.getElementById("supervisorFilter").value = "all";
+  document.getElementById("maintenanceFilter").value = "all";
 
   document.querySelectorAll(".door-card").forEach(card => {
     card.style.display = "";
@@ -851,7 +949,8 @@ document.addEventListener("click", function(event){
       stateButton.dataset.doorNumber,
       stateButton.dataset.doorState,
       stateButton.dataset.doorNotes,
-      stateButton.dataset.actionUrl
+      stateButton.dataset.actionUrl,
+      stateButton
     );
     return;
   }
@@ -861,9 +960,41 @@ document.addEventListener("click", function(event){
     openMaintenanceModal(
       maintenanceButton.dataset.doorId,
       maintenanceButton.dataset.doorNumber,
-      maintenanceButton.dataset.actionUrl
+      maintenanceButton.dataset.actionUrl,
+      maintenanceButton
     );
   }
+});
+
+document.addEventListener("DOMContentLoaded", function(){
+  const supervisorFilter = document.getElementById("supervisorFilter");
+  const supervisors = new Set();
+  document.querySelectorAll(".door-card").forEach(card => {
+    const supervisor = (card.dataset.supervisor || "").trim();
+    if(supervisor) supervisors.add(supervisor);
+  });
+  [...supervisors].sort((a,b) => a.localeCompare(b, "ar")).forEach(supervisor => {
+    const option = document.createElement("option");
+    option.value = supervisor;
+    option.textContent = supervisor;
+    supervisorFilter.appendChild(option);
+  });
+});
+
+document.addEventListener("keydown", function(event){
+  const modal = document.querySelector(".modal-backdrop.active");
+  if(!modal) return;
+  if(event.key === "Escape"){
+    closeDoorModal(modal);
+    return;
+  }
+  if(event.key !== "Tab") return;
+  const focusable = [...modal.querySelectorAll("button, input, select, textarea, a[href]")];
+  if(!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if(event.shiftKey && document.activeElement === first){event.preventDefault();last.focus()}
+  else if(!event.shiftKey && document.activeElement === last){event.preventDefault();first.focus()}
 });
 
 </script>
