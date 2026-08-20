@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
-from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
@@ -15,19 +14,28 @@ from .permission_registry import (
 )
 
 
+def _clear_permission_cache(user) -> None:
+    """Discard Django's per-instance permission caches after role changes."""
+    for attribute in ("_perm_cache", "_user_perm_cache", "_group_perm_cache"):
+        if hasattr(user, attribute):
+            delattr(user, attribute)
+
+
 def get_platform_permission(
     permission_code: str,
 ) -> Permission:
     """
     جلب صلاحية مؤسسية واحدة.
     """
-    codename = permission_codename(
-        permission_code
-    )
+    normalized_code = str(permission_code or "").strip()
+    if "." in normalized_code:
+        app_label, codename = normalized_code.split(".", 1)
+    else:
+        app_label = PERMISSION_APP_LABEL
+        codename = permission_codename(normalized_code)
 
     return Permission.objects.get(
-        content_type__app_label=PERMISSION_APP_LABEL,
-        content_type__model="role",
+        content_type__app_label=app_label,
         codename=codename,
     )
 
@@ -38,27 +46,16 @@ def get_platform_permissions(
     """
     جلب مجموعة صلاحيات مؤسسية.
     """
-    codenames = [
-        permission_codename(code)
-        for code in permission_codes
-    ]
+    permissions = []
+    missing = []
 
-    permissions = list(
-        Permission.objects
-        .select_related("content_type")
-        .filter(
-            content_type__app_label=PERMISSION_APP_LABEL,
-            content_type__model="role",
-            codename__in=codenames,
-        )
-    )
-
-    found_codenames = {
-        permission.codename
-        for permission in permissions
-    }
-
-    missing = set(codenames) - found_codenames
+    for permission_code in permission_codes:
+        try:
+            permissions.append(
+                get_platform_permission(permission_code)
+            )
+        except Permission.DoesNotExist:
+            missing.append(permission_code)
 
     if missing:
         raise ValidationError(
@@ -66,15 +63,7 @@ def get_platform_permissions(
             + "، ".join(sorted(missing))
         )
 
-    permission_map = {
-        permission.codename: permission
-        for permission in permissions
-    }
-
-    return [
-        permission_map[codename]
-        for codename in codenames
-    ]
+    return permissions
 
 
 @transaction.atomic
@@ -184,6 +173,7 @@ def assign_role_to_user(
     )
 
     user.groups.add(role.group)
+    _clear_permission_cache(user)
 
     return assignment
 
@@ -217,6 +207,7 @@ def remove_role_from_user(
 
     assignment.delete()
     user.groups.remove(group)
+    _clear_permission_cache(user)
 
     return True
 
@@ -255,6 +246,7 @@ def deactivate_user_role(
     user.groups.remove(
         assignment.role.group
     )
+    _clear_permission_cache(user)
 
     return True
 
