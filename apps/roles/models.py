@@ -6,6 +6,13 @@ from django.core.exceptions import ValidationError
 from django.db import models, transaction
 
 
+def clear_user_permission_cache(user) -> None:
+    """Discard Django's per-instance permission caches for one user."""
+    for attribute in ("_perm_cache", "_user_perm_cache", "_group_perm_cache"):
+        if hasattr(user, attribute):
+            delattr(user, attribute)
+
+
 class Role(models.Model):
     """
     دور مؤسسي داخل المنصة.
@@ -311,12 +318,14 @@ class UserRole(models.Model):
 
         previous_role_id = None
         previous_active = False
+        previous_user_id = None
 
         if self.pk:
             previous = (
                 UserRole.objects
                 .filter(pk=self.pk)
                 .values(
+                    "user_id",
                     "role_id",
                     "is_active",
                 )
@@ -324,6 +333,7 @@ class UserRole(models.Model):
             )
 
             if previous:
+                previous_user_id = previous["user_id"]
                 previous_role_id = previous["role_id"]
                 previous_active = previous["is_active"]
 
@@ -332,7 +342,10 @@ class UserRole(models.Model):
 
             if (
                 previous_role_id
-                and previous_role_id != self.role_id
+                and (
+                    previous_role_id != self.role_id
+                    or previous_user_id != self.user_id
+                )
                 and previous_active
             ):
                 previous_role = (
@@ -343,9 +356,15 @@ class UserRole(models.Model):
                 )
 
                 if previous_role:
-                    self.user.groups.remove(
+                    previous_user = (
+                        type(self.user).objects.get(pk=previous_user_id)
+                        if previous_user_id != self.user_id
+                        else self.user
+                    )
+                    previous_user.groups.remove(
                         previous_role.group
                     )
+                    clear_user_permission_cache(previous_user)
 
             if self.is_active:
                 self.user.groups.add(
@@ -356,6 +375,7 @@ class UserRole(models.Model):
                     self.role.group
                 )
 
+            clear_user_permission_cache(self.user)
             return result
 
     def delete(self, *args, **kwargs):
@@ -381,6 +401,7 @@ class UserRole(models.Model):
             if not other_active_assignments:
                 user.groups.remove(group)
 
+            clear_user_permission_cache(user)
         return result
 
     def __str__(self):

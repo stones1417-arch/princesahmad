@@ -5,20 +5,13 @@ from django.contrib.auth.models import Group, Permission
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from apps.roles.models import Role, UserRole
+from apps.roles.models import Role, UserRole, clear_user_permission_cache
 
 from .permission_registry import (
     PERMISSION_APP_LABEL,
     get_role_definitions,
     permission_codename,
 )
-
-
-def _clear_permission_cache(user) -> None:
-    """Discard Django's per-instance permission caches after role changes."""
-    for attribute in ("_perm_cache", "_user_perm_cache", "_group_perm_cache"):
-        if hasattr(user, attribute):
-            delattr(user, attribute)
 
 
 def get_platform_permission(
@@ -173,7 +166,7 @@ def assign_role_to_user(
     )
 
     user.groups.add(role.group)
-    _clear_permission_cache(user)
+    clear_user_permission_cache(user)
 
     return assignment
 
@@ -207,7 +200,7 @@ def remove_role_from_user(
 
     assignment.delete()
     user.groups.remove(group)
-    _clear_permission_cache(user)
+    clear_user_permission_cache(user)
 
     return True
 
@@ -246,7 +239,7 @@ def deactivate_user_role(
     user.groups.remove(
         assignment.role.group
     )
-    _clear_permission_cache(user)
+    clear_user_permission_cache(user)
 
     return True
 
