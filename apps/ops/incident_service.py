@@ -380,8 +380,10 @@ class IncidentService:
         *,
         request,
         active_shift,
+        door=None,
         door_shift=None,
         assignment=None,
+        assigned_to=None,
         section: str = "",
         description: str,
         incident_type: str,
@@ -398,6 +400,7 @@ class IncidentService:
 
         incident = Incident(
             shift_plan=active_shift,
+            door=door,
             door_shift=door_shift,
             assignment=assignment,
             section=section,
@@ -410,6 +413,7 @@ class IncidentService:
             assigned_to_name=str(
                 assigned_to_name or ""
             ).strip(),
+            assigned_to=assigned_to,
             created_by=(
                 request.user
                 if getattr(

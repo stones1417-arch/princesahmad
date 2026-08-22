@@ -395,18 +395,19 @@
 
                     <select
                         id="incidentDoor"
-                        name="door_shift_id"
+                        name="door_id"
                     >
 
                         <option value="">
                             بلاغ عام بدون باب
                         </option>
 
-                        {% for door in door_shifts %}
+                        {% for door in doors %}
 
                             <option
                                 value="{{ door.id }}"
                                 data-door-number="{{ door.door_number }}"
+                                data-section="{{ door.operational_section }}"
                             >
 
                                 باب {{ door.door_number }}
@@ -419,7 +420,7 @@
                                 value=""
                                 disabled
                             >
-                                لا توجد أبواب في الوردية النشطة
+                                لا توجد أبواب نشطة متاحة
                             </option>
 
                         {% endfor %}
@@ -478,13 +479,32 @@
 
                     </label>
 
-                    <input
+                    <select
                         id="assignedToName"
-                        name="assigned_to_name"
-                        type="text"
-                        maxlength="150"
-                        placeholder="اسم الموظف أو الجهة المختصة"
+                        name="assigned_to_id"
+                        {% if not active_shift %}disabled{% endif %}
                     >
+                        <option value="">
+                            {% if active_shift %}
+                                بدون تحويل
+                            {% else %}
+                                لا توجد وردية نشطة للتحويل
+                            {% endif %}
+                        </option>
+                        {% for assignment in incident_assignees %}
+                            <option
+                                value="{{ assignment.employee.user_id }}"
+                                data-section="{{ assignment.employee.operational_section|default:'' }}"
+                            >
+                                {{ assignment.employee.full_name }} —
+                                {% if assignment.role == "shift_head" %}
+                                    مشرف الوردية
+                                {% else %}
+                                    نائب مشرف الوردية
+                                {% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
 
                     <small
                         id="assignedToNameError"
@@ -870,7 +890,16 @@
 
                         <td>
 
-                            {% if incident.door_shift %}
+                            {% if incident.door %}
+
+                                <span class="incident-door-badge">
+
+                                    باب
+                                    {{ incident.door.door_number }}
+
+                                </span>
+
+                            {% elif incident.door_shift %}
 
                                 <span class="incident-door-badge">
 
@@ -2613,6 +2642,34 @@ function updateIncidentDoorSummary(){
         selectedOption.textContent.trim();
 }
 
+function updateIncidentAssigneeScope(){
+    const doorSelect = incidentGetElement("incidentDoor");
+    const assigneeSelect = incidentGetElement("assignedToName");
+    if(!doorSelect || !assigneeSelect){
+        return;
+    }
+
+    const selectedDoor = doorSelect.options[doorSelect.selectedIndex];
+    const section = selectedDoor?.dataset.section || "";
+    let selectedStillAllowed = !assigneeSelect.value;
+
+    Array.from(assigneeSelect.options).forEach(function(option, index){
+        if(index === 0){
+            return;
+        }
+        const allowed = !section || section === "shared" || option.dataset.section === section;
+        option.hidden = !allowed;
+        option.disabled = !allowed;
+        if(allowed && option.selected){
+            selectedStillAllowed = true;
+        }
+    });
+
+    if(!selectedStillAllowed){
+        assigneeSelect.value = "";
+    }
+}
+
 
 /* ==================================================
    حالة زر الحفظ
@@ -2804,6 +2861,7 @@ function resetIncidentCreateForm(){
     hideIncidentCreateMessage();
     updateIncidentDescriptionCounter();
     updateIncidentDoorSummary();
+    updateIncidentAssigneeScope();
 }/* ==================================================
    إنشاء البلاغ (AJAX)
 ================================================== */
@@ -3172,7 +3230,10 @@ document.addEventListener(
 
             doorSelect.addEventListener(
                 "change",
-                updateIncidentDoorSummary
+                function(){
+                    updateIncidentDoorSummary();
+                    updateIncidentAssigneeScope();
+                }
             );
 
         }
@@ -3231,6 +3292,7 @@ document.addEventListener(
 
         updateIncidentDescriptionCounter();
         updateIncidentDoorSummary();
+        updateIncidentAssigneeScope();
 
     }
 );

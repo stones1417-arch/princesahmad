@@ -824,6 +824,15 @@ class Incident(models.Model):
         related_name="incidents",
     )
 
+    door = models.ForeignKey(
+        Door,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="incidents",
+        verbose_name="الباب المرتبط",
+    )
+
     door_shift = models.ForeignKey(
         DoorShift,
         on_delete=models.SET_NULL,
@@ -881,6 +890,15 @@ class Incident(models.Model):
     assigned_to_name = models.CharField(
         max_length=150,
         blank=True,
+    )
+
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_operational_incidents",
+        verbose_name="محول إلى",
     )
 
     created_by = models.ForeignKey(
@@ -981,6 +999,22 @@ class Incident(models.Model):
             section=self.section,
             errors=errors,
         )
+
+        if self.door_id:
+            if not self.door.is_active:
+                errors["door"] = "لا يمكن ربط البلاغ بباب غير نشط."
+
+            door_section = self.door.operational_section
+            if door_section != Door.OperationalSection.SHARED:
+                if self.section and self.section != door_section:
+                    errors["section"] = "قسم البلاغ لا يطابق قسم الباب المحدد."
+                self.section = door_section
+
+            if (
+                self.door_shift_id
+                and self.door_shift.door_number != self.door.door_number
+            ):
+                errors["door"] = "الباب المحدد لا يطابق حالة الباب في الوردية."
 
         if not self.description.strip():
             raise ValidationError(

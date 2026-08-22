@@ -14,10 +14,11 @@ from apps.locations.models import Door
 
 from apps.dashboard.models import SystemActivityLog
 from apps.audit.models import DoorStateHistory
-from apps.scheduling.models import ShiftPlan
+from apps.scheduling.models import ShiftAssignment, ShiftPlan
 from apps.breaks.models import Break
 from apps.distribution.models import DoorAssignment
 from apps.roles.services.section_access import (
+    filter_doors_for_user,
     get_allowed_sections,
     has_institutional_scope,
 )
@@ -105,6 +106,56 @@ def _scoped_by_section(queryset, user, field_name="section"):
     return queryset.filter(
         **{f"{field_name}__in": get_allowed_sections(user)}
     )
+
+
+def _incident_assignees(active_shift, *, section="", user=None):
+    if not active_shift:
+        return ShiftAssignment.objects.none()
+
+    queryset = (
+        ShiftAssignment.objects
+        .filter(
+            shift_plan=active_shift,
+            is_confirmed=True,
+            employee__is_active=True,
+            employee__user__is_active=True,
+        )
+        .filter(
+            Q(
+                role=ShiftAssignment.OperationalRole.SHIFT_HEAD,
+                employee__user__platform_role_assignments__is_active=True,
+                employee__user__platform_role_assignments__role__is_active=True,
+                employee__user__platform_role_assignments__role__code="shift_supervisor",
+            )
+            | Q(
+                role=ShiftAssignment.OperationalRole.SHIFT_DEPUTY,
+                employee__user__platform_role_assignments__is_active=True,
+                employee__user__platform_role_assignments__role__is_active=True,
+                employee__user__platform_role_assignments__role__code="shift_deputy",
+            )
+        )
+        .select_related("employee", "employee__user")
+        .annotate(
+            incident_role_order=Case(
+                When(
+                    role=ShiftAssignment.OperationalRole.SHIFT_HEAD,
+                    then=Value(0),
+                ),
+                default=Value(1),
+                output_field=IntegerField(),
+            )
+        )
+        .order_by("incident_role_order", "employee__full_name")
+        .distinct()
+    )
+
+    allowed_sections = get_allowed_sections(user) if user else set()
+    if section:
+        queryset = queryset.filter(employee__operational_section=section)
+    elif user and has_institutional_scope(user):
+        queryset = queryset.filter(employee__operational_section__in=allowed_sections)
+
+    return queryset
 
 
 # =========================================================
@@ -1028,11 +1079,13 @@ def incidents_view(request):
     incidents = (
         _scoped_by_section(Incident.objects, request.user)
         .select_related(
+            "door",
             "door_shift",
             "door_shift__shift_plan",
             "shift_plan",
             "created_by",
             "closed_by",
+            "assigned_to",
         )
         .order_by("-created_at")
     )
@@ -1100,25 +1153,21 @@ def incidents_view(request):
                 door_shift__door_number__icontains=query
             )
             | Q(
+                door__door_number__icontains=query
+            )
+            | Q(
                 created_by__username__icontains=query
             )
         )
 
-    door_shifts = DoorShift.objects.none()
-
-    if active_shift:
-        door_shifts = (
-            DoorShift.objects
-            .filter(
-                shift_plan=active_shift,
-                is_active=True,
-            )
-            .select_related(
-                "shift_plan",
-                "supervisor",
-            )
-            .order_by("door_number")
-        )
+    doors = filter_doors_for_user(
+        Door.objects.filter(is_active=True),
+        request.user,
+    ).order_by("sort_order", "door_number")
+    incident_assignees = _incident_assignees(
+        active_shift,
+        user=request.user,
+    )
 
     today = timezone.localdate()
 
@@ -1132,7 +1181,8 @@ def incidents_view(request):
     context = {
         "active_shift": active_shift,
         "incidents": incidents,
-        "door_shifts": door_shifts,
+        "doors": doors,
+        "incident_assignees": incident_assignees,
 
         "status_choices": (
             Incident.Status.choices
@@ -1218,6 +1268,30 @@ def create_incident_ajax(
         )
 
     door_shift = None
+    door = None
+
+    door_id = str(
+        request.POST.get("door_id", "") or ""
+    ).strip()
+
+    if door_id:
+        door = get_object_or_404(
+            filter_doors_for_user(
+                Door.objects.filter(is_active=True),
+                request.user,
+            ),
+            pk=door_id,
+        )
+
+        door_shift = (
+            DoorShift.objects
+            .filter(
+                shift_plan=active_shift,
+                door_number=door.door_number,
+                is_active=True,
+            )
+            .first()
+        )
 
     door_shift_id = (
         request.POST.get(
@@ -1240,6 +1314,13 @@ def create_incident_ajax(
             pk=selected_door_id,
             shift_plan=active_shift,
             is_active=True,
+        )
+        door = get_object_or_404(
+            filter_doors_for_user(
+                Door.objects.filter(is_active=True),
+                request.user,
+            ),
+            door_number=door_shift.door_number,
         )
 
     description = (
@@ -1274,17 +1355,37 @@ def create_incident_ajax(
         or ""
     ).strip()
 
-    assigned_to_name = (
-        request.POST.get(
-            "assigned_to_name",
-            "",
-        )
-        or ""
-    ).strip()
-
     section = str(
         request.POST.get("section", "") or ""
     ).strip().lower()
+    if door and door.operational_section != Door.OperationalSection.SHARED:
+        section = door.operational_section
+
+    assigned_to = None
+    assigned_to_name = ""
+    assigned_to_id = str(
+        request.POST.get("assigned_to_id", "") or ""
+    ).strip()
+    if assigned_to_id:
+        assignee_assignment = (
+            _incident_assignees(
+                active_shift,
+                section=section,
+                user=request.user,
+            )
+            .filter(employee__user_id=assigned_to_id)
+            .first()
+        )
+        if not assignee_assignment:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": "المستخدم المحدد غير مخول لاستلام هذا البلاغ.",
+                },
+                status=400,
+            )
+        assigned_to = assignee_assignment.employee.user
+        assigned_to_name = assignee_assignment.employee.full_name
     assignment = None
     assignment_id = str(
         request.POST.get("assignment_id", "") or ""
@@ -1305,8 +1406,10 @@ def create_incident_ajax(
         incident = IncidentService.create(
             request=request,
             active_shift=active_shift,
+            door=door,
             door_shift=door_shift,
             assignment=assignment,
+            assigned_to=assigned_to,
             section=section,
             description=description,
             incident_type=incident_type,
@@ -1367,9 +1470,13 @@ def create_incident_ajax(
                     incident.door_shift_id
                 ),
                 "door_number": (
-                    incident.door_shift.door_number
-                    if incident.door_shift_id
-                    else None
+                    incident.door.door_number
+                    if incident.door_id
+                    else (
+                        incident.door_shift.door_number
+                        if incident.door_shift_id
+                        else None
+                    )
                 ),
                 "section": incident.section,
                 "created_at": (
