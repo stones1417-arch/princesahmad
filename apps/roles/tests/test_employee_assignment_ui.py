@@ -51,6 +51,23 @@ class EmployeeRoleAssignmentUITests(TestCase):
         self.assertIn("الورديات", modules)
         self.assertIn("التقارير", modules)
 
+    def test_admin_menu_shows_assignment_link_to_authorized_manager(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.get(reverse("dashboard:index"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "إدارة التسكين والصلاحيات")
+        self.assertContains(response, self.url)
+
+    def test_admin_menu_hides_assignment_link_from_unauthorized_user(self):
+        self.client.force_login(self.target)
+
+        response = self.client.get(reverse("dashboard:index"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "إدارة التسكين والصلاحيات")
+
     def test_anonymous_redirects_and_unauthorized_is_forbidden(self):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 302)

@@ -111,11 +111,16 @@ def present_permission_codes(codes) -> list[dict[str, object]]:
 def permission_comparison(user, role) -> dict[str, object]:
     current = get_user_permission_codes(user)
     after = current | role_permission_codes(role)
+    added = after - current
+    continued = current & after
     return {
         "current": present_permission_codes(current),
         "after": present_permission_codes(after),
-        "added": present_permission_codes(after - current),
+        "added": present_permission_codes(added),
         "removed": [],
-        "continued": present_permission_codes(current & after),
+        "continued": present_permission_codes(continued),
         "after_codes": after,
+        "added_count": len(added),
+        "removed_count": 0,
+        "continued_count": len(continued),
     }

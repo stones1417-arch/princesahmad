@@ -11,6 +11,7 @@ from apps.hr.models import Employee
 from apps.roles.models import Role
 from apps.roles.services.access_control import (
     get_user_active_roles,
+    get_user_permission_codes,
     user_has_permission,
 )
 from apps.roles.services.assignment_management import (
@@ -96,7 +97,7 @@ def employee_assignment_view(request):
             else:
                 messages.success(
                     request,
-                    f"تم تسكين {selected_employee.full_name} كـ {selected_role.name} — {selected_employee.get_operational_section_display()}",
+                    f"تم تسكين {selected_employee.full_name} بدور {selected_role.name} بنجاح.",
                 )
             return redirect(f"{request.path}?employee={selected_employee.pk}&selected_role={selected_role.code}")
     role_cards = [
@@ -108,6 +109,11 @@ def employee_assignment_view(request):
         for role in roles
     ]
     current_roles = list(get_user_active_roles(selected_employee.user)) if selected_employee else []
+    selected_employee_permission_count = (
+        len(get_user_permission_codes(selected_employee.user))
+        if selected_employee
+        else 0
+    )
     return render(request, "roles/employee_assignment.html", {
         "employees": employees.distinct().order_by("full_name"),
         "role_cards": role_cards,
@@ -115,6 +121,7 @@ def employee_assignment_view(request):
         "selected_employee": selected_employee,
         "selected_role": selected_role,
         "current_roles": current_roles,
+        "selected_employee_permission_count": selected_employee_permission_count,
         "comparison": comparison,
         "sections": Employee.OperationalSection.choices,
         "query": query,
