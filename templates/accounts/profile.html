@@ -1,100 +1,1494 @@
 {% extends "base.html" %}
-{% block title %}الملف الشخصي | منصة أبواب{% endblock %}
+
+{% block title %}
+الملف الشخصي | منصة أبواب
+{% endblock %}
+
 {% block content %}
+
 <main class="profile-page" dir="rtl">
-  <header class="profile-hero">
-    <div><span>إدارة الحساب</span><h1>الملف الشخصي</h1><p>عرض معلومات الحساب والبيانات الوظيفية والصلاحيات المرتبطة بالمستخدم.</p></div>
-    <a href="{% url 'dashboard:index' %}"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg> العودة للرئيسية</a>
-  </header>
 
-  <div class="profile-layout">
-    <aside class="identity-card">
-      <div class="identity-cover"></div>
-      <form method="post" enctype="multipart/form-data" class="profile-photo-form" id="profilePhotoForm">
-        {% csrf_token %}
-        <div class="avatar-wrap">
-          <div class="avatar" id="profilePhotoPreview">
-            {% if account_profile.photo %}
-              <img src="{{ account_profile.photo.url }}" alt="الصورة الشخصية لـ {{ full_name }}">
-            {% else %}
-              <span>{% if profile_user.first_name %}{{ profile_user.first_name|slice:":1"|upper }}{% else %}{{ profile_user.username|slice:":1"|upper }}{% endif %}</span>
+    <!-- =====================================================
+         Hero
+    ====================================================== -->
+
+    <header class="profile-hero">
+
+        <div>
+            <span>إدارة الحساب</span>
+
+            <h1>
+                الملف الشخصي
+            </h1>
+
+            <p>
+                عرض وتحديث معلومات الحساب وبيانات الاتصال
+                والصلاحيات المرتبطة بالمستخدم.
+            </p>
+        </div>
+
+        <a href="{% url 'dashboard:index' %}">
+            <svg viewBox="0 0 24 24">
+                <path d="m15 18-6-6 6-6"/>
+            </svg>
+
+            العودة للرئيسية
+        </a>
+
+    </header>
+
+
+    <div class="profile-layout">
+
+        <!-- =================================================
+             Identity Card
+        ================================================== -->
+
+        <aside class="identity-card profile-user-card">
+
+            <div class="identity-cover"></div>
+
+
+            <!-- =============================================
+                 Profile Photo
+            ============================================== -->
+
+            <form
+                method="post"
+                enctype="multipart/form-data"
+                class="profile-photo-form"
+                id="profilePhotoForm"
+            >
+
+                {% csrf_token %}
+
+                <input
+                    type="hidden"
+                    name="form_type"
+                    value="photo"
+                >
+
+
+                <div class="avatar-wrap">
+
+                    <div
+                        class="avatar"
+                        id="profilePhotoPreview"
+                    >
+
+                        {% if account_profile and account_profile.profile_image_url %}
+
+                            <img
+                                src="{{ account_profile.profile_image_url }}"
+                                alt="الصورة الشخصية لـ {{ full_name }}"
+                            >
+
+                        {% else %}
+
+                            <span>
+                                {% if profile_user.first_name %}
+                                    {{ profile_user.first_name|slice:":1"|upper }}
+                                {% else %}
+                                    {{ profile_user.username|slice:":1"|upper }}
+                                {% endif %}
+                            </span>
+
+                        {% endif %}
+
+                    </div>
+
+
+                    {% if profile_user.is_active %}
+
+                        <i
+                            title="الحساب نشط"
+                            class="online-dot"
+                        ></i>
+
+                    {% endif %}
+
+
+                    <label
+                        for="id_photo"
+                        class="photo-upload-button"
+                        title="تغيير الصورة الشخصية"
+                    >
+
+                        <svg
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <path d="M4 7h3l2-3h6l2 3h3v13H4Z"></path>
+                            <circle cx="12" cy="13" r="4"></circle>
+                        </svg>
+
+                        <span>
+                            تغيير الصورة
+                        </span>
+
+                    </label>
+
+
+                    {{ photo_form.photo }}
+
+                </div>
+
+
+                <p class="photo-guidance">
+                    صورة رأسية بنسبة 4×6 —
+                    JPG أو PNG أو WEBP،
+                    بحد أقصى 5 MB
+                </p>
+
+
+                {% if photo_form.photo.errors %}
+
+                    <div class="form-error">
+                        {{ photo_form.photo.errors|striptags }}
+                    </div>
+
+                {% endif %}
+
+
+                <button
+                    type="submit"
+                    class="photo-save-button"
+                    id="photoSaveButton"
+                    hidden
+                >
+                    حفظ الصورة الجديدة
+                </button>
+
+            </form>
+
+
+            <!-- =============================================
+                 Identity
+            ============================================== -->
+
+            <h2>
+                {{ full_name }}
+            </h2>
+
+            <p>
+                {{ account_role }}
+            </p>
+
+
+            <span
+                class="
+                    account-status
+                    {% if not profile_user.is_active %}
+                        inactive
+                    {% endif %}
+                "
+            >
+
+                <b></b>
+
+                {% if profile_user.is_active %}
+                    الحساب نشط
+                {% else %}
+                    الحساب معطل
+                {% endif %}
+
+            </span>
+
+
+            <!-- =============================================
+                 Contact Summary
+            ============================================== -->
+
+            <div class="contact-list">
+
+                <div>
+
+                    <span class="contact-icon">
+
+                        <svg viewBox="0 0 24 24">
+                            <rect
+                                x="3"
+                                y="5"
+                                width="18"
+                                height="14"
+                                rx="2"
+                            />
+                            <path d="m3 7 9 6 9-6"/>
+                        </svg>
+
+                    </span>
+
+                    <p>
+                        <small>
+                            البريد الإلكتروني
+                        </small>
+
+                        <strong>
+                            {{ profile_user.email|default:"غير مسجل" }}
+                        </strong>
+                    </p>
+
+                </div>
+
+
+                <div>
+
+                    <span class="contact-icon">
+
+                        <svg viewBox="0 0 24 24">
+                            <rect
+                                x="6"
+                                y="2"
+                                width="12"
+                                height="20"
+                                rx="2"
+                            />
+                            <path d="M10 18h4"/>
+                        </svg>
+
+                    </span>
+
+                    <p>
+                        <small>
+                            رقم الجوال
+                        </small>
+
+                        <strong dir="ltr">
+                            {{ effective_phone|default:"غير مسجل" }}
+                        </strong>
+                    </p>
+
+                </div>
+
+
+                {% if employee %}
+
+                    <div>
+
+                        <span class="contact-icon">
+
+                            <svg viewBox="0 0 24 24">
+                                <rect
+                                    x="4"
+                                    y="3"
+                                    width="16"
+                                    height="18"
+                                    rx="2"
+                                />
+                                <circle
+                                    cx="12"
+                                    cy="9"
+                                    r="3"
+                                />
+                                <path d="M8 17c1-2 2.4-3 4-3s3 1 4 3"/>
+                            </svg>
+
+                        </span>
+
+                        <p>
+                            <small>
+                                الرقم الوظيفي
+                            </small>
+
+                            <strong>
+                                {{ employee.employee_number|default:"غير مسجل" }}
+                            </strong>
+                        </p>
+
+                    </div>
+
+                {% endif %}
+
+            </div>
+
+
+            <!-- =============================================
+                 Actions
+            ============================================== -->
+
+            <div class="profile-actions">
+
+                <a href="{% url 'accounts:password-change' %}">
+                    تغيير كلمة المرور
+                </a>
+
+
+                {% if profile_user.is_staff %}
+
+                    <a
+                        class="secondary"
+                        href="{% url 'admin:index' %}"
+                    >
+                        لوحة الإدارة
+                    </a>
+
+                {% endif %}
+
+            </div>
+
+        </aside>
+
+
+        <!-- =================================================
+             Main Content
+        ================================================== -->
+
+        <section class="profile-content">
+
+
+            <!-- =============================================
+                 Basic Account Information
+            ============================================== -->
+
+            <article class="profile-card">
+
+                <div class="card-head">
+
+                    <div>
+                        <span>
+                            بيانات الحساب
+                        </span>
+
+                        <h2>
+                            المعلومات الأساسية
+                        </h2>
+
+                        <p>
+                            البيانات التعريفية المسجلة في النظام.
+                        </p>
+                    </div>
+
+                    <i>
+                        <svg viewBox="0 0 24 24">
+                            <circle
+                                cx="12"
+                                cy="8"
+                                r="4"
+                            />
+                            <path d="M5 21c0-5 3-8 7-8s7 3 7 8"/>
+                        </svg>
+                    </i>
+
+                </div>
+
+
+                <div class="info-grid">
+
+                    <div>
+                        <span>
+                            اسم المستخدم
+                        </span>
+
+                        <strong>
+                            {{ profile_user.username }}
+                        </strong>
+                    </div>
+
+
+                    <div>
+                        <span>
+                            الاسم الكامل
+                        </span>
+
+                        <strong>
+                            {{ full_name }}
+                        </strong>
+                    </div>
+
+
+                    <div>
+                        <span>
+                            الاسم الأول
+                        </span>
+
+                        <strong>
+                            {{ profile_user.first_name|default:"غير مسجل" }}
+                        </strong>
+                    </div>
+
+
+                    <div>
+                        <span>
+                            اسم العائلة
+                        </span>
+
+                        <strong>
+                            {{ profile_user.last_name|default:"غير مسجل" }}
+                        </strong>
+                    </div>
+
+
+                    <div>
+                        <span>
+                            البريد الإلكتروني
+                        </span>
+
+                        <strong>
+                            {{ profile_user.email|default:"غير مسجل" }}
+                        </strong>
+                    </div>
+
+
+                    <div>
+                        <span>
+                            نوع الحساب
+                        </span>
+
+                        <strong>
+                            {{ account_role }}
+                        </strong>
+                    </div>
+
+                </div>
+
+            </article>
+
+
+            <!-- =============================================
+                 Contact / Mobile
+            ============================================== -->
+
+            <article class="profile-card">
+
+                <div class="card-head">
+
+                    <div>
+
+                        <span>
+                            بيانات الاتصال
+                        </span>
+
+                        <h2>
+                            رقم الجوال
+                        </h2>
+
+                        <p>
+                            يستخدم رقم الجوال في التحقق الثنائي
+                            عبر SMS وWhatsApp.
+                        </p>
+
+                    </div>
+
+
+                    <i>
+
+                        <svg viewBox="0 0 24 24">
+                            <rect
+                                x="6"
+                                y="2"
+                                width="12"
+                                height="20"
+                                rx="2"
+                            />
+                            <path d="M10 18h4"/>
+                        </svg>
+
+                    </i>
+
+                </div>
+
+
+                <form
+                    method="post"
+                    class="profile-contact-form"
+                >
+
+                    {% csrf_token %}
+
+                    <input
+                        type="hidden"
+                        name="form_type"
+                        value="contact"
+                    >
+
+
+                    <div class="contact-form-grid">
+
+
+                        <div class="contact-field">
+
+                            <label
+                                for="{{ contact_form.phone_number.id_for_label }}"
+                            >
+                                رقم الجوال
+                            </label>
+
+
+                            {{ contact_form.phone_number }}
+
+
+                            <small>
+                                أدخل الرقم بالصيغة الدولية
+                                مثل +9665XXXXXXXX
+                            </small>
+
+
+                            {% if contact_form.phone_number.errors %}
+
+                                <div class="form-error">
+                                    {{ contact_form.phone_number.errors|striptags }}
+                                </div>
+
+                            {% endif %}
+
+                        </div>
+
+
+                        <div class="otp-channel-preview">
+
+                            <span>
+                                استخدام الرقم
+                            </span>
+
+                            <div>
+
+                                <b>
+                                    SMS
+                                </b>
+
+                                <b>
+                                    WhatsApp
+                                </b>
+
+                            </div>
+
+                            <small>
+                                بعد حفظ الرقم ستتوفر القناتان
+                                في صفحة التحقق الإضافي.
+                            </small>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="contact-form-actions">
+
+                        <button
+                            type="submit"
+                            class="contact-save-button"
+                        >
+                            حفظ رقم الجوال
+                        </button>
+
+                    </div>
+
+                </form>
+
+            </article>
+
+
+            <!-- =============================================
+                 Employee Information
+            ============================================== -->
+
+            {% if employee %}
+
+                <article class="profile-card">
+
+                    <div class="card-head">
+
+                        <div>
+
+                            <span>
+                                الارتباط الوظيفي
+                            </span>
+
+                            <h2>
+                                معلومات الموظف
+                            </h2>
+
+                            <p>
+                                البيانات التشغيلية المرتبطة بهذا الحساب.
+                            </p>
+
+                        </div>
+
+                        <i>
+
+                            <svg viewBox="0 0 24 24">
+                                <path d="M4 21V5h16v16"/>
+                                <path d="M8 9h8"/>
+                                <path d="M8 13h8"/>
+                                <path d="M8 17h5"/>
+                            </svg>
+
+                        </i>
+
+                    </div>
+
+
+                    <div class="info-grid">
+
+                        <div>
+                            <span>
+                                الرقم الوظيفي
+                            </span>
+
+                            <strong>
+                                {{ employee.employee_number|default:"غير مسجل" }}
+                            </strong>
+                        </div>
+
+
+                        <div>
+                            <span>
+                                المسمى الوظيفي
+                            </span>
+
+                            <strong>
+                                {{ employee.get_job_title_display|default:"غير مسجل" }}
+                            </strong>
+                        </div>
+
+
+                        <div>
+                            <span>
+                                حالة الموظف
+                            </span>
+
+                            <strong>
+                                {{ employee.get_work_status_display|default:"غير مسجل" }}
+                            </strong>
+                        </div>
+
+
+                        <div>
+                            <span>
+                                رقم جوال الموظف
+                            </span>
+
+                            <strong dir="ltr">
+                                {{ employee.phone_number|default:"غير مسجل" }}
+                            </strong>
+                        </div>
+
+                    </div>
+
+                </article>
+
             {% endif %}
-          </div>
-          {% if profile_user.is_active %}<i title="الحساب نشط"></i>{% endif %}
-          <label for="id_photo" class="photo-upload-button" title="تغيير الصورة الشخصية">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l2-3h6l2 3h3v13H4Z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-            <span>تغيير الصورة</span>
-          </label>
-          {{ photo_form.photo }}
-        </div>
-        <p class="photo-guidance">صورة رأسية بنسبة 4×6 — JPG أو PNG أو WEBP، بحد أقصى 5 MB</p>
-        {% if photo_form.photo.errors %}<div class="photo-errors">{{ photo_form.photo.errors|striptags }}</div>{% endif %}
-        <button type="submit" class="photo-save-button" id="photoSaveButton" hidden>حفظ الصورة الجديدة</button>
-      </form>
-      <h2>{{ full_name }}</h2><p>{{ account_role }}</p>
-      <span class="account-status {% if not profile_user.is_active %}inactive{% endif %}"><b></b>{% if profile_user.is_active %}الحساب نشط{% else %}الحساب معطل{% endif %}</span>
-      <div class="contact-list">
-        <div><span class="contact-icon"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></span><p><small>البريد الإلكتروني</small><strong>{{ profile_user.email|default:"غير مسجل" }}</strong></p></div>
-        {% if employee %}<div><span class="contact-icon"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="9" r="3"/><path d="M8 17c1-2 2.4-3 4-3s3 1 4 3"/></svg></span><p><small>الرقم الوظيفي</small><strong>{{ employee.employee_number|default:"غير مسجل" }}</strong></p></div>{% endif %}
-      </div>
-      <div class="profile-actions"><a href="{% url 'accounts:password-change' %}">تغيير كلمة المرور</a>{% if profile_user.is_staff %}<a class="secondary" href="{% url 'admin:index' %}">لوحة الإدارة</a>{% endif %}</div>
-    </aside>
 
-    <section class="profile-content">
-      <article class="profile-card">
-        <div class="card-head"><div><span>بيانات الحساب</span><h2>المعلومات الأساسية</h2><p>البيانات التعريفية المسجلة في النظام.</p></div><i><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M5 21c0-5 3-8 7-8s7 3 7 8"/></svg></i></div>
-        <div class="info-grid">
-          <div><span>اسم المستخدم</span><strong>{{ profile_user.username }}</strong></div><div><span>الاسم الكامل</span><strong>{{ full_name }}</strong></div>
-          <div><span>الاسم الأول</span><strong>{{ profile_user.first_name|default:"غير مسجل" }}</strong></div><div><span>اسم العائلة</span><strong>{{ profile_user.last_name|default:"غير مسجل" }}</strong></div>
-          <div><span>البريد الإلكتروني</span><strong>{{ profile_user.email|default:"غير مسجل" }}</strong></div><div><span>نوع الحساب</span><strong>{{ account_role }}</strong></div>
-        </div>
-      </article>
+            <article class="profile-card">
+                <div class="card-head">
+                    <div>
+                        <span>إدارة الوصول</span>
+                        <h2>الصلاحيات والتسكين</h2>
+                        <p>الأدوار المؤسسية والصلاحيات الفعلية المرتبطة بهذا الحساب.</p>
+                    </div>
+                </div>
+                <div class="info-grid">
+                    <div><span>الأدوار الحالية</span><strong>{% for assignment in active_role_assignments %}{{ assignment.role.name }}{% if not forloop.last %}، {% endif %}{% empty %}لا يوجد دور مؤسسي{% endfor %}</strong></div>
+                    <div><span>القسم التشغيلي</span><strong>{% if employee %}{{ employee.get_operational_section_display|default:"غير محدد" }}{% else %}غير مرتبط بموظف{% endif %}</strong></div>
+                    <div><span>عدد الصلاحيات الفعلية</span><strong>{{ effective_permissions_count }}</strong></div>
+                </div>
+                {% if can_manage_roles %}<div class="profile-actions"><a href="{% url 'roles:employee-assignment' %}{% if employee %}?employee={{ employee.pk }}{% endif %}">تغيير التسكين</a></div>{% endif %}
+            </article>
 
-      {% if employee %}<article class="profile-card">
-        <div class="card-head"><div><span>الارتباط الوظيفي</span><h2>معلومات الموظف</h2><p>البيانات التشغيلية المرتبطة بهذا الحساب.</p></div><i><svg viewBox="0 0 24 24"><path d="M4 21V5h16v16M8 9h8M8 13h8M8 17h5"/></svg></i></div>
-        <div class="info-grid"><div><span>الرقم الوظيفي</span><strong>{{ employee.employee_number|default:"غير مسجل" }}</strong></div><div><span>المسمى الوظيفي</span><strong>{{ employee.get_job_title_display|default:"غير مسجل" }}</strong></div><div><span>حالة الموظف</span><strong>{{ employee.get_work_status_display|default:"غير مسجل" }}</strong></div><div><span>رقم الجوال</span><strong>{{ employee.phone_number|default:"غير مسجل" }}</strong></div></div>
-      </article>{% endif %}
 
-      <article class="profile-card">
-        <div class="card-head"><div><span>إدارة الوصول</span><h2>الصلاحيات والتسكين</h2><p>الأدوار المؤسسية والصلاحيات الفعلية المرتبطة بهذا الحساب.</p></div></div>
-        <div class="info-grid">
-          <div><span>الأدوار الحالية</span><strong>{% for assignment in active_role_assignments %}{{ assignment.role.name }}{% if not forloop.last %}، {% endif %}{% empty %}لا يوجد دور مؤسسي{% endfor %}</strong></div>
-          <div><span>القسم التشغيلي</span><strong>{% if employee %}{{ employee.get_operational_section_display|default:"غير محدد" }}{% else %}غير مرتبط بموظف{% endif %}</strong></div>
-          <div><span>عدد الصلاحيات الفعلية</span><strong>{{ effective_permissions_count }}</strong></div>
-        </div>
-        {% if can_manage_roles %}<div class="profile-actions"><a href="{% url 'roles:employee-assignment' %}{% if employee %}?employee={{ employee.pk }}{% endif %}">تغيير التسكين</a></div>{% endif %}
-      </article>
+            <!-- =============================================
+                 Security
+            ============================================== -->
 
-      <article class="profile-card">
-        <div class="card-head"><div><span>الأمان والصلاحيات</span><h2>حالة الحساب</h2><p>مستوى الوصول وتواريخ استخدام الحساب.</p></div><i><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/></svg></i></div>
-        <div class="info-grid"><div><span>مستوى الوصول</span><strong>{{ account_role }}</strong></div><div><span>حالة الحساب</span><strong>{% if profile_user.is_active %}نشط{% else %}معطل{% endif %}</strong></div><div><span>تاريخ إنشاء الحساب</span><strong>{{ profile_user.date_joined|date:"Y-m-d H:i" }}</strong></div><div><span>آخر تسجيل دخول</span><strong>{{ profile_user.last_login|date:"Y-m-d H:i"|default:"لا يوجد تسجيل سابق" }}</strong></div></div>
-        {% if profile_user.groups.all %}<div class="groups"><span>مجموعات الصلاحيات</span><div>{% for group in profile_user.groups.all %}<b>{{ group.name }}</b>{% empty %}<small>لا توجد مجموعات مرتبطة بالحساب.</small>{% endfor %}</div></div>{% endif %}
-      </article>
-    </section>
-  </div>
+            <article class="profile-card">
+
+                <div class="card-head">
+
+                    <div>
+
+                        <span>
+                            الأمان والصلاحيات
+                        </span>
+
+                        <h2>
+                            حالة الحساب
+                        </h2>
+
+                        <p>
+                            مستوى الوصول وتواريخ استخدام الحساب.
+                        </p>
+
+                    </div>
+
+                    <i>
+
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/>
+                            <path d="m9 12 2 2 4-4"/>
+                        </svg>
+
+                    </i>
+
+                </div>
+
+
+                <div class="info-grid">
+
+                    <div>
+                        <span>
+                            مستوى الوصول
+                        </span>
+
+                        <strong>
+                            {{ account_role }}
+                        </strong>
+                    </div>
+
+
+                    <div>
+                        <span>
+                            حالة الحساب
+                        </span>
+
+                        <strong>
+                            {% if profile_user.is_active %}
+                                نشط
+                            {% else %}
+                                معطل
+                            {% endif %}
+                        </strong>
+                    </div>
+
+
+                    <div>
+                        <span>
+                            تاريخ إنشاء الحساب
+                        </span>
+
+                        <strong>
+                            {{ profile_user.date_joined|date:"Y-m-d H:i" }}
+                        </strong>
+                    </div>
+
+
+                    <div>
+                        <span>
+                            آخر تسجيل دخول
+                        </span>
+
+                        <strong>
+                            {{ profile_user.last_login|date:"Y-m-d H:i"|default:"لا يوجد تسجيل سابق" }}
+                        </strong>
+                    </div>
+
+                </div>
+
+
+                {% if profile_user.groups.all %}
+
+                    <div class="groups">
+
+                        <span>
+                            مجموعات الصلاحيات
+                        </span>
+
+                        <div>
+
+                            {% for group in profile_user.groups.all %}
+
+                                <b>
+                                    {{ group.name }}
+                                </b>
+
+                            {% empty %}
+
+                                <small>
+                                    لا توجد مجموعات مرتبطة بالحساب.
+                                </small>
+
+                            {% endfor %}
+
+                        </div>
+
+                    </div>
+
+                {% endif %}
+
+            </article>
+
+        </section>
+
+    </div>
+
 </main>
+
+
 <style>
-.profile-page{max-width:1500px;margin:auto;padding:28px 34px 80px;background:#f5f8f6;color:#17231e}.profile-hero{display:flex;justify-content:space-between;align-items:center;gap:25px;padding:28px 32px;margin-bottom:20px;border:1px solid #dfe8e4;border-top:4px solid #c6a451;border-radius:24px;background:#fff;box-shadow:0 12px 35px rgba(20,54,42,.06)}.profile-hero span,.card-head>div>span{color:#0b6b50;font-size:11px;font-weight:900}.profile-hero h1{margin:6px 0;font-size:32px;color:#064e3b}.profile-hero p,.card-head p{margin:0;color:#737f79}.profile-hero>a{display:flex;align-items:center;gap:8px;padding:11px 16px;border:1px solid #cfe0d8;border-radius:12px;color:#0b6b50;text-decoration:none;font-weight:900}.profile-hero svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2}.profile-layout{display:grid;grid-template-columns:350px minmax(0,1fr);gap:20px;align-items:start}.identity-card,.profile-card{overflow:hidden;border:1px solid #dfe7e3;border-radius:23px;background:#fff;box-shadow:0 12px 35px rgba(20,54,42,.06)}.identity-card{text-align:center;position:sticky;top:110px}.identity-cover{height:145px;background:linear-gradient(135deg,#064e3b,#11785d)}.avatar-wrap{position:relative;width:128px;margin:-68px auto 0}.avatar{display:grid;place-items:center;width:120px;height:120px;border:5px solid #fff;outline:4px solid #c9a94e;border-radius:50%;background:linear-gradient(135deg,#94c45a,#45ac67);color:#fff;font-size:50px;font-weight:900;box-shadow:0 14px 30px rgba(10,70,49,.25)}.avatar-wrap i{position:absolute;left:7px;bottom:9px;width:20px;height:20px;border:4px solid #fff;border-radius:50%;background:#3bc36b}.identity-card h2{margin:22px 20px 4px;font-size:25px}.identity-card>p{margin:0;color:#6d7873}.account-status{display:inline-flex;align-items:center;gap:6px;margin:18px 0;padding:7px 12px;border-radius:20px;background:#e6f6ed;color:#148048;font-size:11px;font-weight:900}.account-status b{width:8px;height:8px;border-radius:50%;background:currentColor}.account-status.inactive{background:#f5e8e8;color:#a73c3c}.contact-list{margin:0 22px;padding:18px 0;border-top:1px solid #e4eae7}.contact-list>div{display:flex;align-items:center;gap:10px;padding:10px;text-align:right;border-radius:12px;background:#f8faf9;margin-bottom:8px}.contact-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;background:#e6f3ed;color:#0b6b50}.contact-icon svg,.card-head svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8}.contact-list p{min-width:0;margin:0}.contact-list small,.contact-list strong{display:block}.contact-list small{color:#7a8580;font-size:10px}.contact-list strong{margin-top:3px;font-size:12px;overflow-wrap:anywhere}.profile-actions{display:grid;gap:8px;padding:0 22px 24px}.profile-actions a{padding:11px;border-radius:11px;background:#0b6b50;color:#fff;text-decoration:none;font-weight:900}.profile-actions a.secondary{background:#eef4f1;color:#0b6b50}.profile-content{display:grid;gap:18px}.profile-card{padding:25px}.card-head{display:flex;justify-content:space-between;gap:20px;padding-bottom:18px;border-bottom:1px solid #e5ebe8}.card-head h2{margin:5px 0;font-size:21px}.card-head i{display:grid;place-items:center;width:46px;height:46px;border-radius:13px;background:#e8f4ef;color:#0b6b50}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px}.info-grid>div{padding:16px;border:1px solid #e3e9e6;border-radius:14px;background:#fafcfb}.info-grid span,.info-grid strong{display:block}.info-grid span{color:#748079;font-size:10px}.info-grid strong{margin-top:7px;font-size:13px;overflow-wrap:anywhere}.groups{margin-top:18px;padding-top:18px;border-top:1px solid #e5ebe8}.groups>span{font-size:11px;color:#748079;font-weight:900}.groups>div{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.groups b{padding:7px 11px;border-radius:20px;background:#e8f4ef;color:#0b6b50;font-size:10px}@media(max-width:900px){.profile-layout{grid-template-columns:1fr}.identity-card{position:static}.identity-cover{height:120px}}@media(max-width:600px){.profile-page{padding:16px 12px 60px}.profile-hero{align-items:flex-start;flex-direction:column;padding:22px}.info-grid{grid-template-columns:1fr}}
+
+.profile-page{
+    max-width:1500px;
+    margin:auto;
+    padding:28px 34px 80px;
+    background:#f5f8f6;
+    color:#17231e
+}
+
+.profile-hero{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:25px;
+    padding:28px 32px;
+    margin-bottom:20px;
+    border:1px solid #dfe8e4;
+    border-top:4px solid #c6a451;
+    border-radius:24px;
+    background:#fff;
+    box-shadow:0 12px 35px rgba(20,54,42,.06)
+}
+
+.profile-hero span,
+.card-head>div>span{
+    color:#0b6b50;
+    font-size:11px;
+    font-weight:900
+}
+
+.profile-hero h1{
+    margin:6px 0;
+    font-size:32px;
+    color:#064e3b
+}
+
+.profile-hero p,
+.card-head p{
+    margin:0;
+    color:#737f79
+}
+
+.profile-hero>a{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:11px 16px;
+    border:1px solid #cfe0d8;
+    border-radius:12px;
+    color:#0b6b50;
+    text-decoration:none;
+    font-weight:900
+}
+
+.profile-hero svg{
+    width:18px;
+    height:18px;
+    fill:none;
+    stroke:currentColor;
+    stroke-width:2
+}
+
+.profile-layout{
+    display:grid;
+    grid-template-columns:350px minmax(0,1fr);
+    gap:20px;
+    align-items:start
+}
+
+.identity-card,
+.profile-card{
+    overflow:hidden;
+    border:1px solid #dfe7e3;
+    border-radius:23px;
+    background:#fff;
+    box-shadow:0 12px 35px rgba(20,54,42,.06)
+}
+
+.identity-card{
+    text-align:center;
+    position:sticky;
+    top:110px
+}
+
+.identity-cover{
+    height:145px;
+    background:linear-gradient(
+        135deg,
+        #064e3b,
+        #11785d
+    )
+}
+
+.profile-photo-form{
+    margin:0;
+    text-align:center
+}
+
+.avatar-wrap{
+    position:relative;
+    width:150px;
+    margin:-82px auto 0
+}
+
+.avatar{
+    display:grid;
+    place-items:center;
+    width:136px;
+    height:204px;
+    border:5px solid #fff;
+    outline:3px solid #c9a94e;
+    border-radius:18px;
+    background:linear-gradient(
+        145deg,
+        #94c45a,
+        #45ac67
+    );
+    overflow:hidden;
+    color:#fff;
+    font-size:48px;
+    font-weight:900;
+    box-shadow:0 14px 30px rgba(10,70,49,.25)
+}
+
+.avatar img{
+    width:100%;
+    height:100%;
+    display:block;
+    object-fit:cover;
+    object-position:center top
+}
+
+.avatar span{
+    display:grid;
+    width:100%;
+    height:100%;
+    place-items:center
+}
+
+.online-dot{
+    position:absolute;
+    left:3px;
+    bottom:45px;
+    width:20px;
+    height:20px;
+    border:4px solid #fff;
+    border-radius:50%;
+    background:#3bc36b
+}
+
+.photo-upload-button{
+    position:absolute;
+    right:5px;
+    bottom:7px;
+    left:5px;
+    min-height:34px;
+    padding:6px 9px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    border-radius:10px;
+    background:rgba(6,78,59,.92);
+    color:#fff;
+    font-size:10px;
+    font-weight:900;
+    cursor:pointer;
+    backdrop-filter:blur(5px);
+    transition:
+        background .18s ease,
+        transform .18s ease
+}
+
+.photo-upload-button:hover{
+    background:#0b6b50;
+    transform:translateY(-1px)
+}
+
+.photo-upload-button svg{
+    width:16px;
+    height:16px;
+    fill:none;
+    stroke:currentColor;
+    stroke-width:1.8
+}
+
+.profile-photo-input{
+    position:absolute!important;
+    width:1px!important;
+    height:1px!important;
+    overflow:hidden!important;
+    clip:rect(0,0,0,0)!important
+}
+
+.photo-guidance{
+    max-width:270px;
+    margin:12px auto 0;
+    padding:0 12px;
+    color:#78847e;
+    font-size:9px;
+    line-height:1.7
+}
+
+.photo-save-button{
+    margin:10px auto 0;
+    padding:9px 16px;
+    border:0;
+    border-radius:10px;
+    background:#c6a451;
+    color:#17231e;
+    font-family:inherit;
+    font-size:11px;
+    font-weight:950;
+    cursor:pointer
+}
+
+.identity-card h2{
+    margin:17px 20px 4px;
+    font-size:25px
+}
+
+.identity-card>p{
+    margin:0;
+    color:#6d7873
+}
+
+.account-status{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    margin:18px 0;
+    padding:7px 12px;
+    border-radius:20px;
+    background:#e6f6ed;
+    color:#148048;
+    font-size:11px;
+    font-weight:900
+}
+
+.account-status b{
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    background:currentColor
+}
+
+.account-status.inactive{
+    background:#f5e8e8;
+    color:#a73c3c
+}
+
+.contact-list{
+    margin:0 22px;
+    padding:18px 0;
+    border-top:1px solid #e4eae7
+}
+
+.contact-list>div{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:10px;
+    text-align:right;
+    border-radius:12px;
+    background:#f8faf9;
+    margin-bottom:8px
+}
+
+.contact-icon{
+    display:grid;
+    place-items:center;
+    width:38px;
+    height:38px;
+    flex:0 0 38px;
+    border-radius:10px;
+    background:#e6f3ed;
+    color:#0b6b50
+}
+
+.contact-icon svg,
+.card-head svg{
+    width:20px;
+    height:20px;
+    fill:none;
+    stroke:currentColor;
+    stroke-width:1.8
+}
+
+.contact-list p{
+    min-width:0;
+    margin:0
+}
+
+.contact-list small,
+.contact-list strong{
+    display:block
+}
+
+.contact-list small{
+    color:#7a8580;
+    font-size:10px
+}
+
+.contact-list strong{
+    margin-top:3px;
+    font-size:12px;
+    overflow-wrap:anywhere
+}
+
+.profile-actions{
+    display:grid;
+    gap:8px;
+    padding:0 22px 24px
+}
+
+.profile-actions a{
+    padding:11px;
+    border-radius:11px;
+    background:#0b6b50;
+    color:#fff;
+    text-decoration:none;
+    font-weight:900
+}
+
+.profile-actions a.secondary{
+    background:#eef4f1;
+    color:#0b6b50
+}
+
+.profile-content{
+    display:grid;
+    gap:18px
+}
+
+.profile-card{
+    padding:25px
+}
+
+.card-head{
+    display:flex;
+    justify-content:space-between;
+    gap:20px;
+    padding-bottom:18px;
+    border-bottom:1px solid #e5ebe8
+}
+
+.card-head h2{
+    margin:5px 0;
+    font-size:21px
+}
+
+.card-head i{
+    display:grid;
+    place-items:center;
+    width:46px;
+    height:46px;
+    flex:0 0 46px;
+    border-radius:13px;
+    background:#e8f4ef;
+    color:#0b6b50
+}
+
+.info-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+    margin-top:20px
+}
+
+.info-grid>div{
+    padding:16px;
+    border:1px solid #e3e9e6;
+    border-radius:14px;
+    background:#fafcfb
+}
+
+.info-grid span,
+.info-grid strong{
+    display:block
+}
+
+.info-grid span{
+    color:#748079;
+    font-size:10px
+}
+
+.info-grid strong{
+    margin-top:7px;
+    font-size:13px;
+    overflow-wrap:anywhere
+}
+
+
+/* ==========================================================
+   Contact Form
+========================================================== */
+
+.profile-contact-form{
+    margin-top:20px
+}
+
+.contact-form-grid{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 280px;
+    gap:16px;
+    align-items:stretch
+}
+
+.contact-field{
+    display:grid;
+    gap:9px
+}
+
+.contact-field label{
+    font-size:12px;
+    font-weight:900;
+    color:#17231e
+}
+
+.profile-contact-input{
+    width:100%;
+    box-sizing:border-box;
+    padding:14px 16px;
+    border:1px solid #d6e2dc;
+    border-radius:12px;
+    background:#fafcfb;
+    color:#17231e;
+    font-family:inherit;
+    font-size:14px;
+    outline:none;
+    transition:
+        border-color .18s ease,
+        box-shadow .18s ease
+}
+
+.profile-contact-input:focus{
+    border-color:#0b6b50;
+    box-shadow:
+        0 0 0 3px rgba(11,107,80,.08)
+}
+
+.contact-field small{
+    color:#748079;
+    font-size:10px
+}
+
+.otp-channel-preview{
+    padding:15px;
+    border:1px solid #dce7e2;
+    border-radius:14px;
+    background:#f7faf8
+}
+
+.otp-channel-preview>span{
+    display:block;
+    margin-bottom:10px;
+    color:#748079;
+    font-size:10px;
+    font-weight:900
+}
+
+.otp-channel-preview>div{
+    display:flex;
+    gap:7px;
+    flex-wrap:wrap
+}
+
+.otp-channel-preview b{
+    padding:7px 12px;
+    border-radius:20px;
+    background:#e4f2eb;
+    color:#0b6b50;
+    font-size:10px
+}
+
+.otp-channel-preview small{
+    display:block;
+    margin-top:12px;
+    color:#78847e;
+    font-size:9px;
+    line-height:1.8
+}
+
+.contact-form-actions{
+    display:flex;
+    justify-content:flex-start;
+    margin-top:17px
+}
+
+.contact-save-button{
+    padding:11px 22px;
+    border:0;
+    border-radius:11px;
+    background:#0b6b50;
+    color:#fff;
+    font-family:inherit;
+    font-size:12px;
+    font-weight:900;
+    cursor:pointer;
+    transition:
+        background .18s ease,
+        transform .18s ease
+}
+
+.contact-save-button:hover{
+    background:#075e47;
+    transform:translateY(-1px)
+}
+
+.form-error{
+    margin-top:7px;
+    padding:9px 11px;
+    border-radius:9px;
+    background:#fff0ef;
+    color:#b5362f;
+    font-size:10px;
+    font-weight:800
+}
+
+
+/* ==========================================================
+   Groups
+========================================================== */
+
+.groups{
+    margin-top:18px;
+    padding-top:18px;
+    border-top:1px solid #e5ebe8
+}
+
+.groups>span{
+    font-size:11px;
+    color:#748079;
+    font-weight:900
+}
+
+.groups>div{
+    display:flex;
+    gap:7px;
+    flex-wrap:wrap;
+    margin-top:10px
+}
+
+.groups b{
+    padding:7px 11px;
+    border-radius:20px;
+    background:#e8f4ef;
+    color:#0b6b50;
+    font-size:10px
+}
+
+
+/* ==========================================================
+   Responsive
+========================================================== */
+
+@media(max-width:900px){
+
+    .profile-layout{
+        grid-template-columns:1fr
+    }
+
+    .identity-card{
+        position:static
+    }
+
+    .identity-cover{
+        height:120px
+    }
+
+    .avatar-wrap{
+        margin-top:-70px
+    }
+
+    .contact-form-grid{
+        grid-template-columns:1fr
+    }
+}
+
+@media(max-width:600px){
+
+    .profile-page{
+        padding:16px 12px 60px
+    }
+
+    .profile-hero{
+        align-items:flex-start;
+        flex-direction:column;
+        padding:22px
+    }
+
+    .info-grid{
+        grid-template-columns:1fr
+    }
+
+    .profile-card{
+        padding:19px
+    }
+}
+
 </style>
-<style>
-.profile-photo-form{margin:0;text-align:center}.avatar-wrap{width:150px;margin:-82px auto 0}.avatar{width:136px;height:204px;border:5px solid #fff;outline:3px solid #c9a94e;border-radius:18px;background:linear-gradient(145deg,#94c45a,#45ac67);overflow:hidden;font-size:48px}.avatar img{width:100%;height:100%;display:block;object-fit:cover;object-position:center top}.avatar span{display:grid;width:100%;height:100%;place-items:center}.avatar-wrap i{left:3px;bottom:45px}.photo-upload-button{position:absolute;right:5px;bottom:7px;left:5px;min-height:34px;padding:6px 9px;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;background:rgba(6,78,59,.92);color:#fff;font-size:10px;font-weight:900;cursor:pointer;backdrop-filter:blur(5px);transition:background .18s ease,transform .18s ease}.photo-upload-button:hover{background:#0b6b50;transform:translateY(-1px)}.photo-upload-button svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8}.profile-photo-input{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important}.photo-guidance{max-width:270px;margin:12px auto 0;padding:0 12px;color:#78847e;font-size:9px;line-height:1.7}.photo-errors{margin:8px 20px;padding:8px;border-radius:9px;background:#fff0ef;color:#b5362f;font-size:10px;font-weight:800}.photo-save-button{margin:10px auto 0;padding:9px 16px;border:0;border-radius:10px;background:#c6a451;color:#17231e;font-family:inherit;font-size:11px;font-weight:950;cursor:pointer}.identity-card h2{margin-top:17px}@media(max-width:900px){.avatar-wrap{margin-top:-70px}}
-</style>
+
+
 <script>
+
 (() => {
-  const input = document.getElementById('id_photo');
-  const preview = document.getElementById('profilePhotoPreview');
-  const saveButton = document.getElementById('photoSaveButton');
-  if (!input || !preview || !saveButton) return;
-  input.addEventListener('change', () => {
-    const file = input.files && input.files[0];
-    if (!file) return;
-    const image = document.createElement('img');
-    image.alt = 'معاينة الصورة الشخصية الجديدة';
-    image.src = URL.createObjectURL(file);
-    image.onload = () => URL.revokeObjectURL(image.src);
-    preview.replaceChildren(image);
-    saveButton.hidden = false;
-  });
+
+    const input =
+        document.getElementById(
+            "id_photo"
+        );
+
+    const preview =
+        document.getElementById(
+            "profilePhotoPreview"
+        );
+
+    const saveButton =
+        document.getElementById(
+            "photoSaveButton"
+        );
+
+    if (
+        !input
+        || !preview
+        || !saveButton
+    ) {
+        return;
+    }
+
+    input.addEventListener(
+        "change",
+        () => {
+
+            const file =
+                input.files
+                && input.files[0];
+
+            if (!file) {
+                return;
+            }
+
+            const image =
+                document.createElement(
+                    "img"
+                );
+
+            image.alt =
+                "معاينة الصورة الشخصية الجديدة";
+
+            const objectUrl =
+                URL.createObjectURL(
+                    file
+                );
+
+            image.src =
+                objectUrl;
+
+            image.onload = () => {
+                URL.revokeObjectURL(
+                    objectUrl
+                );
+            };
+
+            preview.replaceChildren(
+                image
+            );
+
+            saveButton.hidden =
+                false;
+        }
+    );
+
 })();
+
 </script>
+
 {% endblock %}
