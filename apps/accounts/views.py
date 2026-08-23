@@ -43,7 +43,12 @@ from apps.communications.services.otp_validation import (
 from apps.hr.forms import EmployeeForm
 from apps.hr.models import Employee
 from apps.roles.models import Role
-from apps.roles.services.access_control import user_has_permission
+from apps.roles.services.access_control import (
+    get_user_active_roles,
+    get_user_permission_codes,
+    user_has_permission,
+)
+from apps.roles.services.permission_registry import PlatformPermissions
 from apps.roles.services.role_manager import assign_role_to_user
 from apps.roles.services.section_access import get_allowed_sections
 
@@ -2165,6 +2170,12 @@ def profile_view(
         ),
         "effective_phone": (
             effective_phone
+        ),
+        "active_role_assignments": get_user_active_roles(user),
+        "effective_permissions_count": len(get_user_permission_codes(user)),
+        "can_manage_roles": user_has_permission(
+            user,
+            PlatformPermissions.MANAGE_ROLES,
         ),
     }
 

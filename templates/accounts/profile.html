@@ -56,6 +56,16 @@
       </article>{% endif %}
 
       <article class="profile-card">
+        <div class="card-head"><div><span>إدارة الوصول</span><h2>الصلاحيات والتسكين</h2><p>الأدوار المؤسسية والصلاحيات الفعلية المرتبطة بهذا الحساب.</p></div></div>
+        <div class="info-grid">
+          <div><span>الأدوار الحالية</span><strong>{% for assignment in active_role_assignments %}{{ assignment.role.name }}{% if not forloop.last %}، {% endif %}{% empty %}لا يوجد دور مؤسسي{% endfor %}</strong></div>
+          <div><span>القسم التشغيلي</span><strong>{% if employee %}{{ employee.get_operational_section_display|default:"غير محدد" }}{% else %}غير مرتبط بموظف{% endif %}</strong></div>
+          <div><span>عدد الصلاحيات الفعلية</span><strong>{{ effective_permissions_count }}</strong></div>
+        </div>
+        {% if can_manage_roles %}<div class="profile-actions"><a href="{% url 'roles:employee-assignment' %}{% if employee %}?employee={{ employee.pk }}{% endif %}">تغيير التسكين</a></div>{% endif %}
+      </article>
+
+      <article class="profile-card">
         <div class="card-head"><div><span>الأمان والصلاحيات</span><h2>حالة الحساب</h2><p>مستوى الوصول وتواريخ استخدام الحساب.</p></div><i><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/></svg></i></div>
         <div class="info-grid"><div><span>مستوى الوصول</span><strong>{{ account_role }}</strong></div><div><span>حالة الحساب</span><strong>{% if profile_user.is_active %}نشط{% else %}معطل{% endif %}</strong></div><div><span>تاريخ إنشاء الحساب</span><strong>{{ profile_user.date_joined|date:"Y-m-d H:i" }}</strong></div><div><span>آخر تسجيل دخول</span><strong>{{ profile_user.last_login|date:"Y-m-d H:i"|default:"لا يوجد تسجيل سابق" }}</strong></div></div>
         {% if profile_user.groups.all %}<div class="groups"><span>مجموعات الصلاحيات</span><div>{% for group in profile_user.groups.all %}<b>{{ group.name }}</b>{% empty %}<small>لا توجد مجموعات مرتبطة بالحساب.</small>{% endfor %}</div></div>{% endif %}
