@@ -71,7 +71,7 @@
       <header><div><span>مراقبة مباشرة</span><h2>أحدث الأنشطة</h2></div><a href="{% url 'dashboard:system-logs' %}">عرض الكل</a></header>
       <div class="feed-list">
         {% for log in recent_activity %}
-          <article><span class="feed-dot action-{{ log.action }}"></span><div><strong>{{ log.description|default:log.get_action_display }}</strong><small>{{ log.user.get_full_name|default:log.user.username|default:"عملية نظامية" }} · {{ log.created_at|timesince }}</small></div></article>
+          <article><span class="feed-dot action-{{ log.action }}"></span><div><strong>{{ log.description|default:log.get_action_display }}</strong><small>{% if log.user %}{{ log.user.get_full_name|default:log.user.username }}{% else %}عملية نظامية{% endif %} · {{ log.created_at|timesince }}</small></div></article>
         {% empty %}
           <div class="feed-empty"><span>✓</span><strong>لا توجد أنشطة حديثة</strong><small>ستظهر العمليات الموثقة هنا تلقائيًا.</small></div>
         {% endfor %}
