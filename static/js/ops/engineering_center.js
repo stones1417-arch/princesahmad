@@ -92,16 +92,47 @@
     document.querySelector("#q").focus();
   }
 
-  function bindInteractions() {
-    document.querySelectorAll(".engineering-card__details").forEach((button) => {
-      button.addEventListener("click", () => {
-        const drawer = document.querySelector(`#${button.getAttribute("aria-controls")}`);
-        drawer.hidden = !drawer.hidden;
-        button.setAttribute("aria-expanded", String(!drawer.hidden));
-        button.textContent = drawer.hidden ? "عرض التفاصيل" : "إخفاء التفاصيل";
-      });
-    });
+  const escapeHtml = (value) => { const node = document.createElement("div"); node.textContent = String(value ?? ""); return node.innerHTML; };
+  const waitingLabel = (seconds) => seconds < 3600 ? `منذ ${Math.max(1, Math.floor(seconds / 60))} دقيقة` : `منذ ${Math.floor(seconds / 3600)} ساعة و${Math.floor((seconds % 3600) / 60)} دقيقة`;
 
+  function incidentMarkup(item) {
+    const maintenance = item.maintenance ? `<section class="engineering-followup__maintenance"><strong>طلب الصيانة المرتبط: ${escapeHtml(item.maintenance.number)}</strong><span>${escapeHtml(item.maintenance.status_label)}</span>${item.maintenance.technician ? `<small>الفني: ${escapeHtml(item.maintenance.technician)}</small>` : ""}${item.maintenance.planned_start ? `<small>الوقت المخطط: ${escapeHtml(item.maintenance.planned_start)} — ${escapeHtml(item.maintenance.planned_end)}</small>` : ""}</section>` : "";
+    const update = item.last_update ? `<section class="engineering-followup__update"><strong>آخر تحديث من مركز الوردية</strong><p>${escapeHtml(item.last_update.note)}</p><small>من: ${escapeHtml(item.last_update.actor)} · ${escapeHtml(item.last_update.created_at)}</small></section>` : "";
+    const escalation = item.escalation_note ? `<p class="engineering-followup__escalation"><strong>سبب التصعيد:</strong> ${escapeHtml(item.escalation_note)}<small>${escapeHtml(item.escalated_by)} · ${escapeHtml(item.escalated_at)}</small></p>` : "";
+    const events = item.events.map((event) => `<li class="is-${event.state}"><i aria-hidden="true"></i><div><strong>${escapeHtml(event.label)}</strong><small>${escapeHtml(event.actor)} · ${escapeHtml(event.created_at)}</small>${event.note ? `<p>${escapeHtml(event.note)}</p>` : ""}</div></li>`).join("");
+    return `<article class="engineering-followup" data-followup-incident="${item.id}" data-followup-filter="${item.is_closed ? "closed" : "open"} ${item.status} ${item.escalation !== "غير مصعّد" ? "escalated" : ""} ${item.maintenance ? "maintenance" : ""}"><header><div><small>${escapeHtml(item.number)}</small><h5>${escapeHtml(item.type)}</h5></div><span class="stage-${item.stage}">${escapeHtml(item.stage_label)}</span></header><dl><div><dt>الأولوية</dt><dd>${escapeHtml(item.priority_label)}</dd></div><div><dt>الحالة</dt><dd>${escapeHtml(item.status_label)}</dd></div><div><dt>وقت الإنشاء</dt><dd>${escapeHtml(item.created_at)}</dd></div><div><dt>مدة الانتظار</dt><dd>${waitingLabel(item.waiting_seconds)}</dd></div><div><dt>المسؤول التنفيذي</dt><dd>${escapeHtml(item.assignee)}</dd></div><div><dt>مستوى التصعيد</dt><dd>${escapeHtml(item.escalation)}</dd></div></dl>${escalation}${update}${maintenance}${item.closed_at ? `<p class="engineering-followup__closed">✓ تم إغلاق البلاغ · ${escapeHtml(item.closed_by)} · ${escapeHtml(item.closed_at)}</p>` : ""}<details><summary>عرض المسار الكامل</summary><ol class="engineering-followup__timeline">${events || "<li><div><strong>لا توجد أحداث مسار مسجلة.</strong></div></li>"}</ol></details></article>`;
+  }
+
+  function renderFollowup(drawer, payload) {
+    const body = drawer.querySelector("[data-followup-body]");
+    const createAction = root.dataset.canCreateIncident === "true" ? `<a href="/ops/incidents/?door=${encodeURIComponent(payload.door.number)}&create=1">إنشاء بلاغ تشغيلي</a>` : "";
+    body.innerHTML = `<section class="engineering-followup__summary"><article><small>البلاغات المفتوحة</small><strong>${payload.summary.open}</strong></article><article><small>قيد المعالجة</small><strong>${payload.summary.processing}</strong></article><article><small>المصعّدة</small><strong>${payload.summary.escalated}</strong></article><article><small>مرتبطة بالصيانة</small><strong>${payload.summary.maintenance}</strong></article><article><small>المغلقة اليوم</small><strong>${payload.summary.closed_today}</strong></article></section><nav class="engineering-followup__filters" aria-label="تصفية بلاغات الباب"><button data-followup-filter-value="all" aria-pressed="true">الكل</button><button data-followup-filter-value="open">مفتوحة</button><button data-followup-filter-value="in_progress">قيد المعالجة</button><button data-followup-filter-value="escalated">مصعّدة</button><button data-followup-filter-value="maintenance">صيانة</button><button data-followup-filter-value="closed">مغلقة</button></nav><div class="engineering-followup__list">${payload.incidents.length ? payload.incidents.map(incidentMarkup).join("") : `<div class="engineering-followup__empty"><strong>لا توجد بلاغات مسجلة على هذا الباب.</strong>${createAction}</div>`}</div>`;
+    body.querySelectorAll("[data-followup-filter-value]").forEach((button) => button.addEventListener("click", () => {
+      const value = button.dataset.followupFilterValue;
+      body.querySelectorAll("[data-followup-filter-value]").forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
+      body.querySelectorAll("[data-followup-incident]").forEach((card) => { card.hidden = value !== "all" && !card.dataset.followupFilter.split(" ").includes(value); });
+    }));
+  }
+
+  async function loadFollowup(button, { preserve = false } = {}) {
+    const drawer = document.querySelector(`#${button.getAttribute("aria-controls")}`);
+    const expanded = preserve ? [...drawer.querySelectorAll("details[open]")].map((item) => item.closest("[data-followup-incident]")?.dataset.followupIncident) : [];
+    const response = await fetch(button.dataset.followupUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } });
+    if (!response.ok) throw new Error("تعذر تحميل بلاغات الباب");
+    renderFollowup(drawer, await response.json());
+    expanded.forEach((id) => drawer.querySelector(`[data-followup-incident="${id}"] details`)?.setAttribute("open", ""));
+  }
+
+  function bindInteractions() {
+    document.querySelectorAll("[data-incident-followup]").forEach((button) => button.addEventListener("click", async () => {
+      const drawer = document.querySelector(`#${button.getAttribute("aria-controls")}`);
+      const opening = drawer.hidden;
+      drawer.hidden = !opening;
+      button.setAttribute("aria-expanded", String(opening));
+      button.textContent = opening ? "إخفاء متابعة البلاغات" : "متابعة البلاغات";
+      if (opening) { try { await loadFollowup(button); drawer.querySelector("[data-close-followup]")?.focus(); } catch (error) { drawer.querySelector("[data-followup-body]").textContent = error.message; } }
+    }));
+    document.querySelectorAll("[data-close-followup]").forEach((button) => button.addEventListener("click", () => document.querySelector(`[aria-controls="${button.closest(".engineering-card__drawer").id}"]`)?.click()));
   }
 
   function showRefreshError(message = "تعذر تحديث البيانات") {
@@ -145,11 +176,7 @@
         card.querySelector("[data-metric='employees']").textContent = item.employee_count;
         card.querySelector("[data-metric='incidents']").textContent = item.open_incident_count;
         card.querySelector("[data-metric='maintenance']").textContent = item.active_maintenance_count;
-        card.querySelector("[data-detail='status']").textContent = item.status_label;
-        card.querySelector("[data-detail='status-copy']").textContent = item.status_label;
-        card.querySelector("[data-detail='employees']").textContent = item.employee_count;
-        card.querySelector("[data-detail='incidents']").textContent = item.open_incident_count;
-        card.querySelector("[data-detail='maintenance']").textContent = item.active_maintenance_count;
+        card.querySelector("[data-detail='status']")?.replaceChildren(item.status_label);
         card.querySelector("[data-metric='activity']").textContent = item.last_activity ? new Date(item.last_activity).toLocaleString("ar-SA", { day: "numeric", month: "long", hour: "numeric", minute: "2-digit" }) : "لا يوجد نشاط مسجل";
         updateAlertIndicators(card, item.open_incident_count, item.active_maintenance_count);
       });
@@ -158,6 +185,8 @@
       });
       applyFilters();
       root.dispatchEvent(new CustomEvent("engineering:center-refreshed", { detail: payload }));
+      const openButton = root.querySelector("[data-incident-followup][aria-expanded='true']");
+      if (openButton) await loadFollowup(openButton, { preserve: true });
       refreshTime.textContent = new Date().toLocaleTimeString("ar-SA", { hour: "numeric", minute: "2-digit" });
     } catch (error) {
       showRefreshError();

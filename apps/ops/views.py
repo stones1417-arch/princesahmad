@@ -6,7 +6,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 from io import BytesIO
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -29,6 +29,7 @@ from apps.roles.services.permission_registry import PlatformPermissions
 from .command_center_service import CommandCenterService
 from .door_service import DoorService
 from .engineering_center_service import EngineeringCenterService
+from .engineering_incident_followup_service import EngineeringIncidentFollowupService
 from .incident_service import IncidentService
 from .incident_routing_service import IncidentRoutingService
 from .maintenance_service import MaintenanceService
@@ -478,6 +479,23 @@ def door_status_view(request):
         "ops/door_status.html",
         context,
     )
+
+
+@login_required
+@require_GET
+def door_incident_followup_ajax(request, pk):
+    _require_ops_permission(request, PlatformPermissions.VIEW_DOORS)
+    door = get_object_or_404(
+        filter_doors_for_user(Door.objects.filter(is_active=True), request.user),
+        pk=pk,
+    )
+    return JsonResponse(EngineeringIncidentFollowupService.build(
+        door=door,
+        user=request.user,
+        can_view_maintenance_details=user_has_permission(
+            request.user, PlatformPermissions.VIEW_MAINTENANCE_REQUESTS
+        ),
+    ))
 
 
 @login_required
