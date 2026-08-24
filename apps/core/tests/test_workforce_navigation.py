@@ -78,6 +78,38 @@ class WorkforceNavigationContractTests(TestCase):
         self.assertIn("hr-dropdown is-active", breaks_menu)
         self.assertIn('aria-current="page"', breaks_menu)
 
+    def test_employees_menu_is_viewport_safe_without_text_truncation(self):
+        _, employees = self.render_menus(
+            {"roles.view_distribution", "breaks.can_view_break_dashboard"}
+        )
+        for item in (
+            "مركز القوى العاملة",
+            "ملفات الموظفين",
+            "إدارة التوزيع",
+            "إدارة الراحات",
+            "تسكين الوردية",
+            "الوردية الحالية",
+            "إدارة الورديات",
+        ):
+            self.assertIn(item, employees)
+        for contract in (
+            "--hr-menu-available-height",
+            "100dvh",
+            "box-sizing:border-box",
+            "overflow-y:auto",
+            "overscroll-behavior:contain",
+            "scrollbar-width:thin",
+            "white-space:normal",
+            "text-overflow:clip",
+            "overflow-wrap:break-word",
+            "position:sticky",
+            ":focus-within",
+            "safe-area-inset-bottom",
+            "menu.scrollTop = 0",
+        ):
+            self.assertIn(contract, employees)
+        self.assertNotIn("text-overflow:ellipsis", employees)
+
     def test_distribution_direct_url_security_contract_is_unchanged(self):
         url = reverse("distribution:dashboard")
         self.assertEqual(self.client.get(url).status_code, 302)
