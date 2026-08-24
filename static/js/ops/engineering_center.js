@@ -14,8 +14,13 @@
   const tabs = [...root.querySelectorAll("[data-engineering-tab]")];
   const panels = [...root.querySelectorAll("[data-engineering-panel]")];
   const mapFrame = root.querySelector("[data-map-frame]");
+  const followupBackdrop = root.querySelector("[data-followup-backdrop]");
   const controlIds = ["q", "status", "density", "incident", "maint", "sort"];
   let refreshPending = false;
+  let activeFollowupButton = null;
+  let activeFollowupDrawer = null;
+  let followupController = null;
+  let followupRequestId = 0;
 
   function activateTab(tab) {
     const target = tab.dataset.engineeringTab;
@@ -114,25 +119,86 @@
     }));
   }
 
+  const followupLoadingMarkup = '<p role="status">جارٍ تحميل مسار البلاغات…</p>';
+
+  function closeIncidentFollowupDrawer({ restoreFocus = true } = {}) {
+    const button = activeFollowupButton;
+    const drawer = activeFollowupDrawer;
+    followupRequestId += 1;
+    followupController?.abort();
+    followupController = null;
+    if (drawer) {
+      drawer.hidden = true;
+      drawer.setAttribute("aria-hidden", "true");
+      drawer.removeAttribute("data-open");
+      drawer.querySelector("[data-followup-body]").innerHTML = followupLoadingMarkup;
+    }
+    if (button) {
+      button.setAttribute("aria-expanded", "false");
+      button.textContent = "متابعة البلاغات";
+    }
+    followupBackdrop.hidden = true;
+    followupBackdrop.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("engineering-followup-open");
+    activeFollowupButton = null;
+    activeFollowupDrawer = null;
+    if (restoreFocus) button?.focus();
+  }
+
+  function showFollowupError(drawer) {
+    if (drawer !== activeFollowupDrawer || drawer.hidden) return;
+    drawer.querySelector("[data-followup-body]").innerHTML = '<div class="engineering-followup__empty" role="alert"><strong>تعذر تحميل بيانات البلاغات.</strong><div><button type="button" data-followup-retry>إعادة المحاولة</button><button type="button" data-followup-error-close>إغلاق</button></div></div>';
+  }
+
   async function loadFollowup(button, { preserve = false } = {}) {
     const drawer = document.querySelector(`#${button.getAttribute("aria-controls")}`);
+    if (drawer !== activeFollowupDrawer || button !== activeFollowupButton || drawer.hidden) return;
     const expanded = preserve ? [...drawer.querySelectorAll("details[open]")].map((item) => item.closest("[data-followup-incident]")?.dataset.followupIncident) : [];
-    const response = await fetch(button.dataset.followupUrl, { headers: { "X-Requested-With": "XMLHttpRequest" } });
-    if (!response.ok) throw new Error("تعذر تحميل بلاغات الباب");
-    renderFollowup(drawer, await response.json());
-    expanded.forEach((id) => drawer.querySelector(`[data-followup-incident="${id}"] details`)?.setAttribute("open", ""));
+    followupController?.abort();
+    const controller = new AbortController();
+    const requestId = ++followupRequestId;
+    followupController = controller;
+    if (!preserve) drawer.querySelector("[data-followup-body]").innerHTML = followupLoadingMarkup;
+    try {
+      const response = await fetch(button.dataset.followupUrl, { headers: { "X-Requested-With": "XMLHttpRequest" }, signal: controller.signal });
+      if (!response.ok) throw new Error("followup fetch failed");
+      const payload = await response.json();
+      if (requestId !== followupRequestId || drawer !== activeFollowupDrawer || drawer.hidden) return;
+      renderFollowup(drawer, payload);
+      expanded.forEach((id) => drawer.querySelector(`[data-followup-incident="${id}"] details`)?.setAttribute("open", ""));
+    } catch (error) {
+      if (error.name !== "AbortError") showFollowupError(drawer);
+    } finally {
+      if (followupController === controller) followupController = null;
+    }
   }
 
   function bindInteractions() {
     document.querySelectorAll("[data-incident-followup]").forEach((button) => button.addEventListener("click", async () => {
       const drawer = document.querySelector(`#${button.getAttribute("aria-controls")}`);
-      const opening = drawer.hidden;
-      drawer.hidden = !opening;
-      button.setAttribute("aria-expanded", String(opening));
-      button.textContent = opening ? "إخفاء متابعة البلاغات" : "متابعة البلاغات";
-      if (opening) { try { await loadFollowup(button); drawer.querySelector("[data-close-followup]")?.focus(); } catch (error) { drawer.querySelector("[data-followup-body]").textContent = error.message; } }
+      if (button === activeFollowupButton && !drawer.hidden) { closeIncidentFollowupDrawer(); return; }
+      if (activeFollowupDrawer) closeIncidentFollowupDrawer({ restoreFocus: false });
+      activeFollowupButton = button;
+      activeFollowupDrawer = drawer;
+      drawer.hidden = false;
+      drawer.setAttribute("aria-hidden", "false");
+      drawer.dataset.open = "true";
+      button.setAttribute("aria-expanded", "true");
+      button.textContent = "إخفاء متابعة البلاغات";
+      followupBackdrop.hidden = false;
+      followupBackdrop.setAttribute("aria-hidden", "false");
+      document.body.classList.add("engineering-followup-open");
+      drawer.querySelector("[data-close-followup]").focus();
+      await loadFollowup(button);
     }));
-    document.querySelectorAll("[data-close-followup]").forEach((button) => button.addEventListener("click", () => document.querySelector(`[aria-controls="${button.closest(".engineering-card__drawer").id}"]`)?.click()));
+    root.addEventListener("click", (event) => {
+      if (event.target.closest("[data-close-followup], [data-followup-error-close]")) closeIncidentFollowupDrawer();
+      if (event.target.closest("[data-followup-retry]") && activeFollowupButton) loadFollowup(activeFollowupButton);
+      if (event.target === followupBackdrop) closeIncidentFollowupDrawer();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && activeFollowupDrawer) closeIncidentFollowupDrawer();
+    });
   }
 
   function showRefreshError(message = "تعذر تحديث البيانات") {

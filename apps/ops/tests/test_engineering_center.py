@@ -278,3 +278,29 @@ class EngineeringCenterClosureTests(TestCase):
             reverse("ops:door-incident-followup", args=[door.pk])
         ).json()
         self.assertEqual([item["id"] for item in payload["incidents"]], [male.pk])
+
+    def test_followup_drawer_close_and_reopen_contract(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("ops:doors"))
+        self.assertContains(response, "data-followup-backdrop", count=1)
+        self.assertContains(response, "data-close-followup", count=42)
+        self.assertContains(
+            response, 'hidden aria-hidden="true" role="dialog"', count=42
+        )
+        self.assertContains(
+            response, 'data-followup-backdrop hidden aria-hidden="true"', count=1
+        )
+        self.assertContains(response, 'role="dialog"', count=42)
+
+        script_path = finders.find("js/ops/engineering_center.js")
+        with open(script_path, encoding="utf-8") as script_file:
+            script = script_file.read()
+        self.assertIn("function closeIncidentFollowupDrawer", script)
+        self.assertIn('event.key === "Escape"', script)
+        self.assertIn("event.target === followupBackdrop", script)
+        self.assertIn("followupController?.abort()", script)
+        self.assertIn("requestId !== followupRequestId", script)
+        self.assertIn('document.body.classList.remove("engineering-followup-open")', script)
+        self.assertIn("button?.focus()", script)
+        self.assertIn("drawer !== activeFollowupDrawer", script)
+        self.assertIn("data-followup-retry", script)
