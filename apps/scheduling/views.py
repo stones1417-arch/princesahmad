@@ -264,16 +264,23 @@ def ensure_today_shift_plans():
 )
 def current_shift_view(request):
     """
-    عرض الوردية النشطة حاليًا.
+    مركز الوردية وبلاغاتها التشغيلية.
     """
-    from apps.dashboard.views import build_dashboard_context
+    from apps.roles.services.access_control import user_has_permission
+    from apps.roles.services.permission_registry import PlatformPermissions
+    from apps.scheduling.shift_center_service import ShiftCenterService
 
-    context = build_dashboard_context(request)
-    context["show_shift_dashboard"] = True
+    context = ShiftCenterService.build(request)
+    context.update({
+        "can_update_incident": user_has_permission(request.user, PlatformPermissions.UPDATE_INCIDENT),
+        "can_escalate_incident": user_has_permission(request.user, PlatformPermissions.ESCALATE_INCIDENT),
+        "can_convert_incident": user_has_permission(request.user, PlatformPermissions.CONVERT_INCIDENT_TO_MAINTENANCE),
+        "can_close_incident": user_has_permission(request.user, PlatformPermissions.CLOSE_INCIDENT),
+    })
 
     return render(
         request,
-        "dashboard/index.html",
+        "scheduling/current_shift.html",
         context,
     )
 

@@ -1055,9 +1055,10 @@
                                 <ol>
                                     {% for event in incident.routing_events.all %}
                                         <li>
-                                            {{ event.get_event_type_display }}
+                                            {% if event.note and event.event_type == "processing_started" %}آخر تحديث من الوردية{% else %}{{ event.get_event_type_display }}{% endif %}
                                             — {{ event.created_at|date:"Y-m-d H:i" }}
                                             {% if event.actor %}— {{ event.actor.get_full_name|default:event.actor.username }}{% endif %}
+                                            {% if event.note %}<p>{{ event.note }}</p>{% endif %}
                                         </li>
                                     {% empty %}
                                         <li>لا توجد أحداث مسار مسجلة.</li>

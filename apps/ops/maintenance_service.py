@@ -775,6 +775,24 @@ class MaintenanceService:
                     actor=effective_user,
                     note=updated_maintenance.request_number,
                 )
+                if (
+                    event_type == IncidentRoutingEvent.EventType.MAINTENANCE_COMPLETED
+                    and updated_maintenance.source_incident.assigned_to_id
+                ):
+                    from apps.notifications.models import Notification
+
+                    Notification.objects.create(
+                        user_id=updated_maintenance.source_incident.assigned_to_id,
+                        title="اكتملت صيانة بلاغ تشغيلي",
+                        message=(
+                            "اكتملت الصيانة المرتبطة بالبلاغ "
+                            f"{updated_maintenance.source_incident.incident_number}؛ "
+                            "بانتظار تأكيد الإغلاق."
+                        ),
+                        section=updated_maintenance.source_incident.section,
+                        url="/scheduling/",
+                        level=Notification.Level.SUCCESS,
+                    )
 
         return updated_maintenance
 

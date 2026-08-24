@@ -20,4 +20,5 @@ urlpatterns = [
     path("incidents/<int:pk>/update/", views.update_incident_status_ajax, name="incident-update"),
     path("incidents/<int:pk>/escalate/", views.escalate_incident_ajax, name="incident-escalate"),
     path("incidents/<int:pk>/convert-maintenance/", views.convert_incident_to_maintenance_ajax, name="incident-convert-maintenance"),
+    path("incidents/<int:pk>/shift-update/", views.add_incident_shift_update_ajax, name="incident-shift-update"),
 ]

@@ -159,6 +159,29 @@ class IncidentRoutingService:
 
     @staticmethod
     @transaction.atomic
+    def add_shift_update(incident, actor, note):
+        clean_note = str(note or "").strip()
+        if not clean_note:
+            raise ValidationError("ملاحظات المعالجة مطلوبة.")
+        locked = Incident.objects.select_for_update().get(pk=incident.pk)
+        event = IncidentRoutingEvent.objects.create(
+            incident=locked,
+            event_type=IncidentRoutingEvent.EventType.PROCESSING_STARTED,
+            actor=actor,
+            note=clean_note,
+        )
+        if locked.created_by_id and locked.created_by_id != getattr(actor, "pk", None):
+            Notification.objects.create(
+                user_id=locked.created_by_id,
+                title="تحديث من الوردية",
+                message=f"ورد تحديث جديد على البلاغ {locked.incident_number}.",
+                section=locked.section,
+                url="/ops/incidents/",
+            )
+        return event
+
+    @staticmethod
+    @transaction.atomic
     def convert_to_maintenance(
         incident, request, planned_start_at, planned_end_at, actor=None
     ):

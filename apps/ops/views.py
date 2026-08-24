@@ -1768,6 +1768,27 @@ def convert_incident_to_maintenance_ajax(request, pk):
     })
 
 
+@login_required
+@require_POST
+def add_incident_shift_update_ajax(request, pk):
+    _require_ops_permission(request, PlatformPermissions.UPDATE_INCIDENT)
+    incident = get_object_or_404(
+        _scoped_by_section(Incident.objects, request.user), pk=pk
+    )
+    try:
+        event = IncidentRoutingService.add_shift_update(
+            incident, request.user, request.POST.get("note", "")
+        )
+    except ValidationError as error:
+        return JsonResponse(
+            {"success": False, "error": _validation_error_message(error)}, status=400
+        )
+    return JsonResponse({
+        "success": True,
+        "event": {"id": event.pk, "note": event.note, "created_at": event.created_at.isoformat()},
+    })
+
+
 # =========================================================
 # سجل العمليات المباشرة
 # =========================================================

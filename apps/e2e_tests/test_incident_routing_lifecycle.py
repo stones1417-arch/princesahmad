@@ -90,6 +90,9 @@ class IncidentRoutingLifecycleE2ETests(TestCase):
     def test_complete_incident_routing_lifecycle_through_runtime_endpoints(self):
         incident = self._create_incident()
         self.assertEqual(incident.assigned_to, self.supervisor)
+        self.assertContains(
+            self.client.get(reverse("scheduling:current")), incident.incident_number
+        )
         self.assertEqual(
             list(incident.routing_events.values_list("event_type", flat=True)),
             [IncidentRoutingEvent.EventType.CREATED, IncidentRoutingEvent.EventType.ASSIGNED],
@@ -97,6 +100,9 @@ class IncidentRoutingLifecycleE2ETests(TestCase):
 
         self.client.force_login(self.deputy)
         self.assertContains(self.client.get(reverse("ops:incidents")), incident.incident_number)
+        self.assertContains(
+            self.client.get(reverse("scheduling:current")), incident.incident_number
+        )
         incident.refresh_from_db()
         self.assertEqual(incident.assigned_to, self.supervisor)
 
@@ -105,6 +111,7 @@ class IncidentRoutingLifecycleE2ETests(TestCase):
 
         self.client.force_login(self.ordinary)
         protected_posts = [
+            (reverse("ops:incident-shift-update", args=[incident.pk]), {"note": "forged"}),
             (reverse("ops:incident-escalate", args=[incident.pk]), {"note": "forged"}),
             (reverse("ops:incident-convert-maintenance", args=[incident.pk]), {}),
             (reverse("ops:incident-update", args=[incident.pk]), {"status": "closed", "closing_notes": "forged"}),
@@ -115,6 +122,15 @@ class IncidentRoutingLifecycleE2ETests(TestCase):
         self.client.force_login(self.supervisor)
         update_url = reverse("ops:incident-update", args=[incident.pk])
         self.assertEqual(self.client.post(update_url, {"status": "in_progress"}).status_code, 200)
+        shift_update = self.client.post(
+            reverse("ops:incident-shift-update", args=[incident.pk]),
+            {"note": "تمت معاينة الباب ويجري التعامل مع الخلل."},
+        )
+        self.assertEqual(shift_update.status_code, 200)
+        self.assertContains(
+            self.client.get(reverse("ops:incidents")),
+            "تمت معاينة الباب ويجري التعامل مع الخلل.",
+        )
         escalation_url = reverse("ops:incident-escalate", args=[incident.pk])
         self.assertEqual(self.client.post(escalation_url, {"note": "يتطلب إشراف القسم"}).status_code, 200)
         incident.refresh_from_db()
