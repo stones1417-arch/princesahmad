@@ -352,6 +352,7 @@ class MaintenanceService:
         planned_end_at=None,
         section: str = "",
         assignment=None,
+        source_incident=None,
     ):
         """
         إنشاء طلب صيانة جديد بانتظار مراجعة مركز العمليات.
@@ -521,6 +522,7 @@ class MaintenanceService:
             planned_start_at=planned_start_at,
             planned_end_at=planned_end_at,
             created_by=created_by,
+            source_incident=source_incident,
         )
 
         maintenance.full_clean()
@@ -755,6 +757,24 @@ class MaintenanceService:
                 )
 
         updated_maintenance.refresh_from_db()
+
+        if changed and updated_maintenance.source_incident_id:
+            from apps.ops.models import IncidentRoutingEvent
+
+            event_map = {
+                MaintenanceRequest.Status.APPROVED: IncidentRoutingEvent.EventType.MAINTENANCE_APPROVED,
+                MaintenanceRequest.Status.IN_PROGRESS: IncidentRoutingEvent.EventType.MAINTENANCE_STARTED,
+                MaintenanceRequest.Status.DONE: IncidentRoutingEvent.EventType.MAINTENANCE_COMPLETED,
+                MaintenanceRequest.Status.CLOSED: IncidentRoutingEvent.EventType.MAINTENANCE_COMPLETED,
+            }
+            event_type = event_map.get(normalized_status)
+            if event_type:
+                IncidentRoutingEvent.objects.create(
+                    incident_id=updated_maintenance.source_incident_id,
+                    event_type=event_type,
+                    actor=effective_user,
+                    note=updated_maintenance.request_number,
+                )
 
         return updated_maintenance
 

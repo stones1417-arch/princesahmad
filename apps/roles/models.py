@@ -144,6 +144,10 @@ class Role(models.Model):
 
             ("create_incident", "يمكن إنشاء بلاغ تشغيلي"),
             ("update_incident", "يمكن تحديث بلاغ تشغيلي"),
+            ("assign_incident", "يمكن تعيين مسؤول البلاغ"),
+            ("escalate_incident", "يمكن تصعيد البلاغ"),
+            ("convert_incident_to_maintenance", "يمكن تحويل البلاغ إلى الصيانة"),
+            ("close_incident", "يمكن إغلاق البلاغ التشغيلي"),
 
             ("view_reports", "يمكن عرض التقارير"),
             ("create_report", "يمكن إنشاء تقرير"),

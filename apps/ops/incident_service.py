@@ -359,6 +359,22 @@ def change_incident_status(
         reason=clean_reason,
     )
 
+    if normalized_status == Incident.Status.IN_PROGRESS:
+        from apps.ops.models import IncidentRoutingEvent
+        IncidentRoutingEvent.objects.create(
+            incident=locked_incident,
+            event_type=IncidentRoutingEvent.EventType.PROCESSING_STARTED,
+            actor=effective_user,
+        )
+    elif normalized_status == Incident.Status.CLOSED:
+        from apps.ops.models import IncidentRoutingEvent
+        IncidentRoutingEvent.objects.create(
+            incident=locked_incident,
+            event_type=IncidentRoutingEvent.EventType.CLOSED,
+            actor=effective_user,
+            note=clean_closing_notes,
+        )
+
     return locked_incident, True
 
 
@@ -426,7 +442,12 @@ class IncidentService:
         )
         incident.full_clean()
         incident.save()
-        return incident
+        from apps.ops.incident_routing_service import IncidentRoutingService
+
+        return IncidentRoutingService.route_created_incident(
+            incident,
+            actor=incident.created_by,
+        )
 
     @staticmethod
     def change_status(

@@ -30,6 +30,7 @@ from .command_center_service import CommandCenterService
 from .door_service import DoorService
 from .engineering_center_service import EngineeringCenterService
 from .incident_service import IncidentService
+from .incident_routing_service import IncidentRoutingService
 from .maintenance_service import MaintenanceService
 from .models import (
     DoorCurrentState,
@@ -1143,8 +1144,13 @@ def incidents_view(request):
         or ""
     ).strip()
 
+    door_filter = str(request.GET.get("door", "") or "").strip()
+    assigned_filter = str(request.GET.get("assigned_to", "") or "").strip()
+    escalation_filter = str(request.GET.get("escalation_level", "") or "").strip()
+    maintenance_filter = str(request.GET.get("has_maintenance", "") or "").strip()
+
     incidents = (
-        _scoped_by_section(Incident.objects, request.user)
+        IncidentRoutingService.visible_incidents(Incident.objects, request.user)
         .select_related(
             "door",
             "door_shift",
@@ -1153,7 +1159,9 @@ def incidents_view(request):
             "created_by",
             "closed_by",
             "assigned_to",
+            "maintenance_request",
         )
+        .prefetch_related("routing_events", "routing_events__actor")
         .order_by("-created_at")
     )
 
@@ -1193,6 +1201,19 @@ def incidents_view(request):
 
     if section_filter in {"male", "female"}:
         incidents = incidents.filter(section=section_filter)
+
+    if door_filter.isdigit():
+        incidents = incidents.filter(door_id=door_filter)
+    if assigned_filter == "unassigned":
+        incidents = incidents.filter(assigned_to__isnull=True)
+    elif assigned_filter.isdigit():
+        incidents = incidents.filter(assigned_to_id=assigned_filter)
+    if escalation_filter in dict(Incident.EscalationLevel.choices):
+        incidents = incidents.filter(escalation_level=escalation_filter)
+    if maintenance_filter == "yes":
+        incidents = incidents.filter(maintenance_request__isnull=False)
+    elif maintenance_filter == "no":
+        incidents = incidents.filter(maintenance_request__isnull=True)
 
     if (
         type_filter
@@ -1266,6 +1287,16 @@ def incidents_view(request):
         "selected_section": section_filter,
         "selected_type": type_filter,
         "q": query,
+        "selected_door": door_filter,
+        "selected_assigned_to": assigned_filter,
+        "selected_escalation_level": escalation_filter,
+        "selected_has_maintenance": maintenance_filter,
+        "escalation_choices": Incident.EscalationLevel.choices,
+        "can_assign_incident": user_has_permission(request.user, PlatformPermissions.ASSIGN_INCIDENT),
+        "can_escalate_incident": user_has_permission(request.user, PlatformPermissions.ESCALATE_INCIDENT),
+        "can_convert_incident": user_has_permission(request.user, PlatformPermissions.CONVERT_INCIDENT_TO_MAINTENANCE),
+        "can_close_incident": user_has_permission(request.user, PlatformPermissions.CLOSE_INCIDENT),
+        "can_update_incident": user_has_permission(request.user, PlatformPermissions.UPDATE_INCIDENT),
 
         "total_incidents": (
             all_incidents.count()
@@ -1323,17 +1354,6 @@ def create_incident_ajax(
     _require_ops_permission(request, PlatformPermissions.CREATE_INCIDENT)
     active_shift = _get_active_shift()
 
-    if not active_shift:
-        return JsonResponse(
-            {
-                "success": False,
-                "error": (
-                    "لا توجد وردية نشطة حاليًا."
-                ),
-            },
-            status=400,
-        )
-
     door_shift = None
     door = None
 
@@ -1374,6 +1394,11 @@ def create_incident_ajax(
     )
 
     if selected_door_id:
+        if active_shift is None:
+            return JsonResponse(
+                {"success": False, "error": "لا توجد وردية نشطة لهذا السجل."},
+                status=400,
+            )
         door_shift = get_object_or_404(
             _scoped_by_section(DoorShift.objects, request.user).select_related(
                 "shift_plan",
@@ -1428,31 +1453,14 @@ def create_incident_ajax(
     if door and door.operational_section != Door.OperationalSection.SHARED:
         section = door.operational_section
 
-    assigned_to = None
-    assigned_to_name = ""
     assigned_to_id = str(
         request.POST.get("assigned_to_id", "") or ""
     ).strip()
     if assigned_to_id:
-        assignee_assignment = (
-            _incident_assignees(
-                active_shift,
-                section=section,
-                user=request.user,
-            )
-            .filter(employee__user_id=assigned_to_id)
-            .first()
+        return JsonResponse(
+            {"success": False, "error": "يتم تعيين مسؤول البلاغ تلقائيًا."},
+            status=400,
         )
-        if not assignee_assignment:
-            return JsonResponse(
-                {
-                    "success": False,
-                    "error": "المستخدم المحدد غير مخول لاستلام هذا البلاغ.",
-                },
-                status=400,
-            )
-        assigned_to = assignee_assignment.employee.user
-        assigned_to_name = assignee_assignment.employee.full_name
     assignment = None
     assignment_id = str(
         request.POST.get("assignment_id", "") or ""
@@ -1476,13 +1484,11 @@ def create_incident_ajax(
             door=door,
             door_shift=door_shift,
             assignment=assignment,
-            assigned_to=assigned_to,
             section=section,
             description=description,
             incident_type=incident_type,
             priority=priority,
             reported_by_name=reported_by_name,
-            assigned_to_name=assigned_to_name,
         )
 
     except ValidationError as error:
@@ -1568,7 +1574,13 @@ def update_incident_status_ajax(
     تحديث حالة بلاغ تشغيلي.
     """
 
-    _require_ops_permission(request, PlatformPermissions.UPDATE_INCIDENT)
+    requested_status = str(request.POST.get("status", "") or "").strip()
+    required_permission = (
+        PlatformPermissions.CLOSE_INCIDENT
+        if requested_status == Incident.Status.CLOSED
+        else PlatformPermissions.UPDATE_INCIDENT
+    )
+    _require_ops_permission(request, required_permission)
     incident = get_object_or_404(
         _scoped_by_section(Incident.objects, request.user).select_related(
             "door_shift",
@@ -1580,13 +1592,7 @@ def update_incident_status_ajax(
         pk=pk,
     )
 
-    new_status = (
-        request.POST.get(
-            "status",
-            "",
-        )
-        or ""
-    ).strip()
+    new_status = requested_status
 
     closing_notes = (
         request.POST.get(
@@ -1596,22 +1602,13 @@ def update_incident_status_ajax(
         or ""
     ).strip()
 
-    assigned_to_name = (
-        request.POST.get(
-            "assigned_to_name",
-            "",
-        )
-        or ""
-    ).strip()
-
     try:
-        incident = (
-            IncidentService.update_status(
+        incident, _changed = (
+            IncidentService.change_status(
                 request=request,
                 incident=incident,
-                status=new_status,
+                new_status=new_status,
                 closing_notes=closing_notes,
-                assigned_to_name=assigned_to_name,
             )
         )
 
@@ -1717,6 +1714,58 @@ def update_incident_status_ajax(
             "door": door_data,
         }
     )
+
+
+@login_required
+@require_POST
+def escalate_incident_ajax(request, pk):
+    _require_ops_permission(request, PlatformPermissions.ESCALATE_INCIDENT)
+    incident = get_object_or_404(
+        _scoped_by_section(Incident.objects, request.user), pk=pk
+    )
+    try:
+        incident = IncidentRoutingService.escalate_incident(
+            incident, request.user, request.POST.get("note", "")
+        )
+    except ValidationError as error:
+        return JsonResponse(
+            {"success": False, "error": _validation_error_message(error)}, status=400
+        )
+    return JsonResponse({
+        "success": True,
+        "escalation_level": incident.escalation_level,
+        "escalation_label": incident.get_escalation_level_display(),
+    })
+
+
+@login_required
+@require_POST
+def convert_incident_to_maintenance_ajax(request, pk):
+    _require_ops_permission(
+        request, PlatformPermissions.CONVERT_INCIDENT_TO_MAINTENANCE
+    )
+    incident = get_object_or_404(
+        _scoped_by_section(Incident.objects, request.user), pk=pk
+    )
+    planned_start_at = _parse_planned_datetime(request.POST.get("planned_start_at"))
+    planned_end_at = _parse_planned_datetime(request.POST.get("planned_end_at"))
+    try:
+        maintenance = IncidentRoutingService.convert_to_maintenance(
+            incident,
+            request,
+            planned_start_at,
+            planned_end_at,
+            actor=request.user,
+        )
+    except ValidationError as error:
+        return JsonResponse(
+            {"success": False, "error": _validation_error_message(error)}, status=400
+        )
+    return JsonResponse({
+        "success": True,
+        "request_number": maintenance.request_number,
+        "status": maintenance.status,
+    })
 
 
 # =========================================================

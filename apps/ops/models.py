@@ -513,6 +513,15 @@ class MaintenanceRequest(models.Model):
         verbose_name="وقت البدء المخطط",
     )
 
+    source_incident = models.OneToOneField(
+        "ops.Incident",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="maintenance_request",
+        verbose_name="البلاغ التشغيلي المصدر",
+    )
+
     planned_end_at = models.DateTimeField(
         null=True,
         blank=True,
@@ -832,6 +841,11 @@ class MaintenanceRequest(models.Model):
 
 class Incident(models.Model):
 
+    class EscalationLevel(models.TextChoices):
+        NONE = "none", "غير مصعّد"
+        DEPARTMENT_HEAD = "department_head", "رئيس قسم الأبواب"
+        GENERAL_MANAGER = "general_manager", "المدير العام"
+
     class IncidentType(models.TextChoices):
         DOOR_FAULT = "door_fault", "عطل باب"
         CROWDING = "crowding", "ازدحام"
@@ -947,6 +961,26 @@ class Incident(models.Model):
         related_name="assigned_operational_incidents",
         verbose_name="محول إلى",
     )
+
+    escalation_level = models.CharField(
+        max_length=30,
+        choices=EscalationLevel.choices,
+        default=EscalationLevel.NONE,
+        db_index=True,
+        verbose_name="مستوى التصعيد",
+    )
+
+    escalated_at = models.DateTimeField(null=True, blank=True)
+
+    escalated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="escalated_operational_incidents",
+    )
+
+    escalation_note = models.TextField(blank=True)
 
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -1104,3 +1138,47 @@ class Incident(models.Model):
             self.closed_at = None
 
         super().save(*args, **kwargs)
+
+
+class IncidentRoutingEvent(models.Model):
+    class EventType(models.TextChoices):
+        CREATED = "created", "إنشاء البلاغ"
+        ASSIGNED = "assigned", "إسناد البلاغ"
+        PROCESSING_STARTED = "processing_started", "بدء المعالجة"
+        ESCALATED = "escalated", "تصعيد البلاغ"
+        CONVERTED_TO_MAINTENANCE = "converted_to_maintenance", "تحويل إلى الصيانة"
+        MAINTENANCE_APPROVED = "maintenance_approved", "اعتماد الصيانة"
+        MAINTENANCE_STARTED = "maintenance_started", "بدء الصيانة"
+        MAINTENANCE_COMPLETED = "maintenance_completed", "اكتمال الصيانة"
+        CLOSED = "closed", "إغلاق البلاغ"
+
+    incident = models.ForeignKey(
+        Incident,
+        on_delete=models.CASCADE,
+        related_name="routing_events",
+    )
+    event_type = models.CharField(max_length=40, choices=EventType.choices, db_index=True)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="incident_routing_events",
+    )
+    target_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="targeted_incident_routing_events",
+    )
+    target_level = models.CharField(
+        max_length=30,
+        choices=Incident.EscalationLevel.choices,
+        blank=True,
+    )
+    note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["created_at", "pk"]

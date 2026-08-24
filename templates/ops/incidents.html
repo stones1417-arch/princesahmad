@@ -463,47 +463,29 @@
                 </div>
 
 
-                <!-- محوّل إلى -->
+                <!-- التوجيه المؤسسي التلقائي -->
 
                 <div class="incident-form-field">
 
                     <label for="assignedToName">
 
                         <span>
-                            محوّل إلى
+                            المسؤول التنفيذي
                         </span>
 
                         <small class="optional-mark">
-                            اختياري
+                            تلقائي
                         </small>
 
                     </label>
 
                     <select
                         id="assignedToName"
-                        name="assigned_to_id"
-                        {% if not active_shift %}disabled{% endif %}
+                        disabled
                     >
                         <option value="">
-                            {% if active_shift %}
-                                بدون تحويل
-                            {% else %}
-                                لا توجد وردية نشطة للتحويل
-                            {% endif %}
+                            يُعيّن مشرف الوردية ثم النائب تلقائيًا
                         </option>
-                        {% for assignment in incident_assignees %}
-                            <option
-                                value="{{ assignment.employee.user_id }}"
-                                data-section="{{ assignment.employee.operational_section|default:'' }}"
-                            >
-                                {{ assignment.employee.full_name }} —
-                                {% if assignment.role == "shift_head" %}
-                                    مشرف الوردية
-                                {% else %}
-                                    نائب مشرف الوردية
-                                {% endif %}
-                            </option>
-                        {% endfor %}
                     </select>
 
                     <small
@@ -754,6 +736,24 @@
 
                 <div class="incident-form-field">
 
+                    <label for="sectionFilter">
+                        القسم التشغيلي
+                    </label>
+
+                    <select
+                        id="sectionFilter"
+                        name="section"
+                    >
+                        <option value="">كل الأقسام</option>
+                        <option value="male" {% if selected_section == "male" %}selected{% endif %}>رجالي</option>
+                        <option value="female" {% if selected_section == "female" %}selected{% endif %}>نسائي</option>
+                    </select>
+
+                </div>
+
+
+                <div class="incident-form-field">
+
                     <label for="typeFilter">
                         النوع
                     </label>
@@ -854,6 +854,8 @@
 
                         <th>الباب</th>
 
+                        <th>القسم</th>
+
                         <th>النوع</th>
 
                         <th>الأولوية</th>
@@ -921,6 +923,10 @@
                         </td>
 
                         <td>
+                            {% if incident.section == "male" %}رجالي{% elif incident.section == "female" %}نسائي{% else %}غير محدد{% endif %}
+                        </td>
+
+                        <td>
 
                             {{ incident.get_incident_type_display }}
 
@@ -954,7 +960,16 @@
 
                         <td>
 
-                            {{ incident.assigned_to_name|default:"—" }}
+                            {{ incident.assigned_to_name|default:"بانتظار التعيين" }}
+                            <br>
+                            <small>{{ incident.get_escalation_level_display }}</small>
+                            {% if incident.maintenance_request %}
+                                <br>
+                                <small>
+                                    صيانة: {{ incident.maintenance_request.request_number }}
+                                    — {{ incident.maintenance_request.get_status_display }}
+                                </small>
+                            {% endif %}
 
                         </td>
 
@@ -974,15 +989,81 @@
 
                         <td>
 
-                            <button
+                            {% if can_update_incident and incident.status != "closed" %}<button
                                 type="button"
                                 class="incident-update-button"
                                 data-incident-id="{{ incident.id }}"
+                                data-update-url="{% url 'ops:incident-update' incident.id %}"
                             >
 
-                                تحديث
+                                بدء المعالجة
 
-                            </button>
+                            </button>{% endif %}
+
+                            {% if can_escalate_incident and incident.escalation_level != "general_manager" %}
+                                <button type="button" class="incident-escalate-button"
+                                    data-action-url="{% url 'ops:incident-escalate' incident.id %}"
+                                    data-number="{{ incident.incident_number }}"
+                                    data-door="{% if incident.door %}{{ incident.door.door_number }}{% elif incident.door_shift %}{{ incident.door_shift.door_number }}{% else %}—{% endif %}"
+                                    data-assignee="{{ incident.assigned_to_name|default:'بانتظار التعيين' }}"
+                                    data-current="{{ incident.get_escalation_level_display }}"
+                                    data-next="{% if incident.escalation_level == 'none' %}رئيس قسم الأبواب{% else %}المدير العام{% endif %}">
+                                    تصعيد البلاغ
+                                </button>
+                            {% endif %}
+
+                            {% if can_convert_incident and not incident.maintenance_request %}
+                                <button type="button" class="incident-convert-button"
+                                    data-action-url="{% url 'ops:incident-convert-maintenance' incident.id %}"
+                                    data-number="{{ incident.incident_number }}"
+                                    data-door="{% if incident.door %}{{ incident.door.door_number }}{% elif incident.door_shift %}{{ incident.door_shift.door_number }}{% else %}—{% endif %}"
+                                    data-priority="{{ incident.get_priority_display }}"
+                                    data-description="{{ incident.description|truncatechars:160 }}">
+                                    تحويل إلى طلب صيانة
+                                </button>
+                            {% elif incident.maintenance_request %}
+                                <a class="incident-maintenance-link" href="{% url 'ops:maintenance-list' %}?q={{ incident.maintenance_request.request_number|urlencode }}">
+                                    عرض طلب الصيانة
+                                </a>
+                            {% endif %}
+
+                            {% if can_close_incident and incident.status != "closed" %}
+                                {% if not incident.maintenance_request or incident.maintenance_request.status == "done" or incident.maintenance_request.status == "closed" %}
+                                    <button type="button" class="incident-close-button"
+                                        data-action-url="{% url 'ops:incident-update' incident.id %}"
+                                        data-number="{{ incident.incident_number }}">
+                                        {% if incident.maintenance_request %}تأكيد معالجة البلاغ وإغلاقه{% else %}إغلاق البلاغ{% endif %}
+                                    </button>
+                                {% endif %}
+                            {% endif %}
+
+                            <details class="incident-routing-details">
+                                <summary>مسار البلاغ</summary>
+                                <p>القسم: {{ incident.get_section_display|default:incident.section }}</p>
+                                <p>الوردية: {{ incident.shift_plan|default:"بدون وردية نشطة" }}</p>
+                                <p>المسؤول التنفيذي: {{ incident.assigned_to_name|default:"بانتظار التعيين" }}</p>
+                                <p>التصعيد: {{ incident.get_escalation_level_display }}</p>
+                                {% if incident.maintenance_request %}
+                                    <p>
+                                        طلب الصيانة: {{ incident.maintenance_request.request_number }}
+                                        — {{ incident.maintenance_request.get_status_display }}
+                                    </p>
+                                    {% if incident.maintenance_request.status == "done" or incident.maintenance_request.status == "closed" %}
+                                        <p>اكتملت الصيانة — بانتظار تأكيد مشرف الوردية</p>
+                                    {% endif %}
+                                {% endif %}
+                                <ol>
+                                    {% for event in incident.routing_events.all %}
+                                        <li>
+                                            {{ event.get_event_type_display }}
+                                            — {{ event.created_at|date:"Y-m-d H:i" }}
+                                            {% if event.actor %}— {{ event.actor.get_full_name|default:event.actor.username }}{% endif %}
+                                        </li>
+                                    {% empty %}
+                                        <li>لا توجد أحداث مسار مسجلة.</li>
+                                    {% endfor %}
+                                </ol>
+                            </details>
 
                         </td>
 
@@ -1026,7 +1107,53 @@
 
         </div>
 
-    </section><style>
+    </section>
+
+    <dialog id="incidentEscalationDialog" class="incident-action-dialog" aria-labelledby="incidentEscalationTitle">
+        <form id="incidentEscalationForm" method="dialog">
+            <h2 id="incidentEscalationTitle">تصعيد البلاغ</h2>
+            <div id="incidentEscalationSummary" class="incident-dialog-summary"></div>
+            <label for="incidentEscalationNote">سبب التصعيد</label>
+            <textarea id="incidentEscalationNote" name="note" required maxlength="1000"></textarea>
+            <p id="incidentEscalationError" class="incident-dialog-error" role="alert"></p>
+            <div class="incident-dialog-actions">
+                <button type="button" data-dialog-cancel>إلغاء</button>
+                <button type="submit">اعتماد التصعيد</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="incidentConversionDialog" class="incident-action-dialog" aria-labelledby="incidentConversionTitle">
+        <form id="incidentConversionForm" method="dialog">
+            <h2 id="incidentConversionTitle">تحويل إلى طلب صيانة</h2>
+            <div id="incidentConversionSummary" class="incident-dialog-summary"></div>
+            <p>سيتم إنشاء طلب صيانة مرتبط بهذا البلاغ وإرساله إلى مسار اعتماد مركز العمليات.</p>
+            <label for="incidentMaintenanceStart">وقت البدء المخطط</label>
+            <input id="incidentMaintenanceStart" name="planned_start_at" type="datetime-local" required>
+            <label for="incidentMaintenanceEnd">وقت الانتهاء المخطط</label>
+            <input id="incidentMaintenanceEnd" name="planned_end_at" type="datetime-local" required>
+            <p id="incidentConversionError" class="incident-dialog-error" role="alert"></p>
+            <div class="incident-dialog-actions">
+                <button type="button" data-dialog-cancel>إلغاء</button>
+                <button type="submit">إنشاء طلب الصيانة المرتبط</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="incidentCloseDialog" class="incident-action-dialog" aria-labelledby="incidentCloseTitle">
+        <form id="incidentCloseForm" method="dialog">
+            <h2 id="incidentCloseTitle">تأكيد معالجة البلاغ وإغلاقه</h2>
+            <p id="incidentCloseSummary"></p>
+            <label for="incidentClosingNotes">ملاحظات الإغلاق</label>
+            <textarea id="incidentClosingNotes" name="closing_notes" required maxlength="2000"></textarea>
+            <p id="incidentCloseError" class="incident-dialog-error" role="alert"></p>
+            <div class="incident-dialog-actions">
+                <button type="button" data-dialog-cancel>إلغاء</button>
+                <button type="submit">إغلاق البلاغ</button>
+            </div>
+        </form>
+    </dialog>
+<style>
 
 /* ==================================================
    الصفحة العامة
@@ -2302,6 +2429,36 @@ body.dark .incident-update-body textarea{
 }
 
 
+.incident-action-dialog{
+    width:min(620px, calc(100vw - 32px));
+    max-height:calc(100vh - 32px);
+    border:1px solid rgba(15,123,92,.25);
+    border-radius:18px;
+    padding:0;
+    direction:rtl;
+    color:var(--text-primary);
+    background:var(--surface);
+}
+.incident-action-dialog::backdrop{background:rgba(10,20,18,.62);}
+.incident-action-dialog form{display:grid;gap:14px;padding:24px;overflow:auto;}
+.incident-action-dialog h2{margin:0;}
+.incident-action-dialog label{font-weight:700;}
+.incident-action-dialog textarea,
+.incident-action-dialog input{width:100%;padding:12px;border:1px solid var(--border);border-radius:10px;}
+.incident-dialog-summary{display:grid;gap:6px;padding:14px;border-radius:12px;background:rgba(15,123,92,.08);}
+.incident-dialog-error{min-height:1.4em;color:#b42318;margin:0;}
+.incident-dialog-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;}
+.incident-dialog-actions button,
+.incident-escalate-button,
+.incident-convert-button,
+.incident-close-button,
+.incident-maintenance-link{padding:9px 12px;border-radius:9px;border:1px solid rgba(15,123,92,.3);margin:2px;background:var(--surface);cursor:pointer;text-decoration:none;}
+@media (max-width:600px){
+    .incident-action-dialog{width:calc(100vw - 20px);max-height:calc(100vh - 20px);}
+    .incident-action-dialog form{padding:18px;}
+    .incident-dialog-actions{display:grid;grid-template-columns:1fr;}
+}
+
 /* نهاية CSS */
 </style><script>
 "use strict";
@@ -3155,6 +3312,93 @@ function updateIncidentStatistics(){
    تشغيل أحداث صفحة البلاغات
 ================================================== */
 
+let incidentActionUrl = "";
+
+function openIncidentDialog(dialog, actionUrl){
+    incidentActionUrl = actionUrl;
+    dialog.showModal();
+    window.setTimeout(() => dialog.querySelector("textarea, input, button")?.focus(), 0);
+}
+
+async function submitIncidentAction(form, errorBox, extraData = {}){
+    const payload = new FormData(form);
+    Object.entries(extraData).forEach(([key, value]) => payload.set(key, value));
+    const response = await fetch(incidentActionUrl, {
+        method: "POST",
+        headers: {"X-CSRFToken": incidentGetCookie("csrftoken")},
+        body: payload,
+    });
+    const data = await incidentReadJson(response);
+    if(!response.ok || !data.success){
+        errorBox.textContent = data.error || "تعذر تنفيذ العملية.";
+        return;
+    }
+    window.location.reload();
+}
+
+function configureIncidentRoutingActions(){
+    const escalationDialog = incidentGetElement("incidentEscalationDialog");
+    const conversionDialog = incidentGetElement("incidentConversionDialog");
+    const closeDialog = incidentGetElement("incidentCloseDialog");
+    document.querySelectorAll("[data-dialog-cancel]").forEach((button) => {
+        button.addEventListener("click", () => button.closest("dialog")?.close());
+    });
+    document.querySelectorAll(".incident-escalate-button").forEach((button) => {
+        button.addEventListener("click", () => {
+            incidentGetElement("incidentEscalationSummary").innerHTML = `
+                <strong>البلاغ ${incidentEscapeHtml(button.dataset.number)}</strong>
+                <span>الباب: ${incidentEscapeHtml(button.dataset.door)}</span>
+                <span>المسؤول التنفيذي: ${incidentEscapeHtml(button.dataset.assignee)}</span>
+                <span>المستوى الحالي: ${incidentEscapeHtml(button.dataset.current)}</span>
+                <span>سيتم التصعيد إلى: ${incidentEscapeHtml(button.dataset.next)}</span>`;
+            incidentGetElement("incidentEscalationError").textContent = "";
+            openIncidentDialog(escalationDialog, button.dataset.actionUrl);
+        });
+    });
+    document.querySelectorAll(".incident-convert-button").forEach((button) => {
+        button.addEventListener("click", () => {
+            incidentGetElement("incidentConversionSummary").innerHTML = `
+                <strong>البلاغ ${incidentEscapeHtml(button.dataset.number)}</strong>
+                <span>الباب: ${incidentEscapeHtml(button.dataset.door)}</span>
+                <span>الأولوية: ${incidentEscapeHtml(button.dataset.priority)}</span>
+                <span>${incidentEscapeHtml(button.dataset.description)}</span>`;
+            incidentGetElement("incidentConversionError").textContent = "";
+            openIncidentDialog(conversionDialog, button.dataset.actionUrl);
+        });
+    });
+    document.querySelectorAll(".incident-close-button").forEach((button) => {
+        button.addEventListener("click", () => {
+            incidentGetElement("incidentCloseSummary").textContent = `البلاغ ${button.dataset.number}`;
+            incidentGetElement("incidentCloseError").textContent = "";
+            openIncidentDialog(closeDialog, button.dataset.actionUrl);
+        });
+    });
+    document.querySelectorAll(".incident-update-button").forEach((button) => {
+        button.addEventListener("click", async () => {
+            const payload = new FormData();
+            payload.set("status", "in_progress");
+            const response = await fetch(button.dataset.updateUrl, {
+                method:"POST", headers:{"X-CSRFToken":incidentGetCookie("csrftoken")}, body:payload,
+            });
+            const data = await incidentReadJson(response);
+            if(response.ok && data.success){ window.location.reload(); }
+            else{ showIncidentToast("danger", "تعذر بدء المعالجة", data.error || "تعذر تنفيذ العملية."); }
+        });
+    });
+    incidentGetElement("incidentEscalationForm")?.addEventListener("submit", (event) => {
+        event.preventDefault();
+        submitIncidentAction(event.currentTarget, incidentGetElement("incidentEscalationError"));
+    });
+    incidentGetElement("incidentConversionForm")?.addEventListener("submit", (event) => {
+        event.preventDefault();
+        submitIncidentAction(event.currentTarget, incidentGetElement("incidentConversionError"));
+    });
+    incidentGetElement("incidentCloseForm")?.addEventListener("submit", (event) => {
+        event.preventDefault();
+        submitIncidentAction(event.currentTarget, incidentGetElement("incidentCloseError"), {status:"closed"});
+    });
+}
+
 document.addEventListener(
     "DOMContentLoaded",
     function(){
@@ -3293,6 +3537,7 @@ document.addEventListener(
         updateIncidentDescriptionCounter();
         updateIncidentDoorSummary();
         updateIncidentAssigneeScope();
+        configureIncidentRoutingActions();
 
     }
 );

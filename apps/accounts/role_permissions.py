@@ -72,6 +72,8 @@ ROLE_PERMISSIONS: tuple[RolePermissionDefinition, ...] = (
             P.APPROVE_MAINTENANCE_REQUEST, P.VIEW_REPORTS,
             P.CREATE_REPORT, P.UPDATE_REPORT, P.EXPORT_REPORT,
             P.CREATE_INCIDENT, P.UPDATE_INCIDENT,
+            P.ASSIGN_INCIDENT, P.ESCALATE_INCIDENT,
+            P.CONVERT_INCIDENT_TO_MAINTENANCE, P.CLOSE_INCIDENT,
         ),
     ),
     RolePermissionDefinition(
@@ -87,6 +89,8 @@ ROLE_PERMISSIONS: tuple[RolePermissionDefinition, ...] = (
             P.CREATE_MAINTENANCE_REQUEST, P.VIEW_REPORTS,
             P.CREATE_REPORT, P.UPDATE_REPORT, P.EXPORT_REPORT,
             P.CREATE_INCIDENT, P.UPDATE_INCIDENT,
+            P.ASSIGN_INCIDENT, P.ESCALATE_INCIDENT,
+            P.CONVERT_INCIDENT_TO_MAINTENANCE, P.CLOSE_INCIDENT,
         ),
     ),
     RolePermissionDefinition(
@@ -120,6 +124,8 @@ ROLE_PERMISSIONS: tuple[RolePermissionDefinition, ...] = (
             P.VIEW_MAINTENANCE_REQUESTS, P.CREATE_MAINTENANCE_REQUEST,
             P.VIEW_REPORTS, P.CREATE_REPORT, P.UPDATE_REPORT,
             P.CREATE_INCIDENT, P.UPDATE_INCIDENT,
+            P.ASSIGN_INCIDENT, P.ESCALATE_INCIDENT,
+            P.CONVERT_INCIDENT_TO_MAINTENANCE, P.CLOSE_INCIDENT,
         ),
     ),
     RolePermissionDefinition(
@@ -133,6 +139,8 @@ ROLE_PERMISSIONS: tuple[RolePermissionDefinition, ...] = (
             P.VIEW_MAINTENANCE_REQUESTS, P.CREATE_MAINTENANCE_REQUEST,
             P.VIEW_REPORTS, P.CREATE_REPORT,
             P.CREATE_INCIDENT,
+            P.UPDATE_INCIDENT, P.ESCALATE_INCIDENT,
+            P.CONVERT_INCIDENT_TO_MAINTENANCE, P.CLOSE_INCIDENT,
         ),
     ),
     RolePermissionDefinition(

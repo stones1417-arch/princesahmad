@@ -29,6 +29,10 @@ class PlatformPermissions:
     CLOSE_MAINTENANCE_REQUEST = "roles.close_maintenance_request"
     CREATE_INCIDENT = "roles.create_incident"
     UPDATE_INCIDENT = "roles.update_incident"
+    ASSIGN_INCIDENT = "roles.assign_incident"
+    ESCALATE_INCIDENT = "roles.escalate_incident"
+    CONVERT_INCIDENT_TO_MAINTENANCE = "roles.convert_incident_to_maintenance"
+    CLOSE_INCIDENT = "roles.close_incident"
     VIEW_REPORTS = "roles.view_reports"
     CREATE_REPORT = "roles.create_report"
     UPDATE_REPORT = "roles.update_report"
@@ -65,6 +69,10 @@ PERMISSION_LABELS = {
     PlatformPermissions.CLOSE_MAINTENANCE_REQUEST: "إغلاق طلب صيانة",
     PlatformPermissions.CREATE_INCIDENT: "إنشاء بلاغ تشغيلي",
     PlatformPermissions.UPDATE_INCIDENT: "تحديث بلاغ تشغيلي",
+    PlatformPermissions.ASSIGN_INCIDENT: "تعيين مسؤول البلاغ",
+    PlatformPermissions.ESCALATE_INCIDENT: "تصعيد البلاغ",
+    PlatformPermissions.CONVERT_INCIDENT_TO_MAINTENANCE: "تحويل البلاغ إلى الصيانة",
+    PlatformPermissions.CLOSE_INCIDENT: "إغلاق البلاغ التشغيلي",
     PlatformPermissions.VIEW_REPORTS: "عرض التقارير",
     PlatformPermissions.CREATE_REPORT: "إنشاء تقرير",
     PlatformPermissions.UPDATE_REPORT: "تعديل تقرير",

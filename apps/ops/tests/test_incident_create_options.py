@@ -187,25 +187,14 @@ class IncidentCreateOptionsTests(TestCase):
         self.assertNotIn(self.ordinary_user.pk, user_ids)
         self.assertNotIn(self.inactive_supervisor.pk, user_ids)
 
-    def test_valid_supervisor_and_deputy_can_receive_male_door_incident(self):
+    def test_primary_assignee_is_selected_automatically(self):
         male_door = Door.objects.filter(operational_section="male").first()
         self.client.force_login(self.actor)
 
-        supervisor_response = self._post(
-            door_id=male_door.pk,
-            assigned_to_id=self.supervisor.pk,
-        )
-        deputy_response = self._post(
-            door_id=male_door.pk,
-            assigned_to_id=self.deputy.pk,
-        )
+        supervisor_response = self._post(door_id=male_door.pk)
 
         self.assertEqual(supervisor_response.status_code, 200)
-        self.assertEqual(deputy_response.status_code, 200)
-        self.assertEqual(
-            set(Incident.objects.values_list("assigned_to_id", flat=True)),
-            {self.supervisor.pk, self.deputy.pk},
-        )
+        self.assertEqual(Incident.objects.get().assigned_to_id, self.supervisor.pk)
 
     def test_forged_ordinary_and_cross_section_assignees_are_rejected(self):
         male_door = Door.objects.filter(operational_section="male").first()
@@ -224,13 +213,13 @@ class IncidentCreateOptionsTests(TestCase):
         self.assertEqual(cross_section_response.status_code, 400)
         self.assertEqual(Incident.objects.count(), 0)
 
-    def test_no_active_shift_fails_safely_without_creating_incident(self):
+    def test_no_active_shift_creates_unassigned_incident(self):
         self.shift.is_active = False
         self.shift.save(update_fields=["is_active", "updated_at"])
         self.client.force_login(self.admin)
 
         response = self._post(door_id=Door.objects.first().pk)
 
-        self.assertEqual(response.status_code, 400)
-        self.assertFalse(response.json()["success"])
-        self.assertEqual(Incident.objects.count(), 0)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["success"])
+        self.assertIsNone(Incident.objects.get().assigned_to_id)
