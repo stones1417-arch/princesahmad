@@ -160,3 +160,61 @@ class EngineeringCenterClosureTests(TestCase):
         self.assertIn('markerLayer.classList.add("has-selection")', script)
         self.assertIn("data-map-visual='schematic'", script)
         self.assertNotIn("new WebSocket", script)
+
+    def test_three_dimensional_anchor_catalog_is_visual_and_complete(self):
+        anchor_path = finders.find("data/ops/prophets_mosque_3d_door_anchors.json")
+        self.assertIsNotNone(anchor_path)
+        with open(anchor_path, encoding="utf-8") as anchor_file:
+            anchors = json.load(anchor_file)
+        codes = [item["door"] for item in anchors["doors"]]
+        self.assertEqual(anchors["coordinate_system"], "model-local")
+        self.assertEqual(anchors["accuracy"], "visual_placeholder")
+        self.assertEqual(codes, list(OFFICIAL_DOOR_CODES))
+        self.assertEqual(len(codes), 42)
+        self.assertIn("6A", codes)
+        self.assertIn("6B", codes)
+        self.assertNotIn("6", codes)
+        self.assertTrue(all(len(item["position"]) == 3 for item in anchors["doors"]))
+
+    def test_three_dimensional_viewer_contract_is_local_lazy_and_access_controlled(self):
+        url = reverse("ops:doors")
+        self.assertEqual(self.client.get(url).status_code, 302)
+        self.client.force_login(self.unauthorized)
+        self.assertEqual(self.client.get(url).status_code, 403)
+        self.client.force_login(self.admin)
+        response = self.client.get(url)
+        for contract in (
+            'id="engineering3DMapTab"',
+            'id="engineering3DMapPanel"',
+            'data-model-source="visual-placeholder"',
+            'data-3d-quality',
+            'data-3d-camera="top"',
+            'data-3d-layer="labels"',
+            'data-3d-open-fallback',
+            'data-3d-fullscreen',
+            'vendor/three/three.module.min.js',
+            'js/ops/engineering_3d_loader.js',
+        ):
+            self.assertContains(response, contract)
+        self.assertContains(response, "لا يمثل نموذجًا مساحيًا أو معماريًا معتمدًا")
+        self.assertLess(response.content.decode().index('id="engineering3DMapTab"'), response.content.decode().index('id="engineeringOperationalMapTab"'))
+
+    def test_three_dimensional_viewer_runtime_contract(self):
+        viewer_path = finders.find("js/ops/engineering_3d_map.js")
+        loader_path = finders.find("js/ops/engineering_3d_loader.js")
+        self.assertIsNotNone(viewer_path)
+        self.assertIsNotNone(loader_path)
+        with open(viewer_path, encoding="utf-8") as viewer_file:
+            viewer = viewer_file.read()
+        with open(loader_path, encoding="utf-8") as loader_file:
+            loader = loader_file.read()
+        for contract in (
+            "new THREE.Scene()", "new THREE.PerspectiveCamera", "new THREE.WebGLRenderer",
+            "new OrbitControls", "new GLTFLoader", "new CSS2DRenderer", "new THREE.Raycaster",
+            "new THREE.LOD", 'engineering:center-refreshed', "requestFullscreen", "devicePixelRatio, 2",
+        ):
+            self.assertIn(contract, viewer)
+        self.assertIn("import(panel.dataset.viewerModuleUrl)", loader)
+        self.assertIn('getContext("webgl2")', loader)
+        self.assertIn("#engineeringOperationalMapTab", loader)
+        self.assertNotIn("https://", viewer)

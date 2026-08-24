@@ -1,14 +1,15 @@
 {% extends "base.html" %}
 {% load static %}
 {% block title %}المركز الهندسي | منصة أبواب{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'css/ops/engineering_center.css' %}?v=20260824-1"><link rel="stylesheet" href="{% static 'css/ops/engineering_operational_map.css' %}?v=20260824-1">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/ops/engineering_center.css' %}?v=20260824-1"><link rel="stylesheet" href="{% static 'css/ops/engineering_operational_map.css' %}?v=20260824-1"><link rel="stylesheet" href="{% static 'css/ops/engineering_3d_map.css' %}?v=20260824-1">{% endblock %}
 {% block content %}
 <main class="engineering-center" dir="rtl" data-refresh-url="{% url 'ops:door-status-data' %}">
   <nav class="engineering-center__breadcrumb" aria-label="مسار التنقل"><a href="{% url 'ops:operations-center' %}">العمليات</a><span aria-hidden="true">/</span><span aria-current="page">المركز الهندسي</span></nav>
 
   <nav class="engineering-tabs" role="tablist" aria-label="أقسام المركز الهندسي">
     <button id="engineeringOverviewTab" type="button" role="tab" aria-selected="true" aria-controls="engineeringOverviewPanel" data-engineering-tab="overview">النظرة التشغيلية</button>
-    <button id="engineeringOperationalMapTab" type="button" role="tab" aria-selected="false" aria-controls="engineeringOperationalMapPanel" tabindex="-1" data-engineering-tab="operational-map">الخريطة التشغيلية</button>
+    <button id="engineering3DMapTab" type="button" role="tab" aria-selected="false" aria-controls="engineering3DMapPanel" tabindex="-1" data-engineering-tab="three-d-map">المجسم التشغيلي ثلاثي الأبعاد</button>
+    <button id="engineeringOperationalMapTab" type="button" role="tab" aria-selected="false" aria-controls="engineeringOperationalMapPanel" tabindex="-1" data-engineering-tab="operational-map">المخطط التشغيلي SVG</button>
     <button id="engineeringMapTab" type="button" role="tab" aria-selected="false" aria-controls="engineeringMapPanel" tabindex="-1" data-engineering-tab="map">الخريطة الرسمية</button>
   </nav>
 
@@ -76,6 +77,30 @@
   </section>
   </section>
 
+  <section id="engineering3DMapPanel" class="engineering-tab-panel engineering-3d" role="tabpanel" aria-labelledby="engineering3DMapTab" data-engineering-panel="three-d-map" hidden
+    data-viewer-module-url="{% static 'js/ops/engineering_3d_map.js' %}?v=20260824-1"
+    data-anchors-url="{% static 'data/ops/prophets_mosque_3d_door_anchors.json' %}"
+    data-model-source="visual-placeholder">
+    <header class="engineering-3d__intro">
+      <div><span>مجسم تشغيلي بصري · VISUAL_PLACEHOLDER</span><h2>المجسم التشغيلي ثلاثي الأبعاد</h2><p>المجسم مخصص للمراقبة التشغيلية ولا يمثل نموذجًا مساحيًا أو معماريًا معتمدًا ما لم يتم تزويد النظام بنموذج هندسي رسمي.</p></div>
+      <button type="button" data-3d-fullscreen>فتح بملء الشاشة</button>
+    </header>
+    <div class="engineering-3d__toolbar" aria-label="أدوات المجسم ثلاثي الأبعاد">
+      <label><span>بحث مطابق برقم الباب</span><input type="search" data-3d-search placeholder="مثال: 6B أو 41" autocomplete="off"></label>
+      <label><span>جودة العرض</span><select data-3d-quality><option value="auto">تلقائية</option><option value="high">عالية</option><option value="medium">متوسطة</option><option value="economy">اقتصادية</option></select></label>
+      <div class="engineering-3d__presets" role="group" aria-label="زوايا الكاميرا"><button type="button" data-3d-camera="overview">نظرة عامة</button><button type="button" data-3d-camera="top">علوية</button><button type="button" data-3d-camera="facade-1">واجهة 1</button><button type="button" data-3d-camera="facade-2">واجهة 2</button><button type="button" data-3d-reset>إعادة الضبط</button></div>
+    </div>
+    <div class="engineering-3d__layers" aria-label="طبقات البيانات التشغيلية"><strong>الطبقات</strong><label><input type="checkbox" data-3d-layer="status" checked> الحالة</label><label><input type="checkbox" data-3d-layer="employees" checked> الموظفون</label><label><input type="checkbox" data-3d-layer="incidents" checked> البلاغات</label><label><input type="checkbox" data-3d-layer="maintenance" checked> الصيانة</label><label><input type="checkbox" data-3d-layer="labels" checked> التسميات</label></div>
+    <div class="engineering-3d__workspace" data-3d-workspace>
+      <div class="engineering-3d__viewport" data-3d-viewport tabindex="0" aria-label="مجسم تشغيلي بصري تفاعلي للأبواب">
+        <div class="engineering-3d__loading" data-3d-loading role="status"><strong>تهيئة العارض ثلاثي الأبعاد</strong><progress data-3d-progress max="100" value="0"></progress><span data-3d-progress-label>0%</span></div>
+        <div class="engineering-3d__fallback" data-3d-fallback hidden><h3>تعذر تشغيل العرض ثلاثي الأبعاد</h3><p>يمكن متابعة جميع البيانات من المخطط التشغيلي المتوافق.</p><button type="button" data-3d-open-fallback>فتح المخطط التشغيلي SVG</button></div>
+      </div>
+      <aside class="engineering-3d__drawer" data-3d-drawer hidden aria-live="polite"><button type="button" data-3d-drawer-close aria-label="إغلاق التفاصيل">×</button><div data-3d-drawer-content></div></aside>
+    </div>
+    <div class="engineering-3d__unplaced" data-3d-unplaced hidden><strong>أبواب بلا موضع معاير</strong><span data-3d-unplaced-list></span></div>
+  </section>
+
   <section id="engineeringOperationalMapPanel" class="engineering-tab-panel engineering-operational-map" role="tabpanel" aria-labelledby="engineeringOperationalMapTab" data-engineering-panel="operational-map" hidden data-layout-url="{% static 'data/ops/prophets_mosque_operational_map.json' %}">
     <header class="engineering-map__intro"><div><span>مجسم تشغيلي تقريبي</span><h2>مجسم تشغيلي تفاعلي للمسجد النبوي</h2><p>تمثيل بصري لأغراض المراقبة التشغيلية، ولا يمثل مخططًا مساحيًا أو معماريًا معتمدًا.</p></div><a href="https://maps.alharamain.gov.sa/navQ/default-kiosk/2?lang=ar" target="_blank" rel="noopener noreferrer">فتح الخريطة الرسمية للموقع</a></header>
     <div class="engineering-map__summary" data-map-summary aria-label="ملخص الخريطة التشغيلية"></div>
@@ -133,4 +158,4 @@
 </main>
 
 {% endblock %}
-{% block extra_js %}<script src="{% static 'js/ops/engineering_center.js' %}?v=20260824-1" defer></script><script src="{% static 'js/ops/engineering_operational_map.js' %}?v=20260824-1" defer></script>{% endblock %}
+{% block extra_js %}<script type="importmap">{"imports":{"three":"{% static 'vendor/three/three.module.min.js' %}","three/addons/":"{% static 'vendor/three/addons/' %}"}}</script><script src="{% static 'js/ops/engineering_center.js' %}?v=20260824-1" defer></script><script src="{% static 'js/ops/engineering_operational_map.js' %}?v=20260824-1" defer></script><script src="{% static 'js/ops/engineering_3d_loader.js' %}?v=20260824-1" defer></script>{% endblock %}
