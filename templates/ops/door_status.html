@@ -1,13 +1,14 @@
 {% extends "base.html" %}
 {% load static %}
 {% block title %}المركز الهندسي | منصة أبواب{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'css/ops/engineering_center.css' %}?v=20260824-1">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/ops/engineering_center.css' %}?v=20260824-1"><link rel="stylesheet" href="{% static 'css/ops/engineering_operational_map.css' %}?v=20260824-1">{% endblock %}
 {% block content %}
 <main class="engineering-center" dir="rtl" data-refresh-url="{% url 'ops:door-status-data' %}">
   <nav class="engineering-center__breadcrumb" aria-label="مسار التنقل"><a href="{% url 'ops:operations-center' %}">العمليات</a><span aria-hidden="true">/</span><span aria-current="page">المركز الهندسي</span></nav>
 
   <nav class="engineering-tabs" role="tablist" aria-label="أقسام المركز الهندسي">
     <button id="engineeringOverviewTab" type="button" role="tab" aria-selected="true" aria-controls="engineeringOverviewPanel" data-engineering-tab="overview">النظرة التشغيلية</button>
+    <button id="engineeringOperationalMapTab" type="button" role="tab" aria-selected="false" aria-controls="engineeringOperationalMapPanel" tabindex="-1" data-engineering-tab="operational-map">الخريطة التشغيلية</button>
     <button id="engineeringMapTab" type="button" role="tab" aria-selected="false" aria-controls="engineeringMapPanel" tabindex="-1" data-engineering-tab="map">الخريطة الرسمية</button>
   </nav>
 
@@ -75,6 +76,29 @@
   </section>
   </section>
 
+  <section id="engineeringOperationalMapPanel" class="engineering-tab-panel engineering-operational-map" role="tabpanel" aria-labelledby="engineeringOperationalMapTab" data-engineering-panel="operational-map" hidden data-layout-url="{% static 'data/ops/prophets_mosque_operational_map.json' %}">
+    <header class="engineering-map__intro"><div><span>مخطط تشغيلي تفاعلي</span><h2>الخريطة التشغيلية الرقمية</h2><p>مخطط تشغيلي — مواقع الأبواب قابلة للمعايرة. هذا المخطط لأغراض التشغيل وليس خريطة مساحية.</p></div><a href="https://maps.alharamain.gov.sa/navQ/default-kiosk/2?lang=ar" target="_blank" rel="noopener noreferrer">فتح الخريطة الرسمية للموقع</a></header>
+    <div class="engineering-map__summary" data-map-summary aria-label="ملخص الخريطة التشغيلية"></div>
+    <div class="engineering-map__toolbar" aria-label="مرشحات الخريطة">
+      <label><span>بحث برقم الباب</span><input type="search" data-map-search placeholder="مثال: 6B أو 41" autocomplete="off"></label>
+      <label><span>الحالة</span><select data-map-filter="status"><option value="all">كل الحالات</option><option value="open">مفتوح</option><option value="closed">متوقف</option><option value="maintenance">تحت الصيانة</option><option value="secured">مغلق</option></select></label>
+      <label><span>الموظفون</span><select data-map-filter="employees"><option value="all">الكل</option><option value="yes">يوجد موظفون</option><option value="no">بدون موظفين</option></select></label>
+      <label><span>البلاغات</span><select data-map-filter="incidents"><option value="all">الكل</option><option value="yes">يوجد بلاغ</option><option value="no">بدون بلاغ</option></select></label>
+      <label><span>الصيانة</span><select data-map-filter="maintenance"><option value="all">الكل</option><option value="yes">يوجد طلب</option><option value="no">بدون طلب</option></select></label>
+      <strong data-map-result-count aria-live="polite"></strong>
+    </div>
+    <div class="engineering-map__layers" aria-label="طبقات الخريطة"><strong>الطبقات</strong><label><input type="checkbox" data-map-layer="status" checked> حالة الأبواب</label><label><input type="checkbox" data-map-layer="employees" checked> الموظفون</label><label><input type="checkbox" data-map-layer="incidents" checked> البلاغات</label><label><input type="checkbox" data-map-layer="maintenance" checked> الصيانة</label></div>
+    <div class="engineering-map__workspace" data-map-workspace>
+      <div class="engineering-map__viewport" data-map-viewport tabindex="0" aria-label="مخطط الأبواب التشغيلي؛ استخدم زائد وناقص للتكبير">
+        <svg data-operational-map viewBox="0 0 1000 700" role="img" aria-labelledby="operationalMapTitle operationalMapDescription"><title id="operationalMapTitle">مخطط الأبواب التشغيلي التفاعلي</title><desc id="operationalMapDescription">مخطط هندسي تجريدي يعرض حالات الأبواب التشغيلية وليس خريطة جغرافية دقيقة.</desc><g class="engineering-map__canvas" data-map-canvas><rect class="engineering-map__yard" x="70" y="55" width="860" height="590" rx="80"/><rect class="engineering-map__building" x="245" y="165" width="510" height="370" rx="42"/><path class="engineering-map__axis" d="M500 165V535M245 350H755"/><g data-map-markers></g></g></svg>
+        <div class="engineering-map__zoom" aria-label="التحكم في العرض"><button type="button" data-map-zoom="in" aria-label="تكبير">+</button><button type="button" data-map-zoom="out" aria-label="تصغير">−</button><button type="button" data-map-reset>إعادة ضبط العرض</button><button type="button" data-map-show-all>إظهار جميع الأبواب</button><button type="button" data-map-fullscreen>ملء الشاشة</button></div>
+        <div class="engineering-map__tooltip" data-map-tooltip role="tooltip" hidden></div>
+      </div>
+      <aside class="engineering-map-drawer" data-map-drawer aria-live="polite" hidden><button type="button" data-map-drawer-close aria-label="إغلاق التفاصيل">×</button><div data-map-drawer-content></div></aside>
+    </div>
+    <div class="engineering-map__legend" aria-label="مفتاح رموز الخريطة"><strong>دليل الرموز</strong><span><i class="is-open"></i> مفتوح</span><span><i class="is-closed"></i> متوقف</span><span><i class="is-maintenance"></i> صيانة</span><span><i class="is-secured"></i> مغلق</span><span>👥 موظفون</span><span>⚠ بلاغ</span><span>◆ صيانة</span></div>
+  </section>
+
   <section id="engineeringMapPanel" class="engineering-tab-panel engineering-map" role="tabpanel" aria-labelledby="engineeringMapTab" data-engineering-panel="map" hidden>
     <header class="engineering-map__header">
       <div>
@@ -95,4 +119,4 @@
 </main>
 
 {% endblock %}
-{% block extra_js %}<script src="{% static 'js/ops/engineering_center.js' %}?v=20260824-1" defer></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'js/ops/engineering_center.js' %}?v=20260824-1" defer></script><script src="{% static 'js/ops/engineering_operational_map.js' %}?v=20260824-1" defer></script>{% endblock %}

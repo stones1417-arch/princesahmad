@@ -1,4 +1,7 @@
+import json
+
 from django.contrib.auth import get_user_model
+from django.contrib.staticfiles import finders
 from django.test import TestCase
 from django.urls import reverse
 from django.core.management import call_command
@@ -98,3 +101,50 @@ class EngineeringCenterClosureTests(TestCase):
         self.assertNotContains(response, "role=\"menuitem\" data-distribution-action")
         self.assertNotContains(response, f'href="{reverse("ops:maintenance-list")}?q=')
         self.assertNotContains(response, f'href="{reverse("distribution:dashboard")}?door=')
+
+    def test_operational_map_layout_matches_master_catalog(self):
+        layout_path = finders.find("data/ops/prophets_mosque_operational_map.json")
+        self.assertIsNotNone(layout_path)
+        with open(layout_path, encoding="utf-8") as layout_file:
+            layout = json.load(layout_file)
+        codes = [item["door"] for item in layout["doors"]]
+        self.assertEqual(layout["accuracy"], "schematic")
+        self.assertEqual(codes, list(OFFICIAL_DOOR_CODES))
+        self.assertEqual(len(codes), 42)
+        self.assertIn("6A", codes)
+        self.assertIn("6B", codes)
+        self.assertNotIn("6", codes)
+        self.assertTrue(all(0 <= item["x"] <= 1 and 0 <= item["y"] <= 1 for item in layout["doors"]))
+        self.assertTrue(all(set(item) == {"door", "x", "y", "zone"} for item in layout["doors"]))
+
+    def test_operational_map_ui_contract_and_permissions(self):
+        url = reverse("ops:doors")
+        self.assertEqual(self.client.get(url).status_code, 302)
+        self.client.force_login(self.unauthorized)
+        self.assertEqual(self.client.get(url).status_code, 403)
+        self.client.force_login(self.admin)
+        response = self.client.get(url)
+        for contract in (
+            'id="engineeringOperationalMapTab"',
+            'data-operational-map',
+            'data-map-summary',
+            'engineering-map__legend',
+            'data-map-filter="status"',
+            'data-map-layer="employees"',
+            'data-map-fullscreen',
+            'data-map-zoom="in"',
+            'data-map-drawer',
+        ):
+            self.assertContains(response, contract)
+        self.assertContains(response, "مخطط تشغيلي — مواقع الأبواب قابلة للمعايرة")
+        self.assertContains(response, "فتح الخريطة الرسمية للموقع")
+
+    def test_operational_map_live_update_preserves_client_state(self):
+        script_path = finders.find("js/ops/engineering_operational_map.js")
+        self.assertIsNotNone(script_path)
+        with open(script_path, encoding="utf-8") as script_file:
+            script = script_file.read()
+        self.assertIn('engineering:center-refreshed', script)
+        self.assertIn("updateMarker(item.number)", script)
+        self.assertIn("if (selectedDoor) renderDrawer()", script)
+        self.assertNotIn("new WebSocket", script)

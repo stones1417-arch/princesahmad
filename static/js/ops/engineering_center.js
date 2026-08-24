@@ -200,6 +200,7 @@
         document.querySelector(`[data-summary="${key}"]`)?.replaceChildren(String(value));
       });
       applyFilters();
+      root.dispatchEvent(new CustomEvent("engineering:center-refreshed", { detail: payload }));
       refreshTime.textContent = new Date().toLocaleTimeString("ar-SA", { hour: "numeric", minute: "2-digit" });
     } catch (error) {
       showRefreshError();
