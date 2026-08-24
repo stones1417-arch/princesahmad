@@ -120,14 +120,28 @@
       });
     });
 
+    const maintenanceDialog = document.querySelector("#engineeringMaintenanceDialog");
+    const maintenanceForm = document.querySelector("#engineeringMaintenanceForm");
+    let maintenanceActionUrl = "";
     document.querySelectorAll("[data-maintenance-action]").forEach((button) => {
-      button.addEventListener("click", async () => {
-        const description = window.prompt("وصف طلب الصيانة");
-        if (!description) return;
-        const body = new URLSearchParams({ description, priority: "medium" });
-        const response = await fetch(button.dataset.actionUrl, { method: "POST", headers: { "X-CSRFToken": csrfToken(), "Content-Type": "application/x-www-form-urlencoded" }, body });
-        if (response.ok) await refreshCards(); else showRefreshError("تعذر إنشاء طلب الصيانة");
+      button.addEventListener("click", () => {
+        maintenanceActionUrl = button.dataset.actionUrl;
+        maintenanceForm.reset();
+        maintenanceForm.querySelector("[data-maintenance-error]").hidden = true;
+        document.querySelector("#engineeringMaintenanceDoor").textContent = `الباب ${button.closest("[data-number]").dataset.number}`;
+        maintenanceDialog.showModal();
       });
+    });
+    document.querySelectorAll("[data-maintenance-close]").forEach((button) => button.addEventListener("click", () => maintenanceDialog.close()));
+    maintenanceForm?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const error = maintenanceForm.querySelector("[data-maintenance-error]");
+      const body = new URLSearchParams(new FormData(maintenanceForm));
+      const response = await fetch(maintenanceActionUrl, { method: "POST", headers: { "X-CSRFToken": csrfToken(), "Content-Type": "application/x-www-form-urlencoded" }, body });
+      const data = await response.json();
+      if (!response.ok || !data.success) { error.textContent = data.error || "تعذر إنشاء طلب الصيانة"; error.hidden = false; return; }
+      maintenanceDialog.close();
+      await refreshCards();
     });
   }
 

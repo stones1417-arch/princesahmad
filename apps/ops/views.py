@@ -5,6 +5,7 @@ from django.db.models import Case, Count, IntegerField, Q, Value, When
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from django.views.decorators.http import require_POST
 from io import BytesIO
 from openpyxl import Workbook
@@ -45,6 +46,13 @@ LIVE_OPERATION_MODULES = (
     "البلاغات",
     "توزيع الأبواب",
 )
+
+
+def _parse_planned_datetime(value):
+    parsed = parse_datetime(str(value or "").strip())
+    if parsed and timezone.is_naive(parsed):
+        parsed = timezone.make_aware(parsed, timezone.get_current_timezone())
+    return parsed
 
 
 # =========================================================
@@ -549,6 +557,8 @@ def update_door_status_ajax(request, pk):
                 door=door,
                 description=notes,
                 priority=MaintenanceRequest.Priority.MEDIUM,
+                planned_start_at=_parse_planned_datetime(request.POST.get("planned_start_at")),
+                planned_end_at=_parse_planned_datetime(request.POST.get("planned_end_at")),
             )
             door.refresh_from_db()
             changed = False
@@ -654,6 +664,10 @@ def create_maintenance_request_ajax(
         or ""
     ).strip()
 
+    technician_phone = (request.POST.get("technician_phone", "") or "").strip()
+    planned_start_at = _parse_planned_datetime(request.POST.get("planned_start_at"))
+    planned_end_at = _parse_planned_datetime(request.POST.get("planned_end_at"))
+
     section = str(
         request.POST.get("section", "") or ""
     ).strip().lower()
@@ -681,6 +695,9 @@ def create_maintenance_request_ajax(
                 description=description,
                 priority=priority,
                 technician_name=technician_name,
+                technician_phone=technician_phone,
+                planned_start_at=planned_start_at,
+                planned_end_at=planned_end_at,
                 section=section,
                 assignment=assignment,
             )
@@ -719,6 +736,10 @@ def create_maintenance_request_ajax(
                     maintenance.technician_name
                     or "غير محدد"
                 ),
+                "technician_phone": maintenance.technician_phone,
+                "planned_start_at": maintenance.planned_start_at.isoformat(),
+                "planned_end_at": maintenance.planned_end_at.isoformat(),
+                "planned_duration_minutes": maintenance.planned_duration_minutes,
                 "section": maintenance.section,
                 "created_at": (
                     maintenance.created_at.strftime(

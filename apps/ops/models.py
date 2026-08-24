@@ -506,6 +506,20 @@ class MaintenanceRequest(models.Model):
         verbose_name="تاريخ التحويل للفريق الفني",
     )
 
+    planned_start_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        verbose_name="وقت البدء المخطط",
+    )
+
+    planned_end_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        verbose_name="وقت الانتهاء المخطط",
+    )
+
     started_at = models.DateTimeField(
         null=True,
         blank=True,
@@ -586,6 +600,30 @@ class MaintenanceRequest(models.Model):
         )
 
     @property
+    def planned_duration(self):
+        if not self.planned_start_at or not self.planned_end_at:
+            return None
+        return self.planned_end_at - self.planned_start_at
+
+    @property
+    def planned_duration_minutes(self):
+        duration = self.planned_duration
+        return int(duration.total_seconds() // 60) if duration else None
+
+    @property
+    def actual_duration(self):
+        end_time = self.closed_at or self.fixed_at
+        if not self.started_at or not end_time:
+            return None
+        return end_time - self.started_at
+
+    @property
+    def is_schedule_overdue(self):
+        if not self.planned_end_at or self.is_final_status:
+            return False
+        return timezone.now() > self.planned_end_at
+
+    @property
     def is_final_status(self):
         return self.status in (
             self.Status.CLOSED,
@@ -652,6 +690,15 @@ class MaintenanceRequest(models.Model):
         super().clean()
 
         errors = {}
+
+        if bool(self.planned_start_at) != bool(self.planned_end_at):
+            errors["planned_end_at"] = "يجب تحديد وقتي البدء والانتهاء المخططين معًا."
+        elif (
+            self.planned_start_at
+            and self.planned_end_at
+            and self.planned_end_at <= self.planned_start_at
+        ):
+            errors["planned_end_at"] = "يجب أن يكون وقت الانتهاء المخطط بعد وقت البدء المخطط."
 
         self.section = _validate_operational_context(
             door_shift=self.door_shift,

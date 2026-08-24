@@ -288,6 +288,24 @@
 
                 </div>
 
+
+                <div class="maintenance-form-field">
+
+                    <label for="maintenanceSectionFilter">
+                        القسم التشغيلي
+                    </label>
+
+                    <select
+                        id="maintenanceSectionFilter"
+                        name="section"
+                    >
+                        <option value="">كل الأقسام</option>
+                        <option value="male" {% if selected_section == "male" %}selected{% endif %}>رجالي</option>
+                        <option value="female" {% if selected_section == "female" %}selected{% endif %}>نسائي</option>
+                    </select>
+
+                </div>
+
             </div>
 
             <div class="maintenance-active-filters" aria-live="polite">
@@ -295,7 +313,8 @@
                 {% if q %}<span class="maintenance-filter-chip">بحث: {{ q|truncatechars:28 }}</span>{% endif %}
                 {% if selected_status %}<span class="maintenance-filter-chip">الحالة: {% for value, label in status_choices %}{% if selected_status == value %}{{ label }}{% endif %}{% endfor %}</span>{% endif %}
                 {% if selected_priority %}<span class="maintenance-filter-chip">الأولوية: {% for value, label in priority_choices %}{% if selected_priority == value %}{{ label }}{% endif %}{% endfor %}</span>{% endif %}
-                {% if not q and not selected_status and not selected_priority %}<span class="maintenance-no-filter">يتم عرض جميع طلبات الصيانة</span>{% endif %}
+                {% if selected_section %}<span class="maintenance-filter-chip">القسم: {% if selected_section == "male" %}رجالي{% else %}نسائي{% endif %}</span>{% endif %}
+                {% if not q and not selected_status and not selected_priority and not selected_section %}<span class="maintenance-no-filter">يتم عرض جميع طلبات الصيانة</span>{% endif %}
             </div>
 
 
@@ -369,6 +388,12 @@
                     data-status-label="{{ req.get_status_display|escape }}"
                     data-description="{{ req.description|default:''|escapejs }}"
                     data-technician="{% if req.technician %}{{ req.technician.username|escapejs }}{% else %}{{ req.technician_name|default:''|escapejs }}{% endif %}"
+                    data-technician-phone="{{ req.technician_phone|default:''|escape }}"
+                    data-planned-start="{{ req.planned_start_at|date:'Y-m-d H:i' }}"
+                    data-planned-end="{{ req.planned_end_at|date:'Y-m-d H:i' }}"
+                    data-planned-duration="{{ req.planned_duration_minutes|default_if_none:'' }}"
+                    data-actual-start="{{ req.started_at|date:'Y-m-d H:i' }}"
+                    data-actual-end="{% if req.closed_at %}{{ req.closed_at|date:'Y-m-d H:i' }}{% elif req.fixed_at %}{{ req.fixed_at|date:'Y-m-d H:i' }}{% endif %}"
                     data-created-by="{% if req.created_by %}{{ req.created_by.username|escapejs }}{% endif %}"
                     data-created-at="{{ req.created_at|date:'Y-m-d H:i' }}"
                     data-closing-notes="{{ req.closing_notes|default:''|escapejs }}"
@@ -394,6 +419,7 @@
                         >
                             {{ req.get_status_display }}
                         </span>
+                        {% if req.is_schedule_overdue %}<span class="maintenance-badge status-fixed">متجاوز للوقت المخطط</span>{% endif %}
 
                     </div>
 
@@ -439,6 +465,11 @@
                         </div>
 
                         <div>
+                            <span>القسم</span>
+                            <strong>{% if req.section == "male" %}رجالي{% elif req.section == "female" %}نسائي{% else %}غير محدد{% endif %}</strong>
+                        </div>
+
+                        <div>
                             <span>الفني</span>
 
                             <strong>
@@ -474,6 +505,18 @@
                             <small>
                                 {{ req.created_at|date:"H:i" }}
                             </small>
+                        </div>
+
+                        <div>
+                            <span>الجدول المخطط</span>
+                            <strong>{% if req.planned_start_at %}{{ req.planned_start_at|date:"Y-m-d H:i" }}{% else %}غير متاح (طلب سابق){% endif %}</strong>
+                            {% if req.planned_end_at %}<small>حتى {{ req.planned_end_at|date:"Y-m-d H:i" }} · {{ req.planned_duration_minutes }} دقيقة</small>{% endif %}
+                        </div>
+
+                        <div>
+                            <span>التنفيذ الفعلي</span>
+                            <strong>{% if req.started_at %}بدأ {{ req.started_at|date:"Y-m-d H:i" }}{% else %}لم يبدأ{% endif %}</strong>
+                            {% if req.actual_duration %}<small>{{ req.actual_duration }}</small>{% endif %}
                         </div>
 
                     </div>
@@ -629,6 +672,13 @@
                     </strong>
 
                 </div>
+
+                <div class="maintenance-detail-item"><span>جوال الفني</span><strong id="detailsTechnicianPhone">غير مسجل</strong></div>
+                <div class="maintenance-detail-item"><span>البدء المخطط</span><strong id="detailsPlannedStart">غير متاح (طلب سابق)</strong></div>
+                <div class="maintenance-detail-item"><span>الانتهاء المخطط</span><strong id="detailsPlannedEnd">غير متاح (طلب سابق)</strong></div>
+                <div class="maintenance-detail-item"><span>المدة المتوقعة</span><strong id="detailsPlannedDuration">غير متاحة</strong></div>
+                <div class="maintenance-detail-item"><span>البدء الفعلي</span><strong id="detailsActualStart">لم يبدأ</strong></div>
+                <div class="maintenance-detail-item"><span>الانتهاء الفعلي</span><strong id="detailsActualEnd">لم ينته</strong></div>
 
             </div>
 
@@ -1800,6 +1850,13 @@ function openMaintenanceDetails(id){
         "detailsCreatedAt"
     ).innerText =
         card.dataset.createdAt || "—";
+
+    maintenanceGetElement("detailsTechnicianPhone").innerText = card.dataset.technicianPhone || "غير مسجل";
+    maintenanceGetElement("detailsPlannedStart").innerText = card.dataset.plannedStart || "غير متاح (طلب سابق)";
+    maintenanceGetElement("detailsPlannedEnd").innerText = card.dataset.plannedEnd || "غير متاح (طلب سابق)";
+    maintenanceGetElement("detailsPlannedDuration").innerText = card.dataset.plannedDuration ? card.dataset.plannedDuration + " دقيقة" : "غير متاحة";
+    maintenanceGetElement("detailsActualStart").innerText = card.dataset.actualStart || "لم يبدأ";
+    maintenanceGetElement("detailsActualEnd").innerText = card.dataset.actualEnd || "لم ينته";
 
     maintenanceGetElement(
         "detailsDescription"

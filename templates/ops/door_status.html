@@ -67,5 +67,22 @@
     <div id="emptyState" class="engineering-doors__empty" hidden><span aria-hidden="true">⌕</span><h3>لا توجد أبواب مطابقة للفلاتر الحالية.</h3><p>جرّب تعديل معايير البحث أو إعادة ضبط الفلاتر.</p><button type="button" data-reset-filters>إعادة ضبط الفلاتر</button></div>
   </section>
 </main>
+
+<dialog id="engineeringMaintenanceDialog" class="engineering-maintenance-dialog" dir="rtl" aria-labelledby="engineeringMaintenanceTitle">
+  <form id="engineeringMaintenanceForm" method="dialog">
+    <header><div><small>طلب صيانة مؤسسي</small><h3 id="engineeringMaintenanceTitle">إنشاء طلب صيانة</h3></div><button type="button" data-maintenance-close aria-label="إغلاق">×</button></header>
+    <p id="engineeringMaintenanceDoor" class="engineering-maintenance-dialog__door"></p>
+    <label>وصف المشكلة <textarea name="description" rows="4" required></textarea></label>
+    <div class="engineering-maintenance-dialog__grid">
+      <label>الأولوية <select name="priority"><option value="low">منخفضة</option><option value="medium" selected>متوسطة</option><option value="high">عالية</option><option value="urgent">عاجلة</option></select></label>
+      <label>اسم الفني <input name="technician_name" autocomplete="name"></label>
+      <label>جوال الفني <input name="technician_phone" inputmode="tel" autocomplete="tel" placeholder="05xxxxxxxx"></label>
+      <label>وقت البدء المخطط <input name="planned_start_at" type="datetime-local" required></label>
+      <label>وقت الانتهاء المخطط <input name="planned_end_at" type="datetime-local" required></label>
+    </div>
+    <p data-maintenance-error class="engineering-maintenance-dialog__error" role="alert" hidden></p>
+    <footer><button type="button" data-maintenance-close>إلغاء</button><button type="submit">إرسال للمراجعة</button></footer>
+  </form>
+</dialog>
 {% endblock %}
 {% block extra_js %}<script src="{% static 'js/ops/engineering_center.js' %}?v=20260824-1" defer></script>{% endblock %}

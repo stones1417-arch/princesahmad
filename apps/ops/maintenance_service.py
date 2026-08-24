@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from typing import Any
+import re
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.utils import timezone
 
 
 # ==========================================================
@@ -22,6 +24,20 @@ def _normalize_reason(
         return ""
 
     return str(reason).strip()
+
+
+def normalize_saudi_mobile(value: str) -> str:
+    """Validate and normalize a Saudi mobile number without sending messages."""
+    raw = re.sub(r"[\s\-()]", "", str(value or "").strip())
+    if not raw:
+        return ""
+    if raw.startswith("+966"):
+        raw = "0" + raw[4:]
+    elif raw.startswith("966"):
+        raw = "0" + raw[3:]
+    if not re.fullmatch(r"05\d{8}", raw):
+        raise ValidationError({"technician_phone": "رقم جوال الفني يجب أن يكون رقمًا سعوديًا صحيحًا."})
+    return raw
 
 
 def _validate_status(
@@ -331,6 +347,9 @@ class MaintenanceService:
         description: str,
         priority: str,
         technician_name: str = "",
+        technician_phone: str = "",
+        planned_start_at=None,
+        planned_end_at=None,
         section: str = "",
         assignment=None,
     ):
@@ -459,6 +478,25 @@ class MaintenanceService:
             technician_name or ""
         ).strip()
 
+        if not planned_start_at or not planned_end_at:
+            raise ValidationError({
+                "planned_start_at": "وقت البدء والانتهاء المخططان مطلوبان للطلبات الجديدة."
+            })
+        if timezone.is_naive(planned_start_at) or timezone.is_naive(planned_end_at):
+            raise ValidationError({
+                "planned_start_at": "يجب أن تكون أوقات الخطة مرتبطة بالمنطقة الزمنية."
+            })
+        if planned_end_at <= planned_start_at:
+            raise ValidationError({
+                "planned_end_at": "يجب أن يكون وقت الانتهاء المخطط بعد وقت البدء المخطط."
+            })
+
+        clean_technician_phone = normalize_saudi_mobile(technician_phone)
+        if clean_technician_phone and not clean_technician_name:
+            raise ValidationError({
+                "technician_name": "اسم الفني مطلوب عند إدخال رقم الجوال."
+            })
+
         created_by = (
             _get_authenticated_user(
                 request=request,
@@ -479,6 +517,9 @@ class MaintenanceService:
             technician_name=(
                 clean_technician_name
             ),
+            technician_phone=clean_technician_phone,
+            planned_start_at=planned_start_at,
+            planned_end_at=planned_end_at,
             created_by=created_by,
         )
 

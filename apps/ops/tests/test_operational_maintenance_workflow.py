@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import re
+from datetime import timedelta
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.core.tests.factories import create_door, create_shift_plan
 from apps.locations.door_directions import OFFICIAL_DOOR_CODES
@@ -41,6 +43,10 @@ class OperationalMaintenanceWorkflowTests(TestCase):
             {
                 "description": "Door motor requires inspection",
                 "priority": MaintenanceRequest.Priority.HIGH,
+                "technician_name": "فني الصيانة",
+                "technician_phone": "+966 50 123 4567",
+                "planned_start_at": timezone.localtime().strftime("%Y-%m-%dT%H:%M"),
+                "planned_end_at": (timezone.localtime() + timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M"),
             },
         )
 
@@ -114,6 +120,49 @@ class OperationalMaintenanceWorkflowTests(TestCase):
         self.door_shift.refresh_from_db()
         self.assertEqual(maintenance.status, MaintenanceRequest.Status.DONE)
         self.assertEqual(self.door_shift.state, DoorShift.DoorState.OPEN)
+        self.assertEqual(maintenance.description, "Door motor requires inspection")
+        self.assertEqual(maintenance.priority, MaintenanceRequest.Priority.HIGH)
+        self.assertEqual(maintenance.technician_name, "فني الصيانة")
+        self.assertEqual(maintenance.technician_phone, "0501234567")
+        self.assertIsNotNone(maintenance.planned_start_at)
+        self.assertIsNotNone(maintenance.planned_end_at)
+        self.assertIsNotNone(maintenance.started_at)
+        self.assertIsNotNone(maintenance.fixed_at)
+
+    def test_new_request_requires_valid_planned_window(self):
+        url = reverse("ops:maintenance-create-ajax", args=[self.door_shift.pk])
+        missing = self.client.post(url, {"description": "Missing schedule", "priority": "medium"})
+        self.assertEqual(missing.status_code, 400)
+        invalid = self.client.post(url, {
+            "description": "Invalid schedule", "priority": "medium",
+            "planned_start_at": "2026-08-24T12:00", "planned_end_at": "2026-08-24T11:00",
+        })
+        self.assertEqual(invalid.status_code, 400)
+        invalid_phone = self.client.post(url, {
+            "description": "Invalid phone", "priority": "medium",
+            "technician_name": "فني", "technician_phone": "12345",
+            "planned_start_at": "2026-08-24T12:00", "planned_end_at": "2026-08-24T13:00",
+        })
+        self.assertEqual(invalid_phone.status_code, 400)
+
+    def test_cross_midnight_schedule_and_saudi_phone_are_supported(self):
+        response = self.client.post(reverse("ops:maintenance-create-ajax", args=[self.door_shift.pk]), {
+            "description": "Night repair", "priority": "high", "technician_name": "فني ليلي",
+            "technician_phone": "966501234567", "planned_start_at": "2026-08-24T23:30",
+            "planned_end_at": "2026-08-25T01:00",
+        })
+        self.assertEqual(response.status_code, 200)
+        maintenance = MaintenanceRequest.objects.get(pk=response.json()["maintenance"]["id"])
+        self.assertEqual(maintenance.technician_phone, "0501234567")
+        self.assertEqual(maintenance.planned_duration_minutes, 90)
+
+    def test_legacy_request_without_schedule_remains_readable(self):
+        maintenance = MaintenanceRequest.objects.create(
+            door_shift=self.door_shift, description="Legacy request", priority="low"
+        )
+        self.assertIsNone(maintenance.planned_duration)
+        maintenance.status = MaintenanceRequest.Status.APPROVED
+        maintenance.full_clean()
 
     def test_state_endpoint_maintenance_creates_request_and_returns_canonical_data(self):
         response = self.client.post(
@@ -121,6 +170,8 @@ class OperationalMaintenanceWorkflowTests(TestCase):
             {
                 "state": DoorShift.DoorState.MAINTENANCE,
                 "notes": "State transition maintenance request",
+                "planned_start_at": timezone.localtime().strftime("%Y-%m-%dT%H:%M"),
+                "planned_end_at": (timezone.localtime() + timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M"),
             },
         )
 
@@ -143,6 +194,8 @@ class OperationalMaintenanceWorkflowTests(TestCase):
             door=self.door_shift,
             description="Finish workflow",
             priority=MaintenanceRequest.Priority.MEDIUM,
+            planned_start_at=timezone.now(),
+            planned_end_at=timezone.now() + timedelta(hours=2),
         )
         maintenance = MaintenanceService.update_status(
             request=None,
@@ -175,6 +228,8 @@ class OperationalMaintenanceWorkflowTests(TestCase):
             door=self.door_shift,
             description="Rejected after review",
             priority=MaintenanceRequest.Priority.LOW,
+            planned_start_at=timezone.now(),
+            planned_end_at=timezone.now() + timedelta(hours=2),
         )
         response = self.client.post(
             reverse(
