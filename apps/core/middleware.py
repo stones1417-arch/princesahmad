@@ -82,6 +82,7 @@ class SecurityHeadersMiddleware:
                     "style-src 'self' 'unsafe-inline'",
                     "script-src 'self' 'unsafe-inline'",
                     "connect-src 'self'",
+                    "frame-src 'self' https://maps.alharamain.gov.sa",
                 )
             ),
         )

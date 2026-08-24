@@ -11,8 +11,33 @@
   const refreshButton = document.querySelector("#refreshNow");
   const refreshTime = document.querySelector("#refreshTime");
   const refreshMessage = document.querySelector("#refreshMessage");
+  const tabs = [...root.querySelectorAll("[data-engineering-tab]")];
+  const panels = [...root.querySelectorAll("[data-engineering-panel]")];
+  const mapFrame = root.querySelector("[data-map-frame]");
   const controlIds = ["q", "status", "density", "incident", "maint", "sort"];
   let refreshPending = false;
+
+  function activateTab(tab) {
+    const target = tab.dataset.engineeringTab;
+    tabs.forEach((item) => {
+      const selected = item === tab;
+      item.setAttribute("aria-selected", String(selected));
+      item.tabIndex = selected ? 0 : -1;
+    });
+    panels.forEach((panel) => { panel.hidden = panel.dataset.engineeringPanel !== target; });
+    if (target === "map" && mapFrame && !mapFrame.src) mapFrame.src = mapFrame.dataset.src;
+  }
+
+  tabs.forEach((tab, index) => {
+    tab.addEventListener("click", () => activateTab(tab));
+    tab.addEventListener("keydown", (event) => {
+      if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const nextIndex = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? -1 : 1) + tabs.length) % tabs.length;
+      tabs[nextIndex].focus();
+      activateTab(tabs[nextIndex]);
+    });
+  });
 
   function csrfToken() {
     return document.cookie.split("; ").find((item) => item.startsWith("csrftoken="))?.split("=")[1] || "";

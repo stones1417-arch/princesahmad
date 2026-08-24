@@ -6,6 +6,13 @@
 <main class="engineering-center" dir="rtl" data-refresh-url="{% url 'ops:door-status-data' %}">
   <nav class="engineering-center__breadcrumb" aria-label="مسار التنقل"><a href="{% url 'ops:operations-center' %}">العمليات</a><span aria-hidden="true">/</span><span aria-current="page">المركز الهندسي</span></nav>
 
+  <nav class="engineering-tabs" role="tablist" aria-label="أقسام المركز الهندسي">
+    <button id="engineeringOverviewTab" type="button" role="tab" aria-selected="true" aria-controls="engineeringOverviewPanel" data-engineering-tab="overview">النظرة التشغيلية</button>
+    <button id="engineeringMapTab" type="button" role="tab" aria-selected="false" aria-controls="engineeringMapPanel" tabindex="-1" data-engineering-tab="map">الخريطة الرسمية</button>
+  </nav>
+
+  <section id="engineeringOverviewPanel" class="engineering-tab-panel" role="tabpanel" aria-labelledby="engineeringOverviewTab" data-engineering-panel="overview">
+
   <header class="engineering-center__header">
     <div class="engineering-center__heading">
       <span class="engineering-center__eyebrow">المراقبة الهندسية المباشرة</span>
@@ -65,6 +72,25 @@
       {% endfor %}
     </div>
     <div id="emptyState" class="engineering-doors__empty" hidden><span aria-hidden="true">⌕</span><h3>لا توجد أبواب مطابقة للفلاتر الحالية.</h3><p>جرّب تعديل معايير البحث أو إعادة ضبط الفلاتر.</p><button type="button" data-reset-filters>إعادة ضبط الفلاتر</button></div>
+  </section>
+  </section>
+
+  <section id="engineeringMapPanel" class="engineering-tab-panel engineering-map" role="tabpanel" aria-labelledby="engineeringMapTab" data-engineering-panel="map" hidden>
+    <header class="engineering-map__header">
+      <div>
+        <span class="engineering-map__source">مصدر خارجي رسمي</span>
+        <h2>الخريطة الرسمية للمسجد النبوي</h2>
+        <p>خريطة تفاعلية رسمية للاستدلال على الأبواب والمرافق والخدمات داخل المسجد النبوي وساحاته.</p>
+      </div>
+      <a class="engineering-map__external" href="https://maps.alharamain.gov.sa/navQ/default-kiosk/2?lang=ar" target="_blank" rel="noopener noreferrer">فتح بملء الشاشة</a>
+    </header>
+    <div class="engineering-map__frame">
+      <iframe data-map-frame data-src="https://maps.alharamain.gov.sa/navQ/default-kiosk/2?lang=ar" loading="lazy" title="الخريطة الرسمية للمسجد النبوي"></iframe>
+    </div>
+    <div class="engineering-map__fallback">
+      <p>إذا تعذر عرض الخريطة داخل الصفحة، يمكن فتح المصدر الرسمي مباشرة.</p>
+      <a href="https://maps.alharamain.gov.sa/navQ/default-kiosk/2?lang=ar" target="_blank" rel="noopener noreferrer">فتح الخريطة التفاعلية الرسمية</a>
+    </div>
   </section>
 </main>
 
