@@ -5,7 +5,6 @@
   <a href="{% url 'dashboard:index' %}" class="unified-menu-item featured"><span class="unified-menu-icon"><svg viewBox="0 0 24 24"><path d="M4 13h6V4H4zM14 20h6v-9h-6zM4 20h6v-3H4zM14 7h6V4h-6z"/></svg></span><span class="unified-menu-content"><strong>لوحة التحكم التنفيذية</strong><small>المؤشرات والتنبيهات وحالة التشغيل</small></span><i>‹</i></a>
   {% if user.is_authenticated %}
   <div class="enterprise-menu-label">مراكز القيادة</div>
-  <a href="{% url 'ops:operations-center' %}" class="unified-menu-item"><span class="unified-menu-icon"><svg viewBox="0 0 24 24"><path d="M4 19V5h16v14M8 15V9M12 15v-3M16 15V7"/></svg></span><span class="unified-menu-content"><strong>مركز العمليات المباشرة</strong><small>الأبواب والبلاغات والصيانة</small></span><i>‹</i></a>
   <a href="{% url 'ops:command-center' %}" class="unified-menu-item"><span class="unified-menu-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span><span class="unified-menu-content"><strong>غرفة القيادة والتحكم</strong><small>المتابعة اللحظية واتخاذ القرار</small></span><i>‹</i></a>
   <div class="enterprise-menu-label">الحساب والمتابعة</div>
   <a href="{% url 'accounts:profile' %}" class="unified-menu-item"><span class="unified-menu-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-5 3.5-8 8-8s8 3 8 8"/></svg></span><span class="unified-menu-content"><strong>الملف الشخصي</strong><small>{{ user.get_full_name|default:user.username }}</small></span><i>‹</i></a>

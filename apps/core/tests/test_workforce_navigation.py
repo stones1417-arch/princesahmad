@@ -88,7 +88,7 @@ class WorkforceNavigationContractTests(TestCase):
             "إدارة التوزيع",
             "إدارة الراحات",
             "تسكين الوردية",
-            "الوردية الحالية",
+            "مركز الوردية",
             "إدارة الورديات",
         ):
             self.assertIn(item, employees)
