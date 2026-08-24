@@ -58,13 +58,43 @@ class EngineeringCenterClosureTests(TestCase):
         self.assertContains(response, reverse("ops:maintenance-list"))
         self.assertContains(response, reverse("distribution:dashboard"))
 
+    def test_institutional_page_structure(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("ops:doors"))
+        self.assertContains(response, "المركز الهندسي")
+        self.assertContains(response, 'class="engineering-kpis"')
+        self.assertContains(response, 'class="engineering-filters"')
+        self.assertContains(response, 'class="engineering-card__metrics"', count=42)
+        self.assertContains(response, 'id="resultCount"')
+        self.assertContains(response, 'id="refreshTime"')
+
+    def test_density_is_present_once_per_card_without_progress_bar(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("ops:doors"))
+        self.assertContains(response, "لم تُحدد سعة تشغيلية لهذا الباب", count=42)
+        self.assertNotContains(response, 'role="progressbar"')
+
+    def test_primary_detail_action_and_actions_menu(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("ops:doors"))
+        self.assertContains(response, 'class="engineering-card__details"', count=42)
+        self.assertContains(response, 'class="engineering-actions__toggle"')
+        self.assertContains(response, 'role="menu"')
+
+    def test_empty_state_and_reset_controls_are_present(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("ops:doors"))
+        self.assertContains(response, "لا توجد أبواب مطابقة للفلاتر الحالية.")
+        self.assertContains(response, 'id="resetFilters"')
+        self.assertContains(response, "data-reset-filters")
+
     def test_view_only_user_cannot_see_privileged_quick_actions_or_links(self):
         self.client.force_login(self.viewer)
         response = self.client.get(reverse("ops:doors"))
         self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, '<button type="button" class="details" data-door-state-action')
-        self.assertNotContains(response, '<a class="details" data-incident-action')
-        self.assertNotContains(response, '<button type="button" class="details" data-maintenance-action')
-        self.assertNotContains(response, '<a class="details" data-distribution-action')
+        self.assertNotContains(response, "role=\"menuitem\" data-door-state-action")
+        self.assertNotContains(response, "role=\"menuitem\" data-incident-action")
+        self.assertNotContains(response, "role=\"menuitem\" data-maintenance-action")
+        self.assertNotContains(response, "role=\"menuitem\" data-distribution-action")
         self.assertNotContains(response, f'href="{reverse("ops:maintenance-list")}?q=')
         self.assertNotContains(response, f'href="{reverse("distribution:dashboard")}?door=')
