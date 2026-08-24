@@ -8,7 +8,7 @@
   </header>
 
   <section class="service-catalog">
-    <a href="{% url 'ops:doors' %}"><span class="service-icon">🚪</span><div><small>الأصول التشغيلية</small><strong>إدارة الأبواب</strong><p>الحالة والجاهزية والتحديثات.</p></div><b>{{ metrics.total_doors }}</b></a>
+    <a href="{% url 'ops:doors' %}"><span class="service-icon">🚪</span><div><small>الأصول التشغيلية</small><strong>المركز الهندسي</strong><p>مراقبة الأبواب والحالة التشغيلية والبلاغات والصيانة.</p></div><b>{{ metrics.total_doors }}</b></a>
     <a href="{% url 'distribution:dashboard' %}"><span class="service-icon">⌖</span><div><small>القوى الميدانية</small><strong>التوزيع والتغطية</strong><p>الإسناد والموازنة والتحقق.</p></div><b>{{ active_assignments_count }}</b></a>
     <a href="{% url 'ops:incidents' %}"><span class="service-icon red">!</span><div><small>الاستجابة التشغيلية</small><strong>البلاغات والحوادث</strong><p>التسجيل والإسناد والتصعيد.</p></div><b>{{ metrics.open_incidents }}</b></a>
     <a href="{% url 'ops:maintenance-list' %}"><span class="service-icon gold">⚒</span><div><small>استدامة التشغيل</small><strong>طلبات الصيانة</strong><p>الاعتماد والتنفيذ والإغلاق.</p></div><b>{{ metrics.open_maintenance }}</b></a>

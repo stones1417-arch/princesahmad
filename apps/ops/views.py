@@ -27,6 +27,7 @@ from apps.roles.services.permission_registry import PlatformPermissions
 
 from .command_center_service import CommandCenterService
 from .door_service import DoorService
+from .engineering_center_service import EngineeringCenterService
 from .incident_service import IncidentService
 from .maintenance_service import MaintenanceService
 from .models import (
@@ -293,7 +294,14 @@ def door_status_view(request):
     _require_ops_permission(request, PlatformPermissions.VIEW_DOORS)
     active_shift = _get_active_shift()
 
-    DoorService.ensure_current_states_for_catalog()
+    can_view_distribution = request.user.is_superuser or user_has_permission(
+        request.user, PlatformPermissions.VIEW_DISTRIBUTION
+    )
+    snapshot = EngineeringCenterService.build(
+        active_shift=active_shift,
+        include_employee_names=can_view_distribution,
+        allowed_sections=None if request.user.is_superuser else get_allowed_sections(request.user),
+    )
 
     official_doors = list(
         Door.objects.filter(is_active=True)
@@ -443,6 +451,17 @@ def door_status_view(request):
         ).filter(
             door_shift__shift_plan=active_shift
         ).order_by("-changed_at")[:8] if active_shift else DoorStateHistory.objects.none(),
+        "engineering_doors": snapshot["doors"],
+        "engineering_summary": snapshot["summary"],
+        "density_source": "NOT_AVAILABLE",
+        "can_create_incident": request.user.is_superuser or user_has_permission(
+            request.user, PlatformPermissions.CREATE_INCIDENT
+        ),
+        "can_view_incidents": True,
+        "can_view_maintenance": request.user.is_superuser or user_has_permission(
+            request.user, PlatformPermissions.VIEW_MAINTENANCE_REQUESTS
+        ),
+        "can_view_distribution": can_view_distribution,
     }
 
     return render(
@@ -450,6 +469,34 @@ def door_status_view(request):
         "ops/door_status.html",
         context,
     )
+
+
+@login_required
+def door_status_data_ajax(request):
+    """Return the engineering-center card snapshot for lightweight polling."""
+    _require_ops_permission(request, PlatformPermissions.VIEW_DOORS)
+    snapshot = EngineeringCenterService.build(
+        active_shift=_get_active_shift(),
+        allowed_sections=None if request.user.is_superuser else get_allowed_sections(request.user),
+    )
+    return JsonResponse({
+        "doors": [
+            {
+                "id": item.door.pk,
+                "number": item.door.door_number,
+                "status": item.status,
+                "status_label": item.status_label,
+                "employee_count": item.employee_count,
+                "open_incident_count": item.open_incident_count,
+                "active_maintenance_count": item.active_maintenance_count,
+                "density_percent": None,
+                "density_label": "غير محددة",
+                "last_activity": item.last_activity.isoformat() if item.last_activity else None,
+            }
+            for item in snapshot["doors"]
+        ],
+        "summary": snapshot["summary"],
+    })
 
 
 @login_required
@@ -819,7 +866,6 @@ def maintenance_requests_view(request):
         MaintenanceRequest.objects,
         request.user,
     )
-
     closed_statuses = (
         MaintenanceRequest.Status.CLOSED,
         MaintenanceRequest.Status.DONE,
