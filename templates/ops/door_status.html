@@ -1,15 +1,13 @@
 {% extends "base.html" %}
 {% load static %}
 {% block title %}المركز الهندسي | منصة أبواب{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'css/ops/engineering_center.css' %}?v=20260824-1"><link rel="stylesheet" href="{% static 'css/ops/engineering_operational_map.css' %}?v=20260824-1"><link rel="stylesheet" href="{% static 'css/ops/engineering_3d_map.css' %}?v=20260824-1">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/ops/engineering_center.css' %}?v=20260824-1">{% endblock %}
 {% block content %}
 <main class="engineering-center" dir="rtl" data-refresh-url="{% url 'ops:door-status-data' %}">
   <nav class="engineering-center__breadcrumb" aria-label="مسار التنقل"><a href="{% url 'ops:operations-center' %}">العمليات</a><span aria-hidden="true">/</span><span aria-current="page">المركز الهندسي</span></nav>
 
   <nav class="engineering-tabs" role="tablist" aria-label="أقسام المركز الهندسي">
     <button id="engineeringOverviewTab" type="button" role="tab" aria-selected="true" aria-controls="engineeringOverviewPanel" data-engineering-tab="overview">النظرة التشغيلية</button>
-    <button id="engineering3DMapTab" type="button" role="tab" aria-selected="false" aria-controls="engineering3DMapPanel" tabindex="-1" data-engineering-tab="three-d-map">المجسم التشغيلي ثلاثي الأبعاد</button>
-    <button id="engineeringOperationalMapTab" type="button" role="tab" aria-selected="false" aria-controls="engineeringOperationalMapPanel" tabindex="-1" data-engineering-tab="operational-map">المخطط التشغيلي SVG</button>
     <button id="engineeringMapTab" type="button" role="tab" aria-selected="false" aria-controls="engineeringMapPanel" tabindex="-1" data-engineering-tab="map">الخريطة الرسمية</button>
   </nav>
 
@@ -77,67 +75,6 @@
   </section>
   </section>
 
-  <section id="engineering3DMapPanel" class="engineering-tab-panel engineering-3d" role="tabpanel" aria-labelledby="engineering3DMapTab" data-engineering-panel="three-d-map" hidden
-    data-viewer-module-url="{% static 'js/ops/engineering_3d_map.js' %}?v=20260824-1"
-    data-anchors-url="{% static 'data/ops/prophets_mosque_3d_door_anchors.json' %}"
-    data-model-source="visual-placeholder">
-    <header class="engineering-3d__intro">
-      <div><span>مجسم تشغيلي بصري · VISUAL_PLACEHOLDER</span><h2>المجسم التشغيلي ثلاثي الأبعاد</h2><p>المجسم مخصص للمراقبة التشغيلية ولا يمثل نموذجًا مساحيًا أو معماريًا معتمدًا ما لم يتم تزويد النظام بنموذج هندسي رسمي.</p></div>
-      <button type="button" data-3d-fullscreen>فتح بملء الشاشة</button>
-    </header>
-    <div class="engineering-3d__toolbar" aria-label="أدوات المجسم ثلاثي الأبعاد">
-      <label><span>بحث مطابق برقم الباب</span><input type="search" data-3d-search placeholder="مثال: 6B أو 41" autocomplete="off"></label>
-      <label><span>جودة العرض</span><select data-3d-quality><option value="auto">تلقائية</option><option value="high">عالية</option><option value="medium">متوسطة</option><option value="economy">اقتصادية</option></select></label>
-      <div class="engineering-3d__presets" role="group" aria-label="زوايا الكاميرا"><button type="button" data-3d-camera="overview">نظرة عامة</button><button type="button" data-3d-camera="top">علوية</button><button type="button" data-3d-camera="facade-1">واجهة 1</button><button type="button" data-3d-camera="facade-2">واجهة 2</button><button type="button" data-3d-reset>إعادة الضبط</button></div>
-    </div>
-    <div class="engineering-3d__layers" aria-label="طبقات البيانات التشغيلية"><strong>الطبقات</strong><label><input type="checkbox" data-3d-layer="status" checked> الحالة</label><label><input type="checkbox" data-3d-layer="employees" checked> الموظفون</label><label><input type="checkbox" data-3d-layer="incidents" checked> البلاغات</label><label><input type="checkbox" data-3d-layer="maintenance" checked> الصيانة</label><label><input type="checkbox" data-3d-layer="labels" checked> التسميات</label></div>
-    <div class="engineering-3d__workspace" data-3d-workspace>
-      <div class="engineering-3d__viewport" data-3d-viewport tabindex="0" aria-label="مجسم تشغيلي بصري تفاعلي للأبواب">
-        <div class="engineering-3d__loading" data-3d-loading role="status"><strong>تهيئة العارض ثلاثي الأبعاد</strong><progress data-3d-progress max="100" value="0"></progress><span data-3d-progress-label>0%</span></div>
-        <div class="engineering-3d__fallback" data-3d-fallback hidden><h3>تعذر تشغيل العرض ثلاثي الأبعاد</h3><p>يمكن متابعة جميع البيانات من المخطط التشغيلي المتوافق.</p><button type="button" data-3d-open-fallback>فتح المخطط التشغيلي SVG</button></div>
-      </div>
-      <aside class="engineering-3d__drawer" data-3d-drawer hidden aria-live="polite"><button type="button" data-3d-drawer-close aria-label="إغلاق التفاصيل">×</button><div data-3d-drawer-content></div></aside>
-    </div>
-    <div class="engineering-3d__unplaced" data-3d-unplaced hidden><strong>أبواب بلا موضع معاير</strong><span data-3d-unplaced-list></span></div>
-  </section>
-
-  <section id="engineeringOperationalMapPanel" class="engineering-tab-panel engineering-operational-map" role="tabpanel" aria-labelledby="engineeringOperationalMapTab" data-engineering-panel="operational-map" hidden data-layout-url="{% static 'data/ops/prophets_mosque_operational_map.json' %}">
-    <header class="engineering-map__intro"><div><span>مجسم تشغيلي تقريبي</span><h2>مجسم تشغيلي تفاعلي للمسجد النبوي</h2><p>تمثيل بصري لأغراض المراقبة التشغيلية، ولا يمثل مخططًا مساحيًا أو معماريًا معتمدًا.</p></div><a href="https://maps.alharamain.gov.sa/navQ/default-kiosk/2?lang=ar" target="_blank" rel="noopener noreferrer">فتح الخريطة الرسمية للموقع</a></header>
-    <div class="engineering-map__summary" data-map-summary aria-label="ملخص الخريطة التشغيلية"></div>
-    <div class="engineering-map__toolbar" aria-label="مرشحات الخريطة">
-      <label><span>بحث برقم الباب</span><input type="search" data-map-search placeholder="مثال: 6B أو 41" autocomplete="off"></label>
-      <label><span>الحالة</span><select data-map-filter="status"><option value="all">كل الحالات</option><option value="open">مفتوح</option><option value="closed">متوقف</option><option value="maintenance">تحت الصيانة</option><option value="secured">مغلق</option></select></label>
-      <label><span>الموظفون</span><select data-map-filter="employees"><option value="all">الكل</option><option value="yes">يوجد موظفون</option><option value="no">بدون موظفين</option></select></label>
-      <label><span>البلاغات</span><select data-map-filter="incidents"><option value="all">الكل</option><option value="yes">يوجد بلاغ</option><option value="no">بدون بلاغ</option></select></label>
-      <label><span>الصيانة</span><select data-map-filter="maintenance"><option value="all">الكل</option><option value="yes">يوجد طلب</option><option value="no">بدون طلب</option></select></label>
-      <strong data-map-result-count aria-live="polite"></strong>
-    </div>
-    <div class="engineering-map__layers" aria-label="طبقات الخريطة"><strong>الطبقات</strong><label><input type="checkbox" data-map-layer="status" checked> حالة الأبواب</label><label><input type="checkbox" data-map-layer="employees" checked> الموظفون</label><label><input type="checkbox" data-map-layer="incidents" checked> البلاغات</label><label><input type="checkbox" data-map-layer="maintenance" checked> الصيانة</label></div>
-    <div class="engineering-map__workspace" data-map-workspace>
-      <div class="engineering-map__viewport" data-map-viewport tabindex="0" aria-label="مخطط الأبواب التشغيلي؛ استخدم زائد وناقص للتكبير">
-        <svg data-operational-map viewBox="0 0 1000 700" role="img" aria-labelledby="operationalMapTitle operationalMapDescription">
-          <title id="operationalMapTitle">مجسم المسجد النبوي التشغيلي التفاعلي</title><desc id="operationalMapDescription">تمثيل بصري تقريبي يعرض حالات الأبواب التشغيلية، وليس مخططًا مساحيًا أو معماريًا معتمدًا.</desc>
-          <defs><linearGradient id="modelRoof" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fffdf6"/><stop offset="1" stop-color="#e9ddbd"/></linearGradient><linearGradient id="modelSide" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d8c89f"/><stop offset="1" stop-color="#b9a575"/></linearGradient><radialGradient id="domeGreen"><stop offset="0" stop-color="#2b8b68"/><stop offset="1" stop-color="#0b5c45"/></radialGradient><filter id="modelShadow" x="-10%" y="-10%" width="130%" height="140%"><feDropShadow dx="8" dy="10" stdDeviation="5" flood-color="#24473d" flood-opacity=".18"/></filter></defs>
-          <g class="engineering-map__canvas" data-map-canvas>
-            <g id="schematic-background" data-map-visual="schematic" hidden><rect class="engineering-map__yard" x="70" y="55" width="860" height="590" rx="80"/><rect class="engineering-map__building" x="245" y="165" width="510" height="370" rx="42"/><path class="engineering-map__axis" d="M500 165V535M245 350H755"/></g>
-            <g id="mosque-model" data-map-visual="model" aria-label="مجسم تشغيلي تقريبي للمسجد النبوي">
-              <path class="engineering-model__plaza" d="M90 390 390 90 920 310 615 625Z"/><path class="engineering-model__walkway" d="M145 410 420 135M585 585 865 325M265 545 745 170"/>
-              <g class="engineering-model__building" filter="url(#modelShadow)"><path class="engineering-model__side" d="M300 250 690 205 790 300 790 455 385 520 300 420Z"/><path class="engineering-model__roof" d="M300 250 690 205 790 300 385 365Z"/><path class="engineering-model__wing" d="M385 365 790 300 790 380 385 445Z"/><path class="engineering-model__courtyard" d="M455 300 625 275 678 315 505 342Z"/><path class="engineering-model__arcades" d="M420 385 760 330M420 412 760 357M340 285 390 328M405 265 455 307M665 230 715 270"/></g>
-              <g class="engineering-model__dome" role="img" aria-label="القبة الخضراء — عنصر مرجعي بصري"><rect x="592" y="252" width="58" height="15" rx="4"/><ellipse cx="621" cy="249" rx="25" ry="20"/><path d="M621 220V229"/></g>
-              <g class="engineering-model__minaret" transform="translate(340 225)"><rect class="minaret-base" x="-10" y="30" width="20" height="16"/><path class="minaret-shaft" d="M-6 30-3-30H3L6 30Z"/><path class="minaret-top" d="M-8-30 0-45 8-30Z"/></g><g class="engineering-model__minaret" transform="translate(720 250)"><rect class="minaret-base" x="-10" y="30" width="20" height="16"/><path class="minaret-shaft" d="M-6 30-3-30H3L6 30Z"/><path class="minaret-top" d="M-8-30 0-45 8-30Z"/></g><g class="engineering-model__minaret" transform="translate(405 430)"><rect class="minaret-base" x="-10" y="30" width="20" height="16"/><path class="minaret-shaft" d="M-6 30-3-30H3L6 30Z"/><path class="minaret-top" d="M-8-30 0-45 8-30Z"/></g>
-              <g class="engineering-model__label"><text x="565" y="395">المسجد النبوي</text><text x="565" y="418">مجسم تشغيلي تقريبي</text></g>
-            </g>
-            <line class="engineering-map__connector" data-map-connector x2="500" y2="350" hidden/><g id="operational-door-layer" data-map-markers></g>
-          </g>
-        </svg>
-        <div class="engineering-map__zoom" aria-label="أدوات الخريطة"><div class="engineering-map__tool-group"><span>العرض</span><button type="button" data-map-zoom="in" aria-label="تكبير">+</button><button type="button" data-map-zoom="out" aria-label="تصغير">−</button><button type="button" data-map-reset>إعادة الضبط</button></div><div class="engineering-map__tool-group"><span>الأبواب</span><button type="button" data-map-show-all>إظهار الجميع</button></div><div class="engineering-map__tool-group"><span>الشاشة</span><button type="button" data-map-fullscreen>ملء الشاشة</button></div><div class="engineering-map__tool-group engineering-map__mode" role="group" aria-label="وضع العرض"><span>الوضع</span><button type="button" data-map-mode="model" aria-pressed="true">مجسم</button><button type="button" data-map-mode="schematic" aria-pressed="false">مخطط</button></div></div>
-        <div class="engineering-map__tooltip" data-map-tooltip role="tooltip" hidden></div>
-      </div>
-      <aside class="engineering-map-drawer" data-map-drawer aria-live="polite" hidden><button type="button" data-map-drawer-close aria-label="إغلاق التفاصيل">×</button><div data-map-drawer-content></div></aside>
-    </div>
-    <div class="engineering-map__legend" aria-label="مفتاح رموز الخريطة"><strong>دليل الرموز</strong><span><i class="is-open"></i> مفتوح</span><span><i class="is-closed"></i> متوقف</span><span><i class="is-maintenance"></i> صيانة</span><span><i class="is-secured"></i> مغلق</span><span>👥 موظفون</span><span>⚠ بلاغ</span><span>◆ صيانة</span></div>
-  </section>
-
   <section id="engineeringMapPanel" class="engineering-tab-panel engineering-map" role="tabpanel" aria-labelledby="engineeringMapTab" data-engineering-panel="map" hidden>
     <header class="engineering-map__header">
       <div>
@@ -145,7 +82,7 @@
         <h2>الخريطة الرسمية للمسجد النبوي</h2>
         <p>خريطة تفاعلية رسمية للاستدلال على الأبواب والمرافق والخدمات داخل المسجد النبوي وساحاته.</p>
       </div>
-      <a class="engineering-map__external" href="https://maps.alharamain.gov.sa/navQ/default-kiosk/2?lang=ar" target="_blank" rel="noopener noreferrer">فتح بملء الشاشة</a>
+      <nav class="engineering-map__external-actions" aria-label="روابط الخريطة الرسمية"><a class="engineering-map__external" href="https://maps.alharamain.gov.sa/navQ/default-kiosk/2?lang=ar" target="_blank" rel="noopener noreferrer">فتح الخريطة بملء الشاشة</a><a class="engineering-map__external" href="https://maps.alharamain.gov.sa/navQ/default-kiosk/2?lang=ar" target="_blank" rel="noopener noreferrer">فتح في نافذة جديدة</a></nav>
     </header>
     <div class="engineering-map__frame">
       <iframe data-map-frame data-src="https://maps.alharamain.gov.sa/navQ/default-kiosk/2?lang=ar" loading="lazy" title="الخريطة الرسمية للمسجد النبوي"></iframe>
@@ -158,4 +95,4 @@
 </main>
 
 {% endblock %}
-{% block extra_js %}<script type="importmap">{"imports":{"three":"{% static 'vendor/three/three.module.min.js' %}","three/addons/":"{% static 'vendor/three/addons/' %}"}}</script><script src="{% static 'js/ops/engineering_center.js' %}?v=20260824-1" defer></script><script src="{% static 'js/ops/engineering_operational_map.js' %}?v=20260824-1" defer></script><script src="{% static 'js/ops/engineering_3d_loader.js' %}?v=20260824-1" defer></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'js/ops/engineering_center.js' %}?v=20260824-1" defer></script>{% endblock %}
