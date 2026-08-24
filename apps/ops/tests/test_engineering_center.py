@@ -134,10 +134,20 @@ class EngineeringCenterClosureTests(TestCase):
             'data-map-fullscreen',
             'data-map-zoom="in"',
             'data-map-drawer',
+            'data-map-mode="model"',
+            'data-map-mode="schematic"',
+            'id="mosque-model"',
+            'id="schematic-background"',
+            'id="operational-door-layer"',
+            'aria-label="القبة الخضراء — عنصر مرجعي بصري"',
         ):
             self.assertContains(response, contract)
-        self.assertContains(response, "مخطط تشغيلي — مواقع الأبواب قابلة للمعايرة")
+        self.assertContains(response, "مجسم تشغيلي تقريبي")
+        self.assertContains(response, "المسجد النبوي")
+        self.assertContains(response, "ولا يمثل مخططًا مساحيًا أو معماريًا معتمدًا")
         self.assertContains(response, "فتح الخريطة الرسمية للموقع")
+        content = response.content.decode()
+        self.assertLess(content.index('id="mosque-model"'), content.index('id="operational-door-layer"'))
 
     def test_operational_map_live_update_preserves_client_state(self):
         script_path = finders.find("js/ops/engineering_operational_map.js")
@@ -147,4 +157,6 @@ class EngineeringCenterClosureTests(TestCase):
         self.assertIn('engineering:center-refreshed', script)
         self.assertIn("updateMarker(item.number)", script)
         self.assertIn("if (selectedDoor) renderDrawer()", script)
+        self.assertIn('markerLayer.classList.add("has-selection")', script)
+        self.assertIn("data-map-visual='schematic'", script)
         self.assertNotIn("new WebSocket", script)

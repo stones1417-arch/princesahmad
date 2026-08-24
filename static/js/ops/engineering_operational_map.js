@@ -12,6 +12,7 @@
   const tooltip = panel.querySelector("[data-map-tooltip]");
   const drawer = panel.querySelector("[data-map-drawer]");
   const drawerContent = panel.querySelector("[data-map-drawer-content]");
+  const connector = panel.querySelector("[data-map-connector]");
   const markers = new Map();
   const doorData = new Map();
   let initialized = false;
@@ -169,7 +170,15 @@
   function selectDoor(number) {
     markers.get(selectedDoor)?.classList.remove("is-selected");
     selectedDoor = number;
-    markers.get(number)?.classList.add("is-selected");
+    const marker = markers.get(number);
+    marker?.classList.add("is-selected");
+    markerLayer.classList.add("has-selection");
+    const coordinates = marker?.getAttribute("transform")?.match(/translate\(([-.\d]+) ([-.\d]+)\)/);
+    if (coordinates) {
+      connector.setAttribute("x1", coordinates[1]);
+      connector.setAttribute("y1", coordinates[2]);
+      connector.hidden = false;
+    }
     renderDrawer();
   }
 
@@ -222,19 +231,25 @@
   panel.querySelectorAll("[data-map-filter]").forEach((control) => control.addEventListener("change", applyFilters));
   panel.querySelector("[data-map-search]").addEventListener("input", applyFilters);
   panel.querySelectorAll("[data-map-layer]").forEach((control) => control.addEventListener("change", () => doorData.forEach((_, number) => updateMarker(number))));
+  panel.querySelectorAll("[data-map-mode]").forEach((button) => button.addEventListener("click", () => {
+    const mode = button.dataset.mapMode;
+    panel.querySelectorAll("[data-map-mode]").forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
+    panel.querySelector("[data-map-visual='model']").hidden = mode !== "model";
+    panel.querySelector("[data-map-visual='schematic']").hidden = mode !== "schematic";
+  }));
   panel.querySelector("[data-map-zoom='in']").addEventListener("click", () => zoom(.2));
   panel.querySelector("[data-map-zoom='out']").addEventListener("click", () => zoom(-.2));
   panel.querySelector("[data-map-reset]").addEventListener("click", resetView);
   panel.querySelector("[data-map-show-all]").addEventListener("click", () => { panel.querySelector("[data-map-search]").value = ""; panel.querySelectorAll("[data-map-filter]").forEach((control) => { control.value = "all"; }); applyFilters(); resetView(); });
   const fullscreenButton = panel.querySelector("[data-map-fullscreen]");
   fullscreenButton.addEventListener("click", () => {
-    if (document.fullscreenElement === viewport) document.exitFullscreen?.();
-    else viewport.requestFullscreen?.();
+    if (document.fullscreenElement === panel.querySelector("[data-map-workspace]")) document.exitFullscreen?.();
+    else panel.querySelector("[data-map-workspace]").requestFullscreen?.();
   });
   document.addEventListener("fullscreenchange", () => {
-    fullscreenButton.textContent = document.fullscreenElement === viewport ? "خروج" : "ملء الشاشة";
+    fullscreenButton.textContent = document.fullscreenElement === panel.querySelector("[data-map-workspace]") ? "خروج" : "ملء الشاشة";
   });
-  panel.querySelector("[data-map-drawer-close]").addEventListener("click", () => { drawer.hidden = true; markers.get(selectedDoor)?.classList.remove("is-selected"); selectedDoor = null; });
+  panel.querySelector("[data-map-drawer-close]").addEventListener("click", () => { drawer.hidden = true; markers.get(selectedDoor)?.classList.remove("is-selected"); markerLayer.classList.remove("has-selection"); connector.hidden = true; selectedDoor = null; });
   viewport.addEventListener("keydown", (event) => { if (["+", "="].includes(event.key)) zoom(.2); if (event.key === "-") zoom(-.2); if (event.key === "Escape") drawer.hidden = true; });
   viewport.addEventListener("wheel", (event) => { if (!event.ctrlKey) return; event.preventDefault(); zoom(event.deltaY < 0 ? .15 : -.15); }, { passive: false });
   viewport.addEventListener("pointerdown", (event) => { if (event.target.closest(".engineering-map-marker")) return; pointerStart = { x: event.clientX, y: event.clientY, tx: translateX, ty: translateY }; viewport.setPointerCapture(event.pointerId); });
