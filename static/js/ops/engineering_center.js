@@ -39,10 +39,6 @@
     });
   });
 
-  function csrfToken() {
-    return document.cookie.split("; ").find((item) => item.startsWith("csrftoken="))?.split("=")[1] || "";
-  }
-
   function cards() {
     return [...grid.querySelectorAll(".engineering-card")];
   }
@@ -96,14 +92,6 @@
     document.querySelector("#q").focus();
   }
 
-  function closeMenus(except = null) {
-    document.querySelectorAll(".engineering-actions__toggle[aria-expanded='true']").forEach((toggle) => {
-      if (toggle === except) return;
-      toggle.setAttribute("aria-expanded", "false");
-      toggle.nextElementSibling.hidden = true;
-    });
-  }
-
   function bindInteractions() {
     document.querySelectorAll(".engineering-card__details").forEach((button) => {
       button.addEventListener("click", () => {
@@ -111,37 +99,6 @@
         drawer.hidden = !drawer.hidden;
         button.setAttribute("aria-expanded", String(!drawer.hidden));
         button.textContent = drawer.hidden ? "عرض التفاصيل" : "إخفاء التفاصيل";
-      });
-    });
-
-    document.querySelectorAll(".engineering-actions__toggle").forEach((toggle) => {
-      toggle.addEventListener("click", (event) => {
-        event.stopPropagation();
-        const willOpen = toggle.getAttribute("aria-expanded") !== "true";
-        closeMenus(toggle);
-        toggle.setAttribute("aria-expanded", String(willOpen));
-        toggle.nextElementSibling.hidden = !willOpen;
-        if (willOpen) toggle.nextElementSibling.querySelector("[role='menuitem']")?.focus();
-      });
-      toggle.nextElementSibling.addEventListener("keydown", (event) => {
-        const items = [...toggle.nextElementSibling.querySelectorAll("[role='menuitem']")];
-        const index = items.indexOf(document.activeElement);
-        if (event.key === "Escape") { closeMenus(); toggle.focus(); }
-        if (event.key === "ArrowDown") { event.preventDefault(); items[(index + 1) % items.length]?.focus(); }
-        if (event.key === "ArrowUp") { event.preventDefault(); items[(index - 1 + items.length) % items.length]?.focus(); }
-      });
-    });
-
-    document.addEventListener("click", () => closeMenus());
-    document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeMenus(); });
-
-    document.querySelectorAll("[data-door-state-action]").forEach((button) => {
-      button.addEventListener("click", async () => {
-        const state = window.prompt("الحالة الجديدة: open / closed / maintenance / secured");
-        if (!state) return;
-        const body = new URLSearchParams({ state, notes: "تحديث من المركز الهندسي" });
-        const response = await fetch(button.dataset.actionUrl, { method: "POST", headers: { "X-CSRFToken": csrfToken(), "Content-Type": "application/x-www-form-urlencoded" }, body });
-        if (response.ok) await refreshCards(); else showRefreshError("تعذر تنفيذ تغيير الحالة");
       });
     });
 

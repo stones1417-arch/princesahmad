@@ -251,14 +251,13 @@ class OperationalMaintenanceWorkflowTests(TestCase):
     def test_maintenance_action_is_on_executive_dashboard_not_engineering_center(self):
         response = self.client.get(reverse("ops:doors"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "data-door-state-action")
+        self.assertNotContains(response, "data-door-state-action")
         self.assertNotContains(response, "data-maintenance-action")
-        self.assertContains(
+        self.assertNotContains(
             response,
             reverse("ops:door-update-ajax", args=[self.door_shift.pk]),
         )
-        self.assertNotContains(response, "disabled")
-        self.assertContains(response, 'type="button"')
+        self.assertContains(response, "data-incident-action")
 
         dashboard = self.client.get(reverse("dashboard:index"))
         self.assertContains(dashboard, "data-maintenance-door")

@@ -107,9 +107,14 @@ class EngineeringCenterClosureTests(TestCase):
         self.client.force_login(self.admin)
         response = self.client.get(reverse("ops:doors"))
         self.assertContains(response, 'class="engineering-card__details"', count=42)
-        self.assertContains(response, 'class="engineering-actions__toggle"')
-        self.assertContains(response, "data-incident-action")
-        self.assertContains(response, "data-distribution-action")
+        self.assertContains(response, "data-incident-action", count=42)
+        self.assertContains(response, "إنشاء بلاغ تشغيلي", count=42)
+        self.assertNotContains(response, "data-door-state-action")
+        self.assertNotContains(response, "data-distribution-action")
+        self.assertNotContains(response, 'role="menu"')
+        self.assertNotContains(response, 'class="engineering-actions__toggle"')
+        self.assertContains(response, "?door=6A&amp;create=1")
+        self.assertContains(response, "?door=6B&amp;create=1")
 
     def test_view_only_user_cannot_see_privileged_quick_actions_or_links(self):
         self.client.force_login(self.viewer)
@@ -118,7 +123,29 @@ class EngineeringCenterClosureTests(TestCase):
         self.assertNotContains(response, 'role="menuitem" data-door-state-action')
         self.assertNotContains(response, 'role="menuitem" data-incident-action')
         self.assertNotContains(response, 'role="menuitem" data-distribution-action')
+        self.assertNotContains(response, "data-incident-action")
         self.assertNotContains(response, f'href="{reverse("ops:maintenance-list")}?q=')
+
+    def test_engineering_actions_are_scoped_and_incident_endpoint_stays_protected(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("ops:doors"))
+        self.assertContains(response, 'class="engineering-card__status"', count=42)
+        self.assertContains(response, 'data-metric="employees"', count=42)
+        self.assertNotContains(response, "engineeringDoorStatusDialog")
+        self.assertNotContains(response, f'href="{reverse("distribution:dashboard")}?door=')
+        self.assertNotContains(response, reverse("ops:door-update-ajax", args=[1]))
+
+        script_path = finders.find("js/ops/engineering_center.js")
+        with open(script_path, encoding="utf-8") as script_file:
+            script = script_file.read()
+        self.assertNotIn("data-door-state-action", script)
+        self.assertNotIn("data-distribution-action", script)
+
+        self.client.logout()
+        incident_url = reverse("ops:incident-create")
+        self.assertEqual(self.client.post(incident_url).status_code, 302)
+        self.client.force_login(self.unauthorized)
+        self.assertEqual(self.client.post(incident_url).status_code, 403)
 
     def test_density_is_present_once_per_card_without_progress_bar(self):
         self.client.force_login(self.admin)
