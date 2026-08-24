@@ -2281,6 +2281,8 @@ html[data-theme="dark"] .dashboard-door-card { background: linear-gradient(145de
                             data-direction="{{ section_key }}"
                             data-state="{{ door.state }}"
                             data-door-number="{{ door.door_number }}"
+                            data-door-id="{{ door.id }}"
+                            data-door-label="الباب {{ door.door_number }}"
                             data-update-url="{% url 'ops:door-update-ajax' door.id %}"
                             data-maintenance-url="{% url 'ops:maintenance-create-ajax' door.id %}"
                         >
@@ -2321,7 +2323,7 @@ html[data-theme="dark"] .dashboard-door-card { background: linear-gradient(145de
                             </div>
 
                             <div class="dashboard-door-actions">
-                                <button
+                                {% if can_create_maintenance %}<button
                                     type="button"
                                     class="dashboard-door-edit"
                                     data-edit-door
@@ -2335,7 +2337,7 @@ html[data-theme="dark"] .dashboard-door-card { background: linear-gradient(145de
                                     data-maintenance-door
                                 >
                                     طلب صيانة
-                                </button>
+                                </button>{% endif %}
                             </div>
                         </article>
                     {% empty %}
@@ -2482,12 +2484,8 @@ html[data-theme="dark"] .dashboard-door-card { background: linear-gradient(145de
 </div>
 
 
-{% comment %}
-=========================================================
-نافذة إنشاء طلب صيانة
-=========================================================
-{% endcomment %}
-
+{% include "ops/components/maintenance_request_dialog.html" %}
+{% comment %}Legacy dialog retained temporarily outside the rendered DOM.
 <div
     id="maintenanceDialog"
     class="dashboard-dialog"
@@ -2611,6 +2609,7 @@ html[data-theme="dark"] .dashboard-door-card { background: linear-gradient(145de
         </footer>
     </section>
 </div>
+{% endcomment %}
 {% endblock %}
 
 
@@ -2678,6 +2677,11 @@ html[data-theme="dark"] .dashboard-door-card { background: linear-gradient(145de
 
     const maintenanceTechnician =
         document.getElementById("maintenanceTechnician");
+
+    const maintenanceTechnicianPhone = document.getElementById("maintenanceTechnicianPhone");
+    const maintenancePlannedStart = document.getElementById("maintenancePlannedStart");
+    const maintenancePlannedEnd = document.getElementById("maintenancePlannedEnd");
+    const maintenanceExpectedDuration = document.getElementById("maintenanceExpectedDuration");
 
     const createMaintenanceButton =
         document.getElementById("createMaintenanceButton");
@@ -3134,6 +3138,11 @@ html[data-theme="dark"] .dashboard-door-card { background: linear-gradient(145de
         maintenancePriority.value = "medium";
         maintenanceDescription.value = "";
         maintenanceTechnician.value = "";
+        maintenanceTechnicianPhone.value = "";
+        maintenancePlannedStart.value = "";
+        maintenancePlannedEnd.value = "";
+        maintenanceExpectedDuration.textContent = "المدة المتوقعة: —";
+        maintenanceExpectedDuration.classList.remove("is-invalid");
         maintenanceDoorLabel.textContent = `باب ${doorNumber}`;
         maintenanceDescriptionCount.textContent = "0";
         updateMaintenancePriorityBadge();
@@ -3179,6 +3188,10 @@ html[data-theme="dark"] .dashboard-door-card { background: linear-gradient(145de
                 .value
                 .trim();
 
+        const technicianPhone = maintenanceTechnicianPhone.value.trim();
+        const plannedStart = maintenancePlannedStart.value;
+        const plannedEnd = maintenancePlannedEnd.value;
+
         if (!description) {
             showDialogMessage(
                 maintenanceMessage,
@@ -3188,6 +3201,11 @@ html[data-theme="dark"] .dashboard-door-card { background: linear-gradient(145de
 
             maintenanceDescription.focus();
 
+            return;
+        }
+
+        if (!plannedStart || !plannedEnd) {
+            showDialogMessage(maintenanceMessage, "وقت البدء والانتهاء المخططان مطلوبان.", "warning");
             return;
         }
 
@@ -3208,6 +3226,9 @@ html[data-theme="dark"] .dashboard-door-card { background: linear-gradient(145de
             "technician_name",
             technicianName
         );
+        formData.append("technician_phone", technicianPhone);
+        formData.append("planned_start_at", plannedStart);
+        formData.append("planned_end_at", plannedEnd);
 
         createMaintenanceButton.disabled = true;
         createMaintenanceButton.classList.add("is-loading");
@@ -3243,20 +3264,14 @@ html[data-theme="dark"] .dashboard-door-card { background: linear-gradient(145de
             const data =
                 await parseJsonResponse(response);
 
-            updateDoorCardState(
-                activeMaintenanceCard,
-                "maintenance",
-                "تحت الصيانة"
-            );
-
             const requestNumber =
                 data.maintenance
                     ?.request_number;
 
             showToast(
                 requestNumber
-                    ? `تم إنشاء طلب الصيانة رقم ${requestNumber}.`
-                    : "تم إنشاء طلب الصيانة بنجاح.",
+                    ? `تم إنشاء طلب صيانة للباب ${activeMaintenanceCard.dataset.doorNumber} بنجاح (${requestNumber}).`
+                    : `تم إنشاء طلب صيانة للباب ${activeMaintenanceCard.dataset.doorNumber} بنجاح.`,
                 "success"
             );
 
@@ -3286,6 +3301,28 @@ html[data-theme="dark"] .dashboard-door-card { background: linear-gradient(145de
         const priority = maintenancePriority?.value || "medium";
         maintenancePriorityBadge.textContent = labels[priority];
         maintenancePriorityBadge.className = `maintenance-priority-badge is-${priority}`;
+    }
+
+    function updateExpectedDuration() {
+        const start = new Date(maintenancePlannedStart.value);
+        const end = new Date(maintenancePlannedEnd.value);
+        maintenanceExpectedDuration.classList.remove("is-invalid");
+        if (!maintenancePlannedStart.value || !maintenancePlannedEnd.value) {
+            maintenanceExpectedDuration.textContent = "المدة المتوقعة: —";
+            return;
+        }
+        const minutes = Math.round((end - start) / 60000);
+        if (minutes <= 0) {
+            maintenanceExpectedDuration.textContent = "وقت النهاية يجب أن يكون بعد وقت البداية.";
+            maintenanceExpectedDuration.classList.add("is-invalid");
+            return;
+        }
+        const hours = Math.floor(minutes / 60);
+        const remainder = minutes % 60;
+        const parts = [];
+        if (hours) parts.push(hours === 1 ? "ساعة واحدة" : hours === 2 ? "ساعتان" : `${hours} ساعات`);
+        if (remainder) parts.push(`${remainder} دقيقة`);
+        maintenanceExpectedDuration.textContent = `المدة المتوقعة: ${parts.join(" و")}`;
     }
 
 
@@ -3409,6 +3446,8 @@ html[data-theme="dark"] .dashboard-door-card { background: linear-gradient(145de
     });
 
     maintenancePriority?.addEventListener("change", updateMaintenancePriorityBadge);
+    maintenancePlannedStart?.addEventListener("change", updateExpectedDuration);
+    maintenancePlannedEnd?.addEventListener("change", updateExpectedDuration);
 
     maintenanceDescription?.addEventListener("input", () => {
         maintenanceDescriptionCount.textContent =

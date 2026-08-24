@@ -1,0 +1,28 @@
+<style>.maintenance-dialog-section{margin:0 0 14px;padding:14px;border:1px solid var(--dashboard-line);border-radius:14px}.maintenance-dialog-section legend{padding:0 7px;color:var(--dashboard-green);font-size:12px;font-weight:950}.maintenance-dialog-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.maintenance-expected-duration{margin:10px 0 0;padding:9px 11px;border-radius:9px;background:#eef7f3;color:var(--dashboard-green);font-size:11px;font-weight:900}.maintenance-expected-duration.is-invalid{background:#fff0f0;color:#a93636}@media(max-width:650px){.maintenance-dialog-grid{grid-template-columns:1fr}}</style>
+<div id="maintenanceDialog" class="dashboard-dialog" aria-hidden="true">
+  <section class="dashboard-dialog-card is-maintenance maintenance-dialog-card" role="dialog" aria-modal="true" aria-labelledby="maintenanceDialogTitle">
+    <header class="dashboard-dialog-header">
+      <div class="dashboard-dialog-heading"><span class="maintenance-dialog-kicker">طلب صيانة مؤسسي</span><h3 id="maintenanceDialogTitle">إنشاء طلب صيانة</h3><p>سيرسل الطلب إلى مركز العمليات للمراجعة والاعتماد.</p></div>
+      <button type="button" class="dashboard-dialog-close" data-close-maintenance-dialog aria-label="إغلاق">×</button>
+    </header>
+    <div class="dashboard-dialog-body">
+      <div class="maintenance-dialog-context"><div class="maintenance-context-icon" aria-hidden="true">⚙</div><div><span>الباب</span><strong id="maintenanceDoorLabel">باب —</strong></div><span id="maintenancePriorityBadge" class="maintenance-priority-badge is-medium">أولوية متوسطة</span></div>
+      <div id="maintenanceDialogMessage" class="dashboard-dialog-message" role="alert"></div>
+      <div class="dashboard-dialog-form">
+        <fieldset class="maintenance-dialog-section"><legend>تفاصيل المشكلة</legend>
+          <div class="dashboard-dialog-field"><label for="maintenancePriority">الأولوية <span class="field-required">مطلوب</span></label><select id="maintenancePriority"><option value="low">منخفضة</option><option value="medium" selected>متوسطة</option><option value="high">عالية</option><option value="urgent">عاجلة</option></select></div>
+          <div class="dashboard-dialog-field"><label for="maintenanceDescription">وصف المشكلة <span class="field-required">مطلوب</span></label><textarea id="maintenanceDescription" maxlength="2000" placeholder="اكتب وصفًا واضحًا لمشكلة الباب..."></textarea><div class="maintenance-field-meta"><small>وضّح العطل وأثره التشغيلي.</small><span><b id="maintenanceDescriptionCount">0</b>/2000</span></div></div>
+        </fieldset>
+        <fieldset class="maintenance-dialog-section"><legend>الجدولة المطلوبة</legend><div class="maintenance-dialog-grid">
+          <div class="dashboard-dialog-field"><label for="maintenancePlannedStart">وقت البدء المخطط <span class="field-required">مطلوب</span></label><input id="maintenancePlannedStart" type="datetime-local" required></div>
+          <div class="dashboard-dialog-field"><label for="maintenancePlannedEnd">وقت الانتهاء المخطط <span class="field-required">مطلوب</span></label><input id="maintenancePlannedEnd" type="datetime-local" required></div>
+        </div><p id="maintenanceExpectedDuration" class="maintenance-expected-duration" aria-live="polite">المدة المتوقعة: —</p></fieldset>
+        <fieldset class="maintenance-dialog-section"><legend>الفني والتواصل</legend><div class="maintenance-dialog-grid">
+          <div class="dashboard-dialog-field"><label for="maintenanceTechnician">اسم الفني <span class="field-optional">اختياري</span></label><input id="maintenanceTechnician" type="text" maxlength="150" autocomplete="name"></div>
+          <div class="dashboard-dialog-field"><label for="maintenanceTechnicianPhone">جوال الفني <span class="field-optional">اختياري</span></label><input id="maintenanceTechnicianPhone" type="tel" maxlength="20" inputmode="tel" autocomplete="tel" placeholder="05xxxxxxxx"></div>
+        </div></fieldset>
+      </div>
+    </div>
+    <footer class="dashboard-dialog-footer"><button type="button" class="dashboard-dialog-button is-cancel" data-close-maintenance-dialog>إلغاء</button><button type="button" class="dashboard-dialog-button is-maintenance" id="createMaintenanceButton"><span id="createMaintenanceButtonLabel">إنشاء طلب الصيانة</span></button></footer>
+  </section>
+</div>

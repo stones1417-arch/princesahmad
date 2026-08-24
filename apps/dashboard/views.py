@@ -13,9 +13,12 @@ from django.utils.dateparse import parse_date
 from apps.audit.models import DoorStateHistory
 from apps.distribution.models import DoorAssignment
 from apps.hr.models import Employee
+from apps.locations.door_directions import get_official_door_direction
 from apps.locations.models import Door
 from apps.ops.models import DoorCurrentState, DoorShift, Incident, MaintenanceRequest
 from apps.reporting.models import ShiftReport
+from apps.roles.services.access_control import user_has_permission
+from apps.roles.services.permission_registry import PlatformPermissions
 from apps.scheduling.models import ShiftPlan
 
 
@@ -83,40 +86,20 @@ def _get_shift_time(shift: ShiftPlan | None, kind: str):
 
 
 def _get_direction(door_number: Any) -> tuple[str, str]:
-    """
-    التقسيم الرسمي للجهات.
-
-    يدعم القيم النصية 6A و6B عند توفرها، ويدعم الأرقام الصحيحة الحالية.
-    """
-    normalized = str(door_number).strip().upper()
-
-    if normalized == "6B":
-        return "south", "الجهة الجنوبية"
-
-    if normalized == "6A":
-        return "west", "الجهة الغربية"
-
+    """Return the official direction using the central mapping helper."""
     try:
-        number = int(normalized)
-    except (TypeError, ValueError):
+        direction = get_official_door_direction(door_number)
+    except Exception:
         return "unknown", "غير محدد"
 
-    if 1 <= number <= 5:
-        return "south", "الجهة الجنوبية"
-
-    if 6 <= number <= 14:
-        return "west", "الجهة الغربية"
-
-    if 15 <= number <= 27:
-        return "north", "الجهة الشمالية"
-
-    if 28 <= number <= 35:
-        return "east", "الجهة الشرقية"
-
-    if 36 <= number <= 41:
-        return "southeast", "الجهة الجنوب شرقي"
-
-    return "unknown", "غير محدد"
+    labels = {
+        "south": "الجهة الجنوبية",
+        "west": "الجهة الغربية",
+        "north": "الجهة الشمالية",
+        "east": "الجهة الشرقية",
+        "southeast": "الجهة الجنوبية الشرقية",
+    }
+    return direction, labels.get(direction, "غير محدد")
 
 
 def _find_door_by_number(door_number: Any) -> Door | None:
@@ -520,7 +503,9 @@ def build_dashboard_context(request):
                 .select_related("employee", "door")[:20]
             )
 
-        door_shifts = list(
+        shift_doors_by_number = {
+            item.door_number: item
+            for item in (
             DoorShift.objects
             .filter(shift_plan=active_shift, is_active=True)
             .select_related(
@@ -528,19 +513,16 @@ def build_dashboard_context(request):
                 "shift_plan",
                 "shift_plan__shift_type",
             )
-            .order_by("door_number")
-        )
-
-        doors_by_number = {
-            door.door_number: door
-            for door in Door.objects.filter(
-                is_active=True,
-                door_number__in=[
-                    door_shift.door_number
-                    for door_shift in door_shifts
-                ],
             )
         }
+        master_doors = list(Door.objects.filter(is_active=True).order_by("sort_order"))
+        door_shifts = [
+            shift_doors_by_number[door.door_number]
+            for door in master_doors
+            if door.door_number in shift_doors_by_number
+        ]
+
+        doors_by_number = {door.door_number: door for door in master_doors}
         assignments_by_door = defaultdict(list)
         for assignment in all_assignments:
             assignments_by_door[assignment.door_id].append(assignment)
@@ -972,6 +954,9 @@ def build_dashboard_context(request):
 
         "latest_logs": latest_logs,
         "dashboard_generated_at": now,
+        "can_create_maintenance": user_has_permission(
+            request.user, PlatformPermissions.CREATE_MAINTENANCE_REQUEST
+        ),
         "open_incidents_count": Incident.objects.filter(
             status__in=[
                 Incident.Status.NEW,

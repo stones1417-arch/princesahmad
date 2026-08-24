@@ -248,21 +248,24 @@ class OperationalMaintenanceWorkflowTests(TestCase):
         center = self.client.get(reverse("ops:maintenance-list"))
         self.assertNotContains(center, maintenance.request_number)
 
-    def test_authorized_buttons_render_with_real_urls_and_matching_selectors(self):
+    def test_maintenance_action_is_on_executive_dashboard_not_engineering_center(self):
         response = self.client.get(reverse("ops:doors"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "data-door-state-action")
-        self.assertContains(response, "data-maintenance-action")
+        self.assertNotContains(response, "data-maintenance-action")
         self.assertContains(
             response,
             reverse("ops:door-update-ajax", args=[self.door_shift.pk]),
         )
-        self.assertContains(
-            response,
-            reverse("ops:maintenance-create-ajax", args=[self.door_shift.pk]),
-        )
         self.assertNotContains(response, "disabled")
         self.assertContains(response, 'type="button"')
+
+        dashboard = self.client.get(reverse("dashboard:index"))
+        self.assertContains(dashboard, "data-maintenance-door")
+        self.assertContains(
+            dashboard,
+            reverse("ops:maintenance-create-ajax", args=[self.door_shift.pk]),
+        )
 
 
 class CommandCenterDoorCatalogTests(TestCase):
