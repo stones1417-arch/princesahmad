@@ -21,6 +21,7 @@
       {% if engineering_summary.open_incidents == 0 and engineering_summary.maintenance_doors == 0 %}<span class="engineering-center__health"><i aria-hidden="true"></i> التشغيل مستقر</span>{% endif %}
     </div>
     <div class="engineering-center__refresh-panel">
+      {% if can_view_staff_targets %}<a class="engineering-center__settings-link" href="{% url 'ops:door-coverage-settings' %}">إعداد التغطية التشغيلية</a>{% endif %}
       <span class="engineering-center__auto"><i aria-hidden="true"></i> تحديث تلقائي</span>
       <div><small>آخر تحديث</small><strong id="refreshTime">الآن</strong></div>
       <button id="refreshNow" type="button" class="engineering-center__refresh-button" aria-label="تحديث بيانات المركز الهندسي الآن"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg><span>تحديث الآن</span></button>
@@ -52,21 +53,6 @@
       <button id="resetFilters" type="button" class="engineering-filters__reset"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4v6h6M20 20v-6h-6M5 15a8 8 0 0 0 14-3M19 9A8 8 0 0 0 5 12"/></svg>إعادة الضبط</button>
     </div>
   </section>
-
-  {% if can_manage_staff_targets %}
-  <details class="engineering-staff-targets">
-    <summary>إعداد العدد التشغيلي المستهدف للأبواب</summary>
-    <form method="post" action="{% url 'ops:door-staff-targets' %}">
-      {% csrf_token %}
-      <div class="engineering-staff-targets__grid">
-        {% for item in engineering_doors %}
-        <label><span>الباب {{ item.door.door_number }}</span><input type="number" min="1" name="target_{{ item.door.pk }}" value="{{ item.target_staff_count|default_if_none:'' }}" placeholder="غير مهيأ"></label>
-        {% endfor %}
-      </div>
-      <button type="submit">حفظ الأعداد المستهدفة</button>
-    </form>
-  </details>
-  {% endif %}
 
   <section class="engineering-doors" aria-labelledby="doorsTitle">
     <header class="engineering-doors__heading"><div><span class="engineering-section-icon" aria-hidden="true">▥</span><div><h2 id="doorsTitle">الأبواب التشغيلية</h2><p>{{ engineering_summary.total_doors }} بابًا ضمن الكتالوج التشغيلي</p></div></div><strong id="resultCount">عرض {{ engineering_summary.total_doors }} من {{ engineering_summary.total_doors }}</strong></header>

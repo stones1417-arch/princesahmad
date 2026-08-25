@@ -171,7 +171,7 @@ class EngineeringCenterClosureTests(TestCase):
     def test_staff_coverage_replaces_unverifiable_density_claim(self):
         self.client.force_login(self.admin)
         response = self.client.get(reverse("ops:doors"))
-        self.assertContains(response, "التغطية التشغيلية", count=43)
+        self.assertContains(response, "التغطية التشغيلية", count=44)
         self.assertContains(response, "لم يُحدد العدد المستهدف لهذا الباب", count=42)
         self.assertNotContains(response, "الكثافة")
         self.assertNotContains(response, "لا توجد سعة معتمدة")
@@ -257,7 +257,7 @@ class EngineeringCenterClosureTests(TestCase):
                 f"target_{female_door.pk}": "9",
             },
         )
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 403)
         self.assertFalse(
             DoorOperationalProfile.objects.filter(door=female_door).exists()
         )

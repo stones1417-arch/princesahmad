@@ -5,6 +5,7 @@ from django.db import transaction
 from django.db.models import Case, Count, IntegerField, Q, Value, When
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views.decorators.http import require_GET, require_POST
@@ -28,6 +29,7 @@ from apps.roles.services.access_control import user_has_permission
 from apps.roles.services.permission_registry import PlatformPermissions
 
 from .command_center_service import CommandCenterService
+from .activity_logger import record_live_operation
 from .door_service import DoorService
 from .engineering_center_service import EngineeringCenterService
 from .engineering_incident_followup_service import EngineeringIncidentFollowupService
@@ -468,6 +470,9 @@ def door_status_view(request):
         "can_manage_staff_targets": request.user.is_superuser or user_has_permission(
             request.user, PlatformPermissions.CHANGE_SYSTEM_SETTINGS
         ),
+        "can_view_staff_targets": user_has_permission(
+            request.user, PlatformPermissions.VIEW_SYSTEM_SETTINGS
+        ),
         "can_create_incident": request.user.is_superuser or user_has_permission(
             request.user, PlatformPermissions.CREATE_INCIDENT
         ),
@@ -505,51 +510,110 @@ def door_incident_followup_ajax(request, pk):
 @login_required
 @require_POST
 def update_door_staff_targets(request):
-    """Bulk-update approved staffing targets without changing assignments."""
-    _require_ops_permission(request, PlatformPermissions.CHANGE_SYSTEM_SETTINGS)
-    doors = list(
-        filter_doors_for_user(
-            Door.objects.filter(is_active=True), request.user
-        ).order_by("sort_order", "door_number")
+    return door_coverage_settings_view(request)
+
+
+def _coverage_settings_context(request, *, posted=None, errors=None):
+    snapshot = EngineeringCenterService.build(
+        active_shift=_get_active_shift(),
+        allowed_sections=None if request.user.is_superuser else get_allowed_sections(request.user),
     )
+    scoped_ids = set(filter_doors_for_user(
+        Door.objects.filter(is_active=True), request.user
+    ).values_list("pk", flat=True))
+    rows = [row for row in snapshot["doors"] if row.door.pk in scoped_ids]
+    for row in rows:
+        field = f"target_{row.door.pk}"
+        row.form_value = posted.get(field, "") if posted is not None else (
+            row.target_staff_count if row.target_staff_count is not None else ""
+        )
+        row.form_error = (errors or {}).get(row.door.pk, "")
+    configured = [row for row in rows if row.target_staff_count is not None]
+    return {
+        "coverage_rows": rows,
+        "configured_count": len(configured),
+        "unconfigured_count": len(rows) - len(configured),
+        "total_target": sum(row.target_staff_count or 0 for row in rows),
+        "can_change_settings": user_has_permission(
+            request.user, PlatformPermissions.CHANGE_SYSTEM_SETTINGS
+        ),
+        "updated_count": request.GET.get("updated", ""),
+    }
+
+
+@login_required
+def door_coverage_settings_view(request):
+    """Manage approved per-door staffing targets without touching assignments."""
+    if request.method == "GET":
+        _require_ops_permission(request, PlatformPermissions.VIEW_SYSTEM_SETTINGS)
+        return render(request, "ops/door_coverage_settings.html", _coverage_settings_context(request))
+
+    _require_ops_permission(request, PlatformPermissions.CHANGE_SYSTEM_SETTINGS)
+    doors = list(filter_doors_for_user(
+        Door.objects.filter(is_active=True), request.user
+    ).order_by("sort_order", "door_number"))
+    door_by_id = {door.pk: door for door in doors}
+    submitted_ids = set()
+    malformed = False
+    for key in request.POST:
+        if key.startswith("target_"):
+            try:
+                submitted_ids.add(int(key.removeprefix("target_")))
+            except ValueError:
+                malformed = True
+    if malformed or not submitted_ids.issubset(door_by_id):
+        raise PermissionDenied("باب غير مصرح به أو خارج النطاق التشغيلي.")
+
     submitted = {}
-    for door in doors:
-        field_name = f"target_{door.pk}"
-        if field_name not in request.POST:
-            continue
-        raw_value = str(request.POST.get(field_name, "") or "").strip()
+    errors = {}
+    for door_id in submitted_ids:
+        raw_value = str(request.POST.get(f"target_{door_id}", "") or "").strip()
         if not raw_value:
-            submitted[door.pk] = None
-            continue
-        if not raw_value.isdigit() or int(raw_value) < 1:
-            return JsonResponse(
-                {"success": False, "error": "العدد التشغيلي المستهدف يجب أن يكون عددًا موجبًا."},
-                status=400,
-            )
-        submitted[door.pk] = int(raw_value)
+            submitted[door_id] = None
+        elif not raw_value.isdigit() or not 1 <= int(raw_value) <= 999:
+            errors[door_id] = "أدخل عددًا صحيحًا من 1 إلى 999، أو اترك الحقل فارغًا."
+        else:
+            submitted[door_id] = int(raw_value)
+    if errors:
+        return render(
+            request, "ops/door_coverage_settings.html",
+            _coverage_settings_context(request, posted=request.POST, errors=errors),
+            status=400,
+        )
 
     existing = {
         profile.door_id: profile
         for profile in DoorOperationalProfile.objects.filter(door_id__in=submitted)
     }
-    to_create = []
-    to_update = []
+    changes, to_create, to_update = [], [], []
+    now = timezone.now()
     for door_id, target in submitted.items():
         profile = existing.get(door_id)
+        previous = profile.target_staff_count if profile else None
+        if previous == target:
+            continue
+        changes.append((door_by_id[door_id], previous, target))
         if profile is None:
             if target is not None:
-                to_create.append(
-                    DoorOperationalProfile(door_id=door_id, target_staff_count=target)
-                )
-        elif profile.target_staff_count != target:
+                to_create.append(DoorOperationalProfile(door_id=door_id, target_staff_count=target))
+        else:
             profile.target_staff_count = target
+            profile.updated_at = now
             to_update.append(profile)
+
     with transaction.atomic():
         DoorOperationalProfile.objects.bulk_create(to_create)
-        DoorOperationalProfile.objects.bulk_update(
-            to_update, ["target_staff_count", "updated_at"]
-        )
-    return redirect("ops:doors")
+        if to_update:
+            DoorOperationalProfile.objects.bulk_update(to_update, ["target_staff_count", "updated_at"])
+        for door, previous, target in changes:
+            record_live_operation(
+                module="doors", action=SystemActivityLog.ActionType.UPDATE,
+                description=(f"تعديل التغطية التشغيلية للباب {door.door_number}: "
+                             f"{previous if previous is not None else 'غير مهيأة'} ← "
+                             f"{target if target is not None else 'غير مهيأة'}"),
+                request=request,
+            )
+    return redirect(f"{reverse('ops:door-coverage-settings')}?updated={len(changes)}")
 
 
 @login_required

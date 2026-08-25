@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}إدارة التغطية التشغيلية للأبواب | منصة أبواب{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/ops/coverage_settings.css' %}?v=20260825">{% endblock %}
+{% block content %}
+<main class="coverage-settings" dir="rtl" data-partial="70" data-complete="100" data-surplus="130">
+  <nav class="coverage-settings__breadcrumb" aria-label="مسار التنقل"><a href="{% url 'ops:doors' %}">المركز الهندسي</a><span aria-hidden="true">/</span><span aria-current="page">إدارة التغطية التشغيلية</span></nav>
+  <header class="coverage-settings__header">
+    <div><span>إعدادات تشغيلية مؤسسية</span><h1>إدارة التغطية التشغيلية للأبواب</h1><p>حدّد العدد المعتمد المستهدف لكل باب. أعداد الموظفين الحالية للعرض فقط وتُحتسب من توزيع الوردية النشطة.</p></div>
+    <a href="{% url 'ops:doors' %}">العودة إلى المركز الهندسي</a>
+  </header>
+  {% if updated_count != "" %}<div class="coverage-toast" role="status">تم حفظ التغييرات بنجاح ({{ updated_count }} باب).</div>{% endif %}
+  <section class="coverage-summary" aria-label="ملخص الإعدادات">
+    <article><small>الأبواب المهيأة</small><strong>{{ configured_count }}</strong></article>
+    <article><small>غير المهيأة</small><strong>{{ unconfigured_count }}</strong></article>
+    <article><small>إجمالي العدد المستهدف</small><strong>{{ total_target }}</strong></article>
+  </section>
+  <section class="coverage-tools" aria-label="البحث والتصفية">
+    <label><span>البحث</span><input id="coverageSearch" type="search" placeholder="ابحث برقم الباب"></label>
+    <label><span>حالة الباب</span><select id="coverageStatus"><option value="all">كل الحالات</option><option value="open">مفتوح</option><option value="closed">مغلق</option><option value="maintenance">تحت الصيانة</option><option value="secured">مؤمّن</option></select></label>
+    <label><span>حالة الإعداد</span><select id="configurationFilter"><option value="all">الكل</option><option value="configured">مهيأة</option><option value="unconfigured">غير مهيأة</option></select></label>
+    <label><span>مستوى التغطية</span><select id="coverageLevel"><option value="all">كل المستويات</option><option value="unconfigured">غير مهيأة</option><option value="uncovered">بدون تغطية</option><option value="low">منخفضة</option><option value="partial">جزئية</option><option value="complete">مكتملة</option><option value="surplus">فائض</option></select></label>
+    <button id="resetCoverageFilters" type="button">إعادة ضبط الفلاتر</button>
+  </section>
+  {% if can_change_settings %}
+  <section class="coverage-bulk" aria-label="التطبيق الجماعي">
+    <strong><span id="selectedCount">0</span> محدد</strong>
+    <label><span>عدد مستهدف للمحدد</span><input id="bulkTarget" type="number" min="1" max="999"></label>
+    <button id="applyBulkTarget" type="button" disabled>تطبيق على المحدد</button>
+  </section>
+  {% endif %}
+  <form method="post" id="coverageSettingsForm" novalidate>
+    {% csrf_token %}
+    <div class="coverage-table-wrap">
+      <table class="coverage-table">
+        <thead><tr>{% if can_change_settings %}<th><span class="sr-only">تحديد</span></th>{% endif %}<th>الباب</th><th>الحالة</th><th>الموظفون الحاليون</th><th>العدد المستهدف</th><th>معاينة التغطية</th></tr></thead>
+        <tbody>
+        {% for item in coverage_rows %}
+          <tr data-coverage-row data-number="{{ item.door.door_number }}" data-status="{{ item.status }}" data-current="{{ item.employee_count }}" data-original="{{ item.target_staff_count|default_if_none:'' }}" data-configuration="{% if item.target_staff_count %}configured{% else %}unconfigured{% endif %}" data-level="{{ item.staff_coverage_level }}">
+            {% if can_change_settings %}<td data-label="تحديد"><input class="coverage-select" type="checkbox" aria-label="تحديد الباب {{ item.door.door_number }}"></td>{% endif %}
+            <th scope="row" data-label="الباب">الباب {{ item.door.door_number }}</th>
+            <td data-label="الحالة"><span class="coverage-status coverage-status--{{ item.status }}">{{ item.status_label }}</span></td>
+            <td data-label="الموظفون الحاليون"><strong>{{ item.employee_count }}</strong></td>
+            <td data-label="العدد المستهدف">
+              {% if can_change_settings %}<input class="coverage-target" type="number" min="1" max="999" step="1" name="target_{{ item.door.pk }}" value="{{ item.form_value }}" aria-describedby="targetHelp{{ item.door.pk }} targetError{{ item.door.pk }}"><small id="targetHelp{{ item.door.pk }}">فارغ = غير مهيأ</small>{% else %}<strong>{{ item.target_staff_count|default:"غير مهيأ" }}</strong>{% endif %}
+              <span id="targetError{{ item.door.pk }}" class="coverage-field-error" role="alert">{{ item.form_error }}</span>
+            </td>
+            <td data-label="معاينة التغطية"><strong data-preview-percent>{% if item.target_staff_count %}{{ item.staff_coverage_percent }}%{% else %}—{% endif %}</strong><span class="coverage-level coverage-level--{{ item.staff_coverage_level }}" data-preview-level>{{ item.staff_coverage_label }}</span></td>
+          </tr>
+        {% empty %}<tr><td colspan="6">لا توجد أبواب نشطة ضمن نطاقك.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if can_change_settings %}<footer class="coverage-actions"><span role="status"><strong id="dirtyCount">0</strong> تغييرات غير محفوظة</span><button id="resetCoverageChanges" type="button" disabled>تراجع عن التغييرات</button><button id="saveCoverageSettings" type="submit" disabled>حفظ التغييرات</button></footer>{% endif %}
+  </form>
+</main>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/ops/coverage_settings.js' %}?v=20260825" defer></script>{% endblock %}
