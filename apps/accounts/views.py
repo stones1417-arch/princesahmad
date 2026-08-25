@@ -113,6 +113,8 @@ def registration_request_list(request):
     scoped_requests = queryset
     if status and status in AccountRegistrationRequest.Status.values:
         queryset = scoped_requests.filter(status=status)
+    selected_status = status if status in AccountRegistrationRequest.Status.values else ""
+    selected_section = section if section in Employee.OperationalSection.values else ""
     today = timezone.localdate()
     kpis = {
         "pending": scoped_requests.filter(status=AccountRegistrationRequest.Status.PENDING).count(),
@@ -123,11 +125,16 @@ def registration_request_list(request):
     }
     return render(request, "accounts/registration_request_list.html", {
         "registration_requests": queryset,
+        "result_count": queryset.count(),
+        "scoped_request_count": scoped_requests.count(),
         "kpis": kpis,
         "statuses": AccountRegistrationRequest.Status.choices,
         "sections": Employee.OperationalSection.choices,
-        "selected_status": status if status in AccountRegistrationRequest.Status.values else "",
-        "selected_section": section if section in Employee.OperationalSection.values else "",
+        "selected_status": selected_status,
+        "selected_status_label": dict(AccountRegistrationRequest.Status.choices).get(selected_status, ""),
+        "selected_section": selected_section,
+        "selected_section_label": dict(Employee.OperationalSection.choices).get(selected_section, ""),
+        "has_active_filters": bool(selected_status or selected_section or query),
     })
 
 

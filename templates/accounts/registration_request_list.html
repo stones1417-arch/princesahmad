@@ -1,24 +1,32 @@
-{% extends "base.html" %}
-{% block title %}طلبات إنشاء الحساب{% endblock %}
+{% extends "base.html" %}{% load static %}
+{% block title %}مركز طلبات إنشاء الحساب{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/accounts/registration_request_list.css' %}?v=20260825">{% endblock %}
 {% block breadcrumbs %}<nav class="breadcrumb" aria-label="مسار التنقل"><span>الإدارة</span><span aria-hidden="true">/</span><span aria-current="page">طلبات إنشاء الحساب</span></nav>{% endblock %}
-{% block content %}
-<main class="container py-4" dir="rtl">
-  <h1>طلبات إنشاء الحساب</h1>
-  <div class="row g-3 my-3">
-    <div class="col"><div class="card p-3">طلبات جديدة <strong>{{ kpis.pending }}</strong></div></div>
-    <div class="col"><div class="card p-3">قيد المراجعة <strong>{{ kpis.review }}</strong></div></div>
-    <div class="col"><div class="card p-3">بانتظار التفعيل <strong>{{ kpis.waiting }}</strong></div></div>
-    <div class="col"><div class="card p-3">مفعلة اليوم <strong>{{ kpis.activated_today }}</strong></div></div>
-    <div class="col"><div class="card p-3">مرفوضة <strong>{{ kpis.rejected }}</strong></div></div>
-  </div>
-  <form method="get" class="row g-2 mb-3">
-    <div class="col-md-5"><input class="form-control" name="q" value="{{ request.GET.q }}" placeholder="الاسم / الرقم الوظيفي / البريد"></div>
-    <div class="col-md-3"><select class="form-select" name="status"><option value="">كل الحالات</option>{% for value,label in statuses %}<option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
-    <div class="col-md-2"><select class="form-select" name="section"><option value="">كل الأقسام</option>{% for value,label in sections %}<option value="{{ value }}" {% if selected_section == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
-    <div class="col-md-2"><button class="btn btn-primary w-100">تصفية</button></div>
-  </form>
-  <div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>الاسم</th><th>الرقم الوظيفي</th><th>البريد</th><th>الجوال</th><th>القسم</th><th>تاريخ الطلب</th><th>الحالة</th><th></th></tr></thead><tbody>
-  {% for item in registration_requests %}<tr><td>{{ item.full_name }}</td><td>{{ item.employee_number }}</td><td>{{ item.email }}</td><td>{{ item.phone_number }}</td><td>{{ item.get_gender_display }}</td><td>{{ item.created_at }}</td><td>{% if item.is_awaiting_activation %}بانتظار التفعيل{% else %}{{ item.get_status_display }}{% endif %}</td><td><a class="btn btn-sm btn-outline-primary" href="{% url 'accounts:registration-request-review' item.pk %}">مراجعة الطلب</a></td></tr>{% empty %}<tr><td colspan="8">لا توجد طلبات.</td></tr>{% endfor %}
-  </tbody></table></div>
-</main>
-{% endblock %}
+{% block content %}<main class="account-requests" dir="rtl">
+  <header class="account-requests-header">
+    <div><span class="account-requests-header__badge">إدارة الحسابات</span><h1>طلبات إنشاء الحساب</h1><p>مراجعة طلبات الحساب والتحقق منها وإدارة دورة الاعتماد والتفعيل.</p></div>
+    <div class="account-requests-header__total"><span>إجمالي الطلبات ضمن النطاق</span><strong>{{ scoped_request_count }}</strong><small>طلب متاح للمراجعة</small></div>
+  </header>
+
+  <section class="account-requests__kpis" aria-label="مؤشرات طلبات الحساب">
+    <article class="account-requests-kpi is-new"><span class="account-requests-kpi__icon" aria-hidden="true">＋</span><div><span>طلبات جديدة</span><strong>{{ kpis.pending }}</strong><small>بانتظار المراجعة</small></div></article>
+    <article class="account-requests-kpi is-review"><span class="account-requests-kpi__icon" aria-hidden="true">⌕</span><div><span>قيد المراجعة</span><strong>{{ kpis.review }}</strong><small>تحتاج استكمال المراجعة</small></div></article>
+    <article class="account-requests-kpi is-waiting"><span class="account-requests-kpi__icon" aria-hidden="true">◷</span><div><span>بانتظار التفعيل</span><strong>{{ kpis.waiting }}</strong><small>تم إنشاء الحساب ولم يُفعّل</small></div></article>
+    <article class="account-requests-kpi is-active"><span class="account-requests-kpi__icon" aria-hidden="true">✓</span><div><span>مفعّلة اليوم</span><strong>{{ kpis.activated_today }}</strong><small>اكتمل تفعيلها اليوم</small></div></article>
+    <article class="account-requests-kpi is-rejected"><span class="account-requests-kpi__icon" aria-hidden="true">×</span><div><span>مرفوضة</span><strong>{{ kpis.rejected }}</strong><small>طلبات أُغلقت بالرفض</small></div></article>
+  </section>
+
+  <section class="account-requests-filter" aria-labelledby="filter-title"><div class="account-requests-filter__heading"><div><span>أدوات العرض</span><h2 id="filter-title">البحث والتصفية</h2></div>{% if has_active_filters %}<a href="{% url 'accounts:registration-request-list' %}">مسح الفلاتر</a>{% endif %}</div>
+    <form method="get"><label class="account-requests-filter__search" for="request-search"><span>البحث</span><input id="request-search" name="q" value="{{ request.GET.q }}" placeholder="ابحث بالاسم أو الرقم الوظيفي أو البريد"></label><label for="request-status"><span>الحالة</span><select id="request-status" name="status"><option value="">كل الحالات</option>{% for value,label in statuses %}<option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label><label for="request-section"><span>القسم</span><select id="request-section" name="section"><option value="">كل الأقسام</option>{% for value,label in sections %}<option value="{{ value }}" {% if selected_section == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label><div class="account-requests-filter__actions"><button type="submit">تطبيق</button><a href="{% url 'accounts:registration-request-list' %}">إعادة ضبط</a></div></form>
+    {% if has_active_filters %}<div class="account-requests-filter__chips" aria-label="الفلاتر النشطة">{% if request.GET.q %}<span>البحث: {{ request.GET.q }}</span>{% endif %}{% if selected_status %}<span>الحالة: {{ selected_status_label }}</span>{% endif %}{% if selected_section %}<span>القسم: {{ selected_section_label }}</span>{% endif %}</div>{% endif %}
+  </section>
+
+  <section class="account-requests__results" aria-labelledby="results-title"><header><div><span>قائمة المراجعة</span><h2 id="results-title">نتائج الطلبات</h2></div><p>عرض <strong>{{ result_count }}</strong> من <strong>{{ scoped_request_count }}</strong> طلب</p></header>
+  {% if registration_requests %}
+    <div class="account-requests-table"><table><thead><tr><th scope="col">الاسم</th><th scope="col">الرقم الوظيفي</th><th scope="col">بيانات التواصل</th><th scope="col">القسم</th><th scope="col">تاريخ الطلب</th><th scope="col">الحالة</th><th scope="col">الإجراء</th></tr></thead><tbody>
+      {% for item in registration_requests %}<tr class="account-requests-row"><td><strong>{{ item.full_name }}</strong><small>اسم المستخدم: {{ item.requested_username }}</small></td><td>{{ item.employee_number }}</td><td><span dir="ltr">{{ item.email }}</span><small dir="ltr">{{ item.phone_number }}</small></td><td><span class="account-requests__section">{% if item.operational_section == 'male' %}رجالي{% elif item.operational_section == 'female' %}نسائي{% elif item.gender == 'male' %}رجالي{% elif item.gender == 'female' %}نسائي{% else %}غير مصنف{% endif %}</span></td><td>{{ item.created_at|date:"Y/m/d" }}<small>{{ item.created_at|time:"H:i" }}</small></td><td>{% if item.is_awaiting_activation %}<span class="account-requests-status is-waiting">بانتظار التفعيل<small>تم إنشاء الحساب</small></span>{% elif item.status == 'activated' %}<span class="account-requests-status is-active">مفعّل</span>{% elif item.status == 'rejected' %}<span class="account-requests-status is-rejected">مرفوض</span>{% elif item.status == 'needs_edit' %}<span class="account-requests-status is-review">قيد المراجعة</span>{% elif item.status == 'pending' %}<span class="account-requests-status is-new">جديد</span>{% else %}<span class="account-requests-status">{{ item.get_status_display }}</span>{% endif %}</td><td><a class="account-requests__action" href="{% url 'accounts:registration-request-review' item.pk %}"><span aria-hidden="true">←</span>{% if item.is_awaiting_activation %}متابعة التفعيل{% elif item.status == 'activated' %}عرض التفاصيل{% else %}مراجعة الطلب{% endif %}</a></td></tr>{% endfor %}
+    </tbody></table></div>
+    <div class="account-requests__mobile">{% for item in registration_requests %}<article class="account-requests-card"><header><div><strong>{{ item.full_name }}</strong><small>{{ item.employee_number }} · {{ item.requested_username }}</small></div>{% if item.is_awaiting_activation %}<span class="account-requests-status is-waiting">بانتظار التفعيل</span>{% elif item.status == 'activated' %}<span class="account-requests-status is-active">مفعّل</span>{% elif item.status == 'rejected' %}<span class="account-requests-status is-rejected">مرفوض</span>{% elif item.status == 'needs_edit' %}<span class="account-requests-status is-review">قيد المراجعة</span>{% else %}<span class="account-requests-status is-new">جديد</span>{% endif %}</header><dl><div><dt>البريد</dt><dd dir="ltr">{{ item.email }}</dd></div><div><dt>القسم</dt><dd>{% if item.operational_section == 'female' or not item.operational_section and item.gender == 'female' %}نسائي{% elif item.operational_section == 'male' or not item.operational_section and item.gender == 'male' %}رجالي{% else %}غير مصنف{% endif %}</dd></div><div><dt>تاريخ الطلب</dt><dd>{{ item.created_at|date:"Y/m/d" }}</dd></div></dl><a class="account-requests__action" href="{% url 'accounts:registration-request-review' item.pk %}">{% if item.is_awaiting_activation %}متابعة التفعيل{% elif item.status == 'activated' %}عرض التفاصيل{% else %}مراجعة الطلب{% endif %}</a></article>{% endfor %}</div>
+  {% else %}<div class="account-requests-empty"><span aria-hidden="true">⌕</span><h3>{% if scoped_request_count %}لا توجد طلبات مطابقة{% else %}لا توجد طلبات إنشاء حساب حاليًا{% endif %}</h3><p>{% if scoped_request_count %}جرّب تغيير معايير البحث أو التصفية.{% else %}ستظهر الطلبات الجديدة هنا عند تقديمها.{% endif %}</p>{% if has_active_filters %}<a href="{% url 'accounts:registration-request-list' %}">إعادة ضبط الفلاتر</a>{% endif %}</div>{% endif %}
+  </section>
+</main>{% endblock %}

@@ -135,6 +135,77 @@ class AccountRequestNavigationTests(TestCase):
         self.assertNotContains(response, "إعادة إرسال رابط التفعيل")
         self.assertNotContains(response, "رفض الطلب")
 
+    def test_request_list_has_institutional_center_contract(self):
+        self.client.force_login(self.reviewer)
+        response = self.client.get(reverse("accounts:registration-request-list"))
+        for text in (
+            "طلبات إنشاء الحساب",
+            "إدارة الحسابات",
+            "طلبات جديدة",
+            "بانتظار التفعيل",
+            "البحث والتصفية",
+            "نتائج الطلبات",
+            "مراجعة الطلب",
+        ):
+            self.assertContains(response, text)
+        self.assertContains(response, 'id="request-search"')
+        self.assertContains(response, '<th scope="col">', count=7)
+        self.assertContains(response, "account-requests-card")
+        self.assertNotContains(response, reverse("admin:accounts_accountregistrationrequest_changelist"))
+
+    def test_request_list_empty_state_and_filter_reset(self):
+        AccountRegistrationRequest.objects.all().delete()
+        self.client.force_login(self.reviewer)
+        response = self.client.get(
+            reverse("accounts:registration-request-list"),
+            {"q": "missing"},
+        )
+        self.assertContains(response, "لا توجد طلبات إنشاء حساب حاليًا")
+        self.assertContains(response, "إعادة ضبط الفلاتر")
+
+    def test_request_list_lifecycle_badges_and_actions(self):
+        active_user = create_user(
+            username="list-active-state",
+            password=self.password,
+            email="list-active-state@example.test",
+            is_active=True,
+        )
+        activated = AccountRegistrationRequest.objects.create(
+            full_name="طلب مفعل",
+            employee_number="LIST-ACTIVE",
+            requested_username="list-active-state",
+            email="list-active-state@example.test",
+            phone_number="+966551234577",
+            gender="male",
+            status=AccountRegistrationRequest.Status.ACTIVATED,
+            created_user=active_user,
+            activated_at=timezone.now(),
+        )
+        rejected = AccountRegistrationRequest.objects.create(
+            full_name="طلب مرفوض",
+            employee_number="LIST-REJECTED",
+            requested_username="list-rejected-state",
+            email="list-rejected-state@example.test",
+            phone_number="+966551234578",
+            gender="male",
+            status=AccountRegistrationRequest.Status.REJECTED,
+        )
+        self.client.force_login(self.reviewer)
+        response = self.client.get(reverse("accounts:registration-request-list"))
+        self.assertContains(response, "مفعّل")
+        self.assertContains(response, "عرض التفاصيل")
+        self.assertContains(response, "مرفوض")
+        self.assertContains(response, reverse("accounts:registration-request-review", args=[activated.pk]))
+        self.assertContains(response, reverse("accounts:registration-request-review", args=[rejected.pk]))
+
+    def test_request_list_styles_cover_desktop_tablet_and_mobile(self):
+        stylesheet = Path(settings.BASE_DIR, "static/css/accounts/registration_request_list.css").read_text(encoding="utf-8")
+        self.assertIn("max-width:1560px", stylesheet)
+        self.assertIn("@media(max-width:1180px)", stylesheet)
+        self.assertIn("@media(max-width:760px)", stylesheet)
+        self.assertIn(".account-requests-table{display:none}", stylesheet)
+        self.assertIn("overflow-wrap:anywhere", stylesheet)
+
 
 class AccountRequestListConsistencyTests(TestCase):
     password = "List-Consistency-987!"
