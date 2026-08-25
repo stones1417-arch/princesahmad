@@ -19,7 +19,7 @@
     <label><span>البحث</span><input id="coverageSearch" type="search" placeholder="ابحث برقم الباب"></label>
     <label><span>حالة الباب</span><select id="coverageStatus"><option value="all">كل الحالات</option><option value="open">مفتوح</option><option value="closed">مغلق</option><option value="maintenance">تحت الصيانة</option><option value="secured">مؤمّن</option></select></label>
     <label><span>حالة الإعداد</span><select id="configurationFilter"><option value="all">الكل</option><option value="configured">مهيأة</option><option value="unconfigured">غير مهيأة</option></select></label>
-    <label><span>مستوى التغطية</span><select id="coverageLevel"><option value="all">كل المستويات</option><option value="unconfigured">غير مهيأة</option><option value="uncovered">بدون تغطية</option><option value="low">منخفضة</option><option value="partial">جزئية</option><option value="complete">مكتملة</option><option value="surplus">فائض</option></select></label>
+    <label><span>مستوى التغطية</span><select id="coverageLevel"><option value="all">كل المستويات</option><option value="unconfigured">غير مهيأة</option><option value="suspended">معلّقة</option><option value="uncovered">بدون تغطية</option><option value="low">منخفضة</option><option value="partial">جزئية</option><option value="complete">مكتملة</option><option value="surplus">فائض</option></select></label>
     <button id="resetCoverageFilters" type="button">إعادة ضبط الفلاتر</button>
   </section>
   {% if can_change_settings %}
@@ -50,7 +50,7 @@
               {% if can_change_settings %}<input class="coverage-target" type="number" min="1" max="999" step="1" name="target_{{ item.door.pk }}" value="{{ item.form_value }}" aria-describedby="targetHelp{{ item.door.pk }} targetError{{ item.door.pk }}"><small id="targetHelp{{ item.door.pk }}">فارغ = غير مهيأ</small>{% else %}<strong>{{ item.target_staff_count|default:"غير مهيأ" }}</strong>{% endif %}
               <span id="targetError{{ item.door.pk }}" class="coverage-field-error" role="alert">{{ item.form_error }}</span>
             </td>
-            <td data-label="معاينة التغطية"><strong data-preview-percent>{% if item.target_staff_count %}{{ item.staff_coverage_percent }}%{% else %}—{% endif %}</strong><span class="coverage-level coverage-level--{{ item.staff_coverage_level }}" data-preview-level>{{ item.staff_coverage_label }}</span><small data-preview-ratio>{% if item.target_staff_count %}{{ item.employee_count }} من {{ item.target_staff_count }}{% endif %}</small><small data-preview-detail>{{ item.staff_coverage_detail }}</small></td>
+            <td data-label="معاينة التغطية"><strong data-preview-percent>{% if not item.staff_coverage_applicable %}معلّقة{% elif item.target_staff_count %}{{ item.staff_coverage_percent }}%{% else %}—{% endif %}</strong><span class="coverage-level coverage-level--{{ item.staff_coverage_level }}" data-preview-level>{{ item.staff_coverage_label }}</span><small data-preview-ratio>{% if not item.staff_coverage_applicable and item.target_staff_count %}المستهدف: {{ item.target_staff_count }} موظفين{% elif item.target_staff_count %}{{ item.employee_count }} من {{ item.target_staff_count }}{% endif %}</small><small data-preview-detail>{{ item.staff_coverage_detail }}</small></td>
           </tr>
         {% empty %}<tr><td colspan="6">لا توجد أبواب نشطة ضمن نطاقك.</td></tr>{% endfor %}
         </tbody>

@@ -10,7 +10,7 @@ from apps.core.tests.factories import create_door
 from apps.dashboard.models import SystemActivityLog
 from apps.locations.door_directions import OFFICIAL_DOOR_CODES
 from apps.locations.models import Door
-from apps.ops.models import DoorOperationalProfile
+from apps.ops.models import DoorCurrentState, DoorOperationalProfile
 from apps.roles.services.permission_registry import PlatformPermissions
 from apps.roles.services.role_manager import assign_role_to_user, create_or_update_role
 
@@ -159,6 +159,25 @@ class DoorCoverageSettingsTests(TestCase):
         self.assertIn("row.dataset.number", script)
         self.assertIn("updateDirty(); filterRows();", script)
         self.assertNotIn("fetch(", script)
+
+    def test_suspended_row_and_preset_preview_keep_target_without_false_alert(self):
+        door = Door.objects.get(door_number="6B")
+        DoorOperationalProfile.objects.create(door=door, target_staff_count=4)
+        DoorCurrentState.objects.create(door=door, state="maintenance")
+        self.client.force_login(self.admin)
+        response = self.client.get(self.url)
+        row = next(item for item in response.context["coverage_rows"] if item.door == door)
+        self.assertEqual(row.target_staff_count, 4)
+        self.assertEqual(row.staff_coverage_level, "suspended")
+        self.assertIsNone(row.staff_coverage_percent)
+        self.assertContains(response, '<option value="suspended">معلّقة</option>')
+        self.assertContains(response, "المستهدف: 4 موظفين")
+        script_path = finders.find("js/ops/coverage_settings.js")
+        with open(script_path, encoding="utf-8") as script_file:
+            script = script_file.read()
+        self.assertIn('status !== "open"', script)
+        self.assertIn('level: "suspended"', script)
+        self.assertIn("initialCoveragePlan[row.dataset.number]", script)
 
     def test_engineering_center_has_single_authorized_entry_and_no_inline_form(self):
         self.client.force_login(self.admin)

@@ -16,7 +16,9 @@ from apps.ops.engineering_incident_followup_service import (
     EngineeringIncidentFollowupService,
 )
 from apps.ops.models import (
+    DoorCurrentState,
     DoorOperationalProfile,
+    DoorShift,
     Incident,
     IncidentRoutingEvent,
     MaintenanceRequest,
@@ -194,10 +196,50 @@ class EngineeringCenterClosureTests(TestCase):
             self.assertEqual(result[0], percent)
             self.assertEqual(result[1], level)
 
+    def test_non_operational_states_suspend_coverage_and_reopen_restores_it(self):
+        for status in (
+            DoorShift.DoorState.CLOSED,
+            DoorShift.DoorState.MAINTENANCE,
+            DoorShift.DoorState.SECURED,
+        ):
+            result = EngineeringCenterService.staff_coverage(
+                current_staff=0, target_staff=3, door_status=status
+            )
+            self.assertIsNone(result[0])
+            self.assertEqual(result[1], "suspended")
+            self.assertFalse(result[4])
+        reopened = EngineeringCenterService.staff_coverage(
+            current_staff=2, target_staff=3, door_status="open"
+        )
+        self.assertEqual(reopened[0], 67)
+        self.assertEqual(reopened[6], -1)
+
+    def test_target_is_preserved_while_6b_and_6a_coverage_is_suspended(self):
+        door_6b = Door.objects.get(door_number="6B")
+        door_6a = Door.objects.get(door_number="6A")
+        DoorOperationalProfile.objects.create(door=door_6b, target_staff_count=4)
+        DoorOperationalProfile.objects.create(door=door_6a, target_staff_count=4)
+        DoorCurrentState.objects.create(door=door_6b, state="maintenance")
+        DoorCurrentState.objects.create(door=door_6a, state="closed")
+        snapshot = EngineeringCenterService.build(active_shift=None)
+        metrics = {row.door.door_number: row for row in snapshot["doors"]}
+        self.assertEqual(metrics["6B"].staff_coverage_level, "suspended")
+        self.assertEqual(metrics["6A"].staff_coverage_level, "suspended")
+        self.assertIsNone(metrics["6B"].staff_coverage_percent)
+        self.assertEqual(snapshot["summary"]["suspended_coverage_doors"], 42)
+        self.assertEqual(snapshot["summary"]["uncovered_doors"], 0)
+        DoorCurrentState.objects.filter(door=door_6b).update(state="open")
+        reopened = EngineeringCenterService.build(active_shift=None)
+        metric = next(row for row in reopened["doors"] if row.door == door_6b)
+        self.assertEqual(metric.target_staff_count, 4)
+        self.assertEqual(metric.staff_coverage_percent, 0)
+        self.assertEqual(metric.staff_coverage_level, "uncovered")
+
     def test_staff_coverage_uses_active_distribution_and_keeps_query_bound(self):
         door = Door.objects.get(door_number="6A")
         shift = create_shift_plan(is_active=True)
         DoorOperationalProfile.objects.create(door=door, target_staff_count=3)
+        DoorCurrentState.objects.create(door=door, state="open")
         employees = [create_employee(employee_number=f"COVER-{index}") for index in range(4)]
         for index, employee in enumerate(employees):
             assignment = DoorAssignment.objects.create(
@@ -266,6 +308,7 @@ class EngineeringCenterClosureTests(TestCase):
         self.client.force_login(self.admin)
         response = self.client.get(reverse("ops:doors"))
         self.assertContains(response, "كل مستويات التغطية")
+        self.assertContains(response, '<option value="suspended">معلّقة</option>')
         self.assertContains(response, 'option value="coverage-low"')
         self.assertContains(response, 'option value="coverage-high"')
         script_path = finders.find("js/ops/engineering_center.js")
@@ -274,6 +317,7 @@ class EngineeringCenterClosureTests(TestCase):
         self.assertIn("item.staff_coverage_percent", script)
         self.assertIn("card.dataset.coverage", script)
         self.assertIn("coverage-low", script)
+        self.assertIn("item.coverage_applicable", script)
 
     def test_active_and_today_incident_metrics_remain_distinct_after_close(self):
         door = Door.objects.get(door_number="1")

@@ -7,7 +7,8 @@
   const partial = Number(root.dataset.partial);
   const complete = Number(root.dataset.complete);
   const surplus = Number(root.dataset.surplus);
-  const labels = {unconfigured: "غير مهيأة", uncovered: "بدون تغطية", low: "تغطية منخفضة", partial: "تغطية جزئية", complete: "تغطية مكتملة", surplus: "فائض تشغيلي"};
+  const labels = {unconfigured: "غير مهيأة", suspended: "معلّقة", uncovered: "بدون تغطية", low: "تغطية منخفضة", partial: "تغطية جزئية", complete: "تغطية مكتملة", surplus: "فائض تشغيلي"};
+  const suspendedReasons = {maintenance: "الباب تحت الصيانة", closed: "الباب مغلق تشغيليًا", secured: "الباب مؤمّن"};
   const initialCoveragePlan = Object.freeze({
     "1":3,"2":3,"3":2,"4":2,"5":3,"6B":4,"6A":4,"7":3,"8":3,"9":2,
     "10":2,"11":2,"12":3,"13":3,"14":2,"15":2,"16":2,"17":3,"18":3,"19":2,
@@ -16,7 +17,8 @@
     "40":2,"41":3
   });
 
-  function coverage(current, rawTarget) {
+  function coverage(current, rawTarget, status) {
+    if (status !== "open") return {percent: null, level: "suspended", applicable: false};
     if (rawTarget === "") return {percent: null, level: "unconfigured"};
     const target = Number(rawTarget);
     if (!Number.isInteger(target) || target < 1 || target > 999) return {percent: null, level: "unconfigured"};
@@ -31,10 +33,10 @@
   function updateRow(row) {
     const input = row.querySelector(".coverage-target");
     if (!input) return;
-    const result = coverage(Number(row.dataset.current), input.value.trim());
+    const result = coverage(Number(row.dataset.current), input.value.trim(), row.dataset.status);
     row.dataset.level = result.level;
     row.dataset.configuration = input.value.trim() ? "configured" : "unconfigured";
-    row.querySelector("[data-preview-percent]").textContent = result.percent === null ? "—" : `${result.percent}%`;
+    row.querySelector("[data-preview-percent]").textContent = result.level === "suspended" ? "معلّقة" : result.percent === null ? "—" : `${result.percent}%`;
     const badge = row.querySelector("[data-preview-level]");
     badge.textContent = labels[result.level];
     badge.className = `coverage-level coverage-level--${result.level}`;
@@ -42,7 +44,10 @@
     input.setCustomValidity(valid ? "" : "أدخل عددًا صحيحًا من 1 إلى 999.");
     const ratio = row.querySelector("[data-preview-ratio]");
     const detail = row.querySelector("[data-preview-detail]");
-    if (result.percent === null) {
+    if (result.level === "suspended") {
+      ratio.textContent = input.value ? `المستهدف: ${input.value} موظفين` : "";
+      detail.textContent = suspendedReasons[row.dataset.status] || "تُستأنف عند عودة الباب للتشغيل";
+    } else if (result.percent === null) {
       ratio.textContent = ""; detail.textContent = "لم يُحدد العدد المستهدف";
     } else {
       const current = Number(row.dataset.current); const target = Number(input.value);

@@ -640,6 +640,10 @@ def door_status_data_ajax(request):
                 "staff_coverage_level": item.staff_coverage_level,
                 "staff_coverage_label": item.staff_coverage_label,
                 "staff_coverage_detail": item.staff_coverage_detail,
+                "coverage_applicable": item.staff_coverage_applicable,
+                "coverage_status": item.staff_coverage_level,
+                "coverage_reason": item.staff_coverage_reason,
+                "staff_delta": item.staff_delta,
                 "last_activity": item.last_activity.isoformat() if item.last_activity else None,
             }
             for item in snapshot["doors"]

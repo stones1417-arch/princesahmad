@@ -28,6 +28,9 @@ class EngineeringDoorMetric:
     staff_coverage_level: str
     staff_coverage_label: str
     staff_coverage_detail: str
+    staff_coverage_applicable: bool
+    staff_coverage_reason: str
+    staff_delta: int | None
     last_activity: object
     door_shift: DoorShift | None
 
@@ -53,10 +56,22 @@ class EngineeringCenterService:
         MaintenanceRequest.Status.OPEN,
     )
 
-    @staticmethod
-    def staff_coverage(*, current_staff, target_staff):
+    SUSPENDED_COVERAGE_REASONS = {
+        DoorShift.DoorState.MAINTENANCE: "الباب تحت الصيانة",
+        DoorShift.DoorState.CLOSED: "الباب مغلق تشغيليًا",
+        DoorShift.DoorState.SECURED: "الباب مؤمّن",
+    }
+
+    @classmethod
+    def staff_coverage(cls, *, current_staff, target_staff, door_status=DoorShift.DoorState.OPEN):
+        if door_status != DoorShift.DoorState.OPEN:
+            return (
+                None, "suspended", "معلّقة",
+                cls.SUSPENDED_COVERAGE_REASONS.get(door_status, "الباب غير متاح للتشغيل"),
+                False, door_status, current_staff - target_staff if target_staff else None,
+            )
         if not target_staff:
-            return None, "unconfigured", "غير مهيأة", "لم يُحدد العدد المستهدف لهذا الباب"
+            return None, "unconfigured", "غير مهيأة", "لم يُحدد العدد المستهدف لهذا الباب", True, "", None
         percent = round((current_staff / target_staff) * 100)
         difference = current_staff - target_staff
         if current_staff == 0:
@@ -75,7 +90,7 @@ class EngineeringCenterService:
             detail = f"فائض {difference} موظف"
         else:
             detail = "مكتملة"
-        return percent, level, label, detail
+        return percent, level, label, detail, True, "", difference
 
     @classmethod
     def build(cls, *, active_shift, include_employee_names=False, allowed_sections=None):
@@ -187,9 +202,10 @@ class EngineeringCenterService:
                 target_staff = door.operational_profile.target_staff_count
             except Door.operational_profile.RelatedObjectDoesNotExist:
                 target_staff = None
-            coverage_percent, coverage_level, coverage_label, coverage_detail = (
+            coverage_percent, coverage_level, coverage_label, coverage_detail, coverage_applicable, coverage_reason, staff_delta = (
                 cls.staff_coverage(
-                    current_staff=len(assignment_rows), target_staff=target_staff
+                    current_staff=len(assignment_rows), target_staff=target_staff,
+                    door_status=status,
                 )
             )
             rows.append(EngineeringDoorMetric(
@@ -206,6 +222,9 @@ class EngineeringCenterService:
                 staff_coverage_level=coverage_level,
                 staff_coverage_label=coverage_label,
                 staff_coverage_detail=coverage_detail,
+                staff_coverage_applicable=coverage_applicable,
+                staff_coverage_reason=coverage_reason,
+                staff_delta=staff_delta,
                 last_activity=max(activities) if activities else None,
                 door_shift=door_shift,
             ))
@@ -218,5 +237,9 @@ class EngineeringCenterService:
             "open_incidents": sum(row.open_incident_count for row in rows),
             "active_maintenance": sum(row.active_maintenance_count for row in rows),
             "assigned_employees": sum(row.employee_count for row in rows),
+            "coverage_applicable_doors": sum(row.staff_coverage_applicable for row in rows),
+            "suspended_coverage_doors": sum(not row.staff_coverage_applicable for row in rows),
+            "uncovered_doors": sum(row.staff_coverage_level == "uncovered" for row in rows),
+            "low_coverage_doors": sum(row.staff_coverage_level == "low" for row in rows),
         }
         return {"doors": rows, "summary": summary}

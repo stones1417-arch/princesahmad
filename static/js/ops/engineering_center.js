@@ -77,8 +77,12 @@
 
     allCards.sort((a, b) => {
       if (sort === "order") return Number(a.dataset.order) - Number(b.dataset.order);
-      if (sort === "coverage-low") return Number(a.dataset.coveragePercent) - Number(b.dataset.coveragePercent);
-      if (sort === "coverage-high") return Number(b.dataset.coveragePercent) - Number(a.dataset.coveragePercent);
+      if (sort === "coverage-low" || sort === "coverage-high") {
+        const aNumeric = a.dataset.coverageApplicable === "true" && Number(a.dataset.coveragePercent) >= 0;
+        const bNumeric = b.dataset.coverageApplicable === "true" && Number(b.dataset.coveragePercent) >= 0;
+        if (aNumeric !== bNumeric) return aNumeric ? -1 : 1;
+        return sort === "coverage-low" ? Number(a.dataset.coveragePercent) - Number(b.dataset.coveragePercent) : Number(b.dataset.coveragePercent) - Number(a.dataset.coveragePercent);
+      }
       return Number(b.dataset[sort]) - Number(a.dataset[sort]);
     });
     allCards.forEach((card) => grid.appendChild(card));
@@ -241,16 +245,17 @@
         card.dataset.incidents = item.open_incident_count;
         card.dataset.maintenance = item.active_maintenance_count;
         card.dataset.coverage = item.staff_coverage_level;
+        card.dataset.coverageApplicable = String(item.coverage_applicable);
         card.dataset.coveragePercent = item.staff_coverage_percent ?? -1;
         card.querySelector("[data-metric='status']").lastChild.textContent = item.status_label;
         card.querySelector("[data-metric='employees']").textContent = item.employee_count;
         card.querySelector("[data-metric='incidents']").textContent = item.open_incident_count;
         card.querySelector("[data-metric='incidents-today']").textContent = item.today_incident_count;
         card.querySelector("[data-metric='maintenance']").textContent = item.active_maintenance_count;
-        card.querySelector("[data-metric='coverage']").textContent = item.target_staff_count ? `${item.staff_coverage_percent}%` : "غير مهيأة";
-        card.querySelector("[data-metric='coverage-ratio']").textContent = item.target_staff_count ? `${item.employee_count} من ${item.target_staff_count} موظفين` : "لم يُحدد العدد المستهدف لهذا الباب";
-        card.querySelector("[data-metric='coverage-level']").textContent = item.target_staff_count ? item.staff_coverage_label : "";
-        card.querySelector("[data-metric='coverage-detail']").textContent = item.target_staff_count ? item.staff_coverage_detail : "";
+        card.querySelector("[data-metric='coverage']").textContent = !item.coverage_applicable ? "معلّقة" : item.target_staff_count ? `${item.staff_coverage_percent}%` : "غير مهيأة";
+        card.querySelector("[data-metric='coverage-ratio']").textContent = !item.coverage_applicable && item.target_staff_count ? `المستهدف: ${item.target_staff_count} موظفين` : item.target_staff_count ? `${item.employee_count} من ${item.target_staff_count} موظفين` : "لم يُحدد العدد المستهدف لهذا الباب";
+        card.querySelector("[data-metric='coverage-level']").textContent = item.target_staff_count || !item.coverage_applicable ? item.staff_coverage_label : "";
+        card.querySelector("[data-metric='coverage-detail']").textContent = item.staff_coverage_detail;
         card.querySelector("[data-detail='status']")?.replaceChildren(item.status_label);
         card.querySelector("[data-metric='activity']").textContent = item.last_activity ? new Date(item.last_activity).toLocaleString("ar-SA", { day: "numeric", month: "long", hour: "numeric", minute: "2-digit" }) : "لا يوجد نشاط مسجل";
         updateAlertIndicators(card, item.open_incident_count, item.active_maintenance_count);
