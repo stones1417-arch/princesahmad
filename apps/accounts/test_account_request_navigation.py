@@ -1,7 +1,11 @@
+from pathlib import Path
+
+from django.conf import settings
 from django.core.management import call_command
 from django.test import TestCase
 from django.template.loader import get_template
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.accounts.models import AccountRegistrationRequest
 from apps.core.tests.factories import create_user
@@ -51,6 +55,85 @@ class AccountRequestNavigationTests(TestCase):
 
     def test_django_admin_fallback_remains_registered(self):
         self.assertEqual(reverse("admin:accounts_accountregistrationrequest_changelist"), "/admin/accounts/accountregistrationrequest/")
+
+    def test_review_page_has_institutional_ui_contract(self):
+        self.client.force_login(self.reviewer)
+        response = self.client.get(
+            reverse("accounts:registration-request-review", args=[self.registration.pk]),
+        )
+        for text in (
+            "مراجعة واعتماد طلب الحساب",
+            "بيانات مقدم الطلب",
+            "نتيجة التحقق",
+            "التسكين والصلاحيات",
+            "ملخص الاعتماد",
+            "تأكيد اعتماد طلب الحساب",
+            "رفض طلب إنشاء الحساب",
+            "مراجعة الطلب #",
+        ):
+            self.assertContains(response, text)
+        self.assertContains(response, 'name="operational_section"')
+        self.assertContains(response, 'name="role_code"')
+        self.assertEqual(
+            [card["role"] for card in response.context["role_cards"]],
+            list(response.context["approval_form"].fields["role_code"].queryset),
+        )
+
+    def test_review_assets_are_responsive_and_use_no_native_dialogs(self):
+        template = get_template("accounts/registration_request_review.html").template.source
+        script = Path(settings.BASE_DIR, "static/js/accounts/registration_request_review.js").read_text(encoding="utf-8")
+        stylesheet = Path(settings.BASE_DIR, "static/css/accounts/registration_request_review.css").read_text(encoding="utf-8")
+        self.assertNotIn("window.confirm", script)
+        self.assertNotIn("window.alert", script)
+        self.assertNotIn("window.prompt", script)
+        self.assertIn('aria-modal="true"', template)
+        self.assertIn("data-submit-label", template)
+        self.assertIn("@media(max-width:900px)", stylesheet)
+        self.assertIn("@media(max-width:600px)", stylesheet)
+        self.assertIn("overflow-wrap:anywhere", stylesheet)
+
+    def test_awaiting_activation_and_email_failure_state(self):
+        user = create_user(
+            username="review-awaiting",
+            password=None,
+            email="review-awaiting@example.test",
+            is_active=False,
+        )
+        self.registration.status = AccountRegistrationRequest.Status.APPROVED
+        self.registration.created_user = user
+        self.registration.operational_section = "male"
+        self.registration.activation_email_error = "provider details must stay private"
+        self.registration.save()
+        self.client.force_login(self.reviewer)
+        response = self.client.get(
+            reverse("accounts:registration-request-review", args=[self.registration.pk]),
+        )
+        self.assertContains(response, "بانتظار التفعيل")
+        self.assertContains(response, "تعذر إرسال رسالة التفعيل")
+        self.assertContains(response, "إعادة إرسال رابط التفعيل")
+        self.assertNotContains(response, self.registration.activation_email_error)
+        self.assertNotContains(response, "اعتماد وإنشاء الحساب")
+
+    def test_activated_state_hides_provisioning_actions(self):
+        user = create_user(
+            username="review-activated",
+            password=self.password,
+            email="review-activated@example.test",
+            is_active=True,
+        )
+        self.registration.status = AccountRegistrationRequest.Status.ACTIVATED
+        self.registration.created_user = user
+        self.registration.operational_section = "male"
+        self.registration.activated_at = timezone.now()
+        self.registration.save()
+        self.client.force_login(self.reviewer)
+        response = self.client.get(
+            reverse("accounts:registration-request-review", args=[self.registration.pk]),
+        )
+        self.assertContains(response, "الحساب مفعّل")
+        self.assertContains(response, "تاريخ التفعيل")
+        self.assertNotContains(response, "إعادة إرسال رابط التفعيل")
+        self.assertNotContains(response, "رفض الطلب")
 
 
 class AccountRequestListConsistencyTests(TestCase):

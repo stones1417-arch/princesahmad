@@ -54,6 +54,7 @@ from apps.roles.services.access_control import (
     user_has_permission,
 )
 from apps.roles.services.permission_registry import PlatformPermissions
+from apps.roles.services.permission_presentation import present_permission_codes
 from apps.roles.services.role_manager import assign_role_to_user
 from apps.roles.services.section_context import get_effective_section, set_current_section
 from apps.roles.services.section_access import get_allowed_sections
@@ -133,9 +134,53 @@ def registration_request_list(request):
 @permission_required(PlatformPermissions.MANAGE_USERS)
 def registration_request_review(request, pk):
     registration = get_object_or_404(AccountRegistrationRequest.objects.select_related("created_user", "linked_employee", "approved_role"), pk=pk)
-    roles = get_approvable_roles(request.user)
+    roles = get_approvable_roles(request.user).prefetch_related(
+        "group__permissions__content_type",
+    )
+    role_cards = []
+    for role in roles:
+        permission_codes = {
+            f"{permission.content_type.app_label}.{permission.codename}"
+            for permission in role.group.permissions.all()
+        }
+        permission_groups = present_permission_codes(permission_codes)
+        role_cards.append({
+            "role": role,
+            "permission_count": len(permission_codes),
+            "permission_groups": permission_groups,
+            "permission_labels": [
+                permission["label"]
+                for group in permission_groups
+                for permission in group["permissions"]
+            ][:4],
+        })
+    verification = verify_registration_request(registration)
+    verification_passes = all(verification.values())
     approval_form = RegistrationApprovalForm(roles=roles, initial={"operational_section": registration.operational_section or registration.gender})
-    return render(request, "accounts/registration_request_review.html", {"registration": registration, "verification": verify_registration_request(registration), "approval_form": approval_form, "rejection_form": RegistrationRejectionForm()})
+    return render(request, "accounts/registration_request_review.html", {
+        "registration": registration,
+        "verification": verification,
+        "verification_passes": verification_passes,
+        "approval_form": approval_form,
+        "rejection_form": RegistrationRejectionForm(),
+        "role_cards": role_cards,
+        "is_reviewable": registration.status in {
+            AccountRegistrationRequest.Status.PENDING,
+            AccountRegistrationRequest.Status.NEEDS_EDIT,
+        },
+        "is_awaiting_activation": (
+            registration.status == AccountRegistrationRequest.Status.APPROVED
+            and registration.created_user_id
+            and (
+                registration.activated_at is None
+                or not registration.created_user.is_active
+            )
+        ),
+        "is_activated": (
+            registration.status == AccountRegistrationRequest.Status.ACTIVATED
+            or registration.activated_at is not None
+        ),
+    })
 
 
 @require_POST
