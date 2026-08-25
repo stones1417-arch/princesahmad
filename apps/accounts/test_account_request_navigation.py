@@ -50,3 +50,52 @@ class AccountRequestNavigationTests(TestCase):
 
     def test_django_admin_fallback_remains_registered(self):
         self.assertEqual(reverse("admin:accounts_accountregistrationrequest_changelist"), "/admin/accounts/accountregistrationrequest/")
+
+
+class AccountRequestListConsistencyTests(TestCase):
+    password = "List-Consistency-987!"
+
+    def setUp(self):
+        call_command("setup_roles")
+        self.reviewer = create_user(username="list-reviewer", password=self.password, email="list-reviewer@example.test")
+        assign_role_to_user(user=self.reviewer, role_code="system_admin")
+        self.client.force_login(self.reviewer)
+        self.pending_male = AccountRegistrationRequest.objects.create(full_name="طلب رجالي جديد", employee_number="LIST-M-1", requested_username="list-male", email="list-male@example.test", phone_number="+966551234511", gender="male", operational_section="")
+        self.pending_female = AccountRegistrationRequest.objects.create(full_name="طلب نسائي جديد", employee_number="LIST-F-1", requested_username="list-female", email="list-female@example.test", phone_number="+966551234512", gender="female", operational_section="female")
+        awaiting_user = create_user(username="awaiting-user", password=None, email="awaiting@example.test", is_active=False)
+        self.awaiting = AccountRegistrationRequest.objects.create(full_name="طلب بانتظار التفعيل", employee_number="LIST-M-2", requested_username="awaiting-user", email="awaiting@example.test", phone_number="+966551234513", gender="male", operational_section="male", status=AccountRegistrationRequest.Status.APPROVED, created_user=awaiting_user)
+
+    def test_all_status_filter_has_no_hidden_status_constraint(self):
+        response = self.client.get(reverse("accounts:registration-request-list"), {"status": "", "section": "male"})
+        self.assertContains(response, self.pending_male.full_name)
+        self.assertContains(response, self.awaiting.full_name)
+
+    def test_pending_and_awaiting_activation_are_visible_and_labeled(self):
+        response = self.client.get(reverse("accounts:registration-request-list"), {"section": "male"})
+        self.assertContains(response, self.pending_male.full_name)
+        self.assertContains(response, self.awaiting.full_name)
+        self.assertContains(response, "بانتظار التفعيل")
+
+    def test_male_and_female_filters_use_effective_request_section(self):
+        male = self.client.get(reverse("accounts:registration-request-list"), {"section": "male"})
+        self.assertContains(male, self.pending_male.full_name)
+        self.assertNotContains(male, self.pending_female.full_name)
+        female = self.client.get(reverse("accounts:registration-request-list"), {"section": "female"})
+        self.assertContains(female, self.pending_female.full_name)
+        self.assertNotContains(female, self.pending_male.full_name)
+
+    def test_legacy_blank_section_falls_back_to_gender(self):
+        response = self.client.get(reverse("accounts:registration-request-list"), {"section": "male"})
+        self.assertContains(response, self.pending_male.full_name)
+
+    def test_kpis_and_list_share_section_scope(self):
+        response = self.client.get(reverse("accounts:registration-request-list"), {"section": "male"})
+        self.assertEqual(response.context["kpis"]["pending"], 1)
+        self.assertEqual(response.context["kpis"]["waiting"], 1)
+        self.assertEqual(response.context["registration_requests"].count(), 2)
+
+    def test_invalid_status_behaves_as_all_statuses(self):
+        response = self.client.get(reverse("accounts:registration-request-list"), {"status": "all", "section": "male"})
+        self.assertEqual(response.context["selected_status"], "")
+        self.assertContains(response, self.pending_male.full_name)
+        self.assertContains(response, self.awaiting.full_name)

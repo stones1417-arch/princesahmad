@@ -93,26 +93,37 @@ security_logger = logging.getLogger(
 
 @permission_required(PlatformPermissions.MANAGE_USERS)
 def registration_request_list(request):
-    queryset = AccountRegistrationRequest.objects.select_related("created_user", "approved_role", "linked_employee")
     status = request.GET.get("status", "").strip()
     section = request.GET.get("section", "").strip()
     query = request.GET.get("q", "").strip()
-    if status:
-        queryset = queryset.filter(status=status)
+    queryset = AccountRegistrationRequest.objects.select_related("created_user", "approved_role", "linked_employee")
     if section:
-        queryset = queryset.filter(Q(operational_section=section) | Q(gender=section, operational_section=""))
+        queryset = queryset.filter(
+            Q(operational_section=section)
+            | Q(gender=section, operational_section="")
+            | Q(gender=section, operational_section__isnull=True)
+        )
     if query:
         queryset = queryset.filter(Q(full_name__icontains=query) | Q(employee_number__icontains=query) | Q(email__icontains=query))
+    scoped_requests = queryset
+    if status and status in AccountRegistrationRequest.Status.values:
+        queryset = scoped_requests.filter(status=status)
     today = timezone.localdate()
-    all_requests = AccountRegistrationRequest.objects
     kpis = {
-        "pending": all_requests.filter(status=AccountRegistrationRequest.Status.PENDING).count(),
-        "review": all_requests.filter(status=AccountRegistrationRequest.Status.NEEDS_EDIT).count(),
-        "waiting": all_requests.filter(status=AccountRegistrationRequest.Status.APPROVED).count(),
-        "activated_today": all_requests.filter(status=AccountRegistrationRequest.Status.ACTIVATED, activated_at__date=today).count(),
-        "rejected": all_requests.filter(status=AccountRegistrationRequest.Status.REJECTED).count(),
+        "pending": scoped_requests.filter(status=AccountRegistrationRequest.Status.PENDING).count(),
+        "review": scoped_requests.filter(status=AccountRegistrationRequest.Status.NEEDS_EDIT).count(),
+        "waiting": scoped_requests.filter(status=AccountRegistrationRequest.Status.APPROVED).count(),
+        "activated_today": scoped_requests.filter(status=AccountRegistrationRequest.Status.ACTIVATED, activated_at__date=today).count(),
+        "rejected": scoped_requests.filter(status=AccountRegistrationRequest.Status.REJECTED).count(),
     }
-    return render(request, "accounts/registration_request_list.html", {"requests": queryset, "kpis": kpis, "statuses": AccountRegistrationRequest.Status.choices, "sections": Employee.OperationalSection.choices})
+    return render(request, "accounts/registration_request_list.html", {
+        "registration_requests": queryset,
+        "kpis": kpis,
+        "statuses": AccountRegistrationRequest.Status.choices,
+        "sections": Employee.OperationalSection.choices,
+        "selected_status": status if status in AccountRegistrationRequest.Status.values else "",
+        "selected_section": section if section in Employee.OperationalSection.values else "",
+    })
 
 
 @permission_required(PlatformPermissions.MANAGE_USERS)
