@@ -5,6 +5,7 @@ from django.urls import reverse
 
 from apps.accounts.models import AccountRegistrationRequest
 from apps.core.tests.factories import create_user
+from apps.roles.models import Role
 from apps.roles.services.role_manager import assign_role_to_user
 
 
@@ -99,3 +100,106 @@ class AccountRequestListConsistencyTests(TestCase):
         self.assertEqual(response.context["selected_status"], "")
         self.assertContains(response, self.pending_male.full_name)
         self.assertContains(response, self.awaiting.full_name)
+
+
+class AccountRequestEffectiveSectionTests(TestCase):
+    password = "Effective-Section-987!"
+
+    def setUp(self):
+        call_command("setup_roles")
+        self.reviewer = create_user(
+            username="section-reviewer",
+            password=self.password,
+            email="section-reviewer@example.test",
+        )
+        assign_role_to_user(user=self.reviewer, role_code="system_admin")
+        self.client.force_login(self.reviewer)
+
+    def set_reviewer_scope(self, section):
+        Role.objects.filter(code="system_admin").update(operational_section=section)
+
+    def create_request(self, suffix, *, gender, section="", status=None, user=None):
+        values = {
+            "full_name": f"Production shape {suffix}",
+            "employee_number": f"SCOPE-{suffix}",
+            "requested_username": f"scope-{suffix}",
+            "email": f"scope-{suffix}@example.test",
+            "phone_number": f"+96655123{suffix:04d}",
+            "gender": gender,
+            "operational_section": section,
+            "created_user": user,
+        }
+        if status:
+            values["status"] = status
+        return AccountRegistrationRequest.objects.create(**values)
+
+    def test_exact_production_male_shape_uses_user_scope_for_kpis_and_list(self):
+        self.set_reviewer_scope(Role.OperationalSection.MALE)
+        pending = self.create_request(101, gender="male")
+        inactive_user = create_user(
+            username="production-awaiting",
+            password=None,
+            email="production-awaiting@example.test",
+            is_active=False,
+        )
+        awaiting = self.create_request(
+            102,
+            gender="male",
+            status=AccountRegistrationRequest.Status.APPROVED,
+            user=inactive_user,
+        )
+
+        response = self.client.get(reverse("accounts:registration-request-list"))
+
+        self.assertEqual(response.context["selected_section"], "male")
+        self.assertEqual(response.context["kpis"]["pending"], 1)
+        self.assertEqual(response.context["kpis"]["waiting"], 1)
+        self.assertQuerySetEqual(
+            response.context["registration_requests"].order_by("pk"),
+            [pending, awaiting],
+        )
+        self.assertContains(response, "بانتظار التفعيل")
+
+    def test_blank_female_fallback_is_visible_in_female_scope(self):
+        self.set_reviewer_scope(Role.OperationalSection.FEMALE)
+        female = self.create_request(201, gender="female")
+        response = self.client.get(reverse("accounts:registration-request-list"))
+        self.assertQuerySetEqual(response.context["registration_requests"], [female])
+        self.assertEqual(response.context["kpis"]["pending"], 1)
+
+    def test_fallback_section_scope_has_no_cross_section_leak(self):
+        male = self.create_request(301, gender="male")
+        female = self.create_request(302, gender="female")
+        self.set_reviewer_scope(Role.OperationalSection.MALE)
+        male_response = self.client.get(reverse("accounts:registration-request-list"))
+        self.assertQuerySetEqual(male_response.context["registration_requests"], [male])
+        self.set_reviewer_scope(Role.OperationalSection.FEMALE)
+        female_response = self.client.get(reverse("accounts:registration-request-list"))
+        self.assertQuerySetEqual(female_response.context["registration_requests"], [female])
+
+    def test_explicit_section_takes_precedence_over_gender(self):
+        request = self.create_request(401, gender="male", section="female")
+        self.set_reviewer_scope(Role.OperationalSection.MALE)
+        male_response = self.client.get(reverse("accounts:registration-request-list"))
+        self.assertNotContains(male_response, request.full_name)
+        self.set_reviewer_scope(Role.OperationalSection.FEMALE)
+        female_response = self.client.get(reverse("accounts:registration-request-list"))
+        self.assertContains(female_response, request.full_name)
+
+    def test_unclassified_request_is_hidden_from_section_scopes(self):
+        request = self.create_request(501, gender="male")
+        AccountRegistrationRequest.objects.filter(pk=request.pk).update(gender="")
+        self.set_reviewer_scope(Role.OperationalSection.MALE)
+        self.assertNotContains(
+            self.client.get(reverse("accounts:registration-request-list")),
+            request.full_name,
+        )
+
+        self.set_reviewer_scope(Role.OperationalSection.ALL)
+        self.assertContains(
+            self.client.get(
+                reverse("accounts:registration-request-list"),
+                {"section": ""},
+            ),
+            request.full_name,
+        )

@@ -55,6 +55,7 @@ from apps.roles.services.access_control import (
 )
 from apps.roles.services.permission_registry import PlatformPermissions
 from apps.roles.services.role_manager import assign_role_to_user
+from apps.roles.services.section_context import get_effective_section, set_current_section
 from apps.roles.services.section_access import get_allowed_sections
 from apps.roles.decorators import permission_required
 from apps.dashboard.models import SystemActivityLog
@@ -69,10 +70,12 @@ from .models import AccountProfile, AccountRegistrationRequest
 from .services.two_factor_audit_service import record_2fa_event
 from .services.two_factor_readiness import get_user_otp_channels
 from .services.registration_request_service import (
+    AWAITING_ACTIVATION_Q,
     approve_account_registration_request,
     get_approvable_roles,
     reject_registration_request,
     send_activation_email,
+    scope_registration_requests_for_user,
     verify_registration_request,
 )
 from .security import (
@@ -94,15 +97,16 @@ security_logger = logging.getLogger(
 @permission_required(PlatformPermissions.MANAGE_USERS)
 def registration_request_list(request):
     status = request.GET.get("status", "").strip()
-    section = request.GET.get("section", "").strip()
+    if "section" in request.GET:
+        set_current_section(request, request.GET.get("section", ""))
+    section = get_effective_section(request)
     query = request.GET.get("q", "").strip()
     queryset = AccountRegistrationRequest.objects.select_related("created_user", "approved_role", "linked_employee")
-    if section:
-        queryset = queryset.filter(
-            Q(operational_section=section)
-            | Q(gender=section, operational_section="")
-            | Q(gender=section, operational_section__isnull=True)
-        )
+    queryset = scope_registration_requests_for_user(
+        queryset,
+        user=request.user,
+        section=section,
+    )
     if query:
         queryset = queryset.filter(Q(full_name__icontains=query) | Q(employee_number__icontains=query) | Q(email__icontains=query))
     scoped_requests = queryset
@@ -112,7 +116,7 @@ def registration_request_list(request):
     kpis = {
         "pending": scoped_requests.filter(status=AccountRegistrationRequest.Status.PENDING).count(),
         "review": scoped_requests.filter(status=AccountRegistrationRequest.Status.NEEDS_EDIT).count(),
-        "waiting": scoped_requests.filter(status=AccountRegistrationRequest.Status.APPROVED).count(),
+        "waiting": scoped_requests.filter(AWAITING_ACTIVATION_Q).count(),
         "activated_today": scoped_requests.filter(status=AccountRegistrationRequest.Status.ACTIVATED, activated_at__date=today).count(),
         "rejected": scoped_requests.filter(status=AccountRegistrationRequest.Status.REJECTED).count(),
     }

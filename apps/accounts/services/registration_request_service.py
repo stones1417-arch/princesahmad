@@ -8,6 +8,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.mail import send_mail
 from django.db import transaction
+from django.db.models import BooleanField, Case, Q, QuerySet, Value, When
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes
@@ -19,11 +20,48 @@ from apps.roles.models import Role
 from apps.roles.services.access_control import user_has_permission
 from apps.roles.services.permission_registry import PlatformPermissions
 from apps.roles.services.role_manager import assign_role_to_user
+from apps.roles.services.section_access import get_allowed_sections, has_institutional_scope
 
 from ..models import AccountProfile, AccountRegistrationRequest
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
+
+
+AWAITING_ACTIVATION_Q = Q(
+    status=AccountRegistrationRequest.Status.APPROVED,
+    created_user__isnull=False,
+) & (Q(activated_at__isnull=True) | Q(created_user__is_active=False))
+
+
+def effective_request_section_q(section: str) -> Q:
+    """Match the reviewed section, falling back to applicant gender for legacy rows."""
+    return Q(operational_section=section) | (
+        (Q(operational_section="") | Q(operational_section__isnull=True))
+        & Q(gender=section)
+    )
+
+
+def scope_registration_requests_for_user(
+    queryset: QuerySet,
+    *,
+    user,
+    section: str,
+) -> QuerySet:
+    """Apply the effective UI section without allowing cross-section visibility."""
+    allowed_sections = get_allowed_sections(user)
+    if has_institutional_scope(user) and section not in allowed_sections:
+        section = next(iter(allowed_sections)) if len(allowed_sections) == 1 else "all"
+
+    if section in {Employee.OperationalSection.MALE, Employee.OperationalSection.FEMALE}:
+        queryset = queryset.filter(effective_request_section_q(section))
+    return queryset.annotate(
+        is_awaiting_activation=Case(
+            When(AWAITING_ACTIVATION_Q, then=Value(True)),
+            default=Value(False),
+            output_field=BooleanField(),
+        ),
+    )
 
 
 def _audit(actor, action, description):

@@ -18,7 +18,7 @@
     <div class="col-md-2"><button class="btn btn-primary w-100">تصفية</button></div>
   </form>
   <div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>الاسم</th><th>الرقم الوظيفي</th><th>البريد</th><th>الجوال</th><th>القسم</th><th>تاريخ الطلب</th><th>الحالة</th><th></th></tr></thead><tbody>
-  {% for item in registration_requests %}<tr><td>{{ item.full_name }}</td><td>{{ item.employee_number }}</td><td>{{ item.email }}</td><td>{{ item.phone_number }}</td><td>{{ item.get_gender_display }}</td><td>{{ item.created_at }}</td><td>{% if item.status == 'approved' and item.created_user and not item.created_user.is_active %}بانتظار التفعيل{% else %}{{ item.get_status_display }}{% endif %}</td><td><a class="btn btn-sm btn-outline-primary" href="{% url 'accounts:registration-request-review' item.pk %}">مراجعة الطلب</a></td></tr>{% empty %}<tr><td colspan="8">لا توجد طلبات.</td></tr>{% endfor %}
+  {% for item in registration_requests %}<tr><td>{{ item.full_name }}</td><td>{{ item.employee_number }}</td><td>{{ item.email }}</td><td>{{ item.phone_number }}</td><td>{{ item.get_gender_display }}</td><td>{{ item.created_at }}</td><td>{% if item.is_awaiting_activation %}بانتظار التفعيل{% else %}{{ item.get_status_display }}{% endif %}</td><td><a class="btn btn-sm btn-outline-primary" href="{% url 'accounts:registration-request-review' item.pk %}">مراجعة الطلب</a></td></tr>{% empty %}<tr><td colspan="8">لا توجد طلبات.</td></tr>{% endfor %}
   </tbody></table></div>
 </main>
 {% endblock %}
