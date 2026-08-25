@@ -913,14 +913,6 @@ def shift_assignment_list_view(
             ).count()
         )
         operational_leadership = leadership_for_shift(selected_shift)
-        leadership_cards = [
-            {
-                "responsibility": value,
-                "label": label,
-                "assignment": operational_leadership.get(value),
-            }
-            for value, label in ShiftOperationalLeadership.Responsibility.choices
-        ]
         leadership_candidates = list(
             assignments.filter(
                 is_confirmed=True,
@@ -929,8 +921,41 @@ def shift_assignment_list_view(
                 employee__user__platform_role_assignments__role__code__in=[
                     value for value, _label in ShiftOperationalLeadership.Responsibility.choices
                 ],
-            ).select_related("employee__user").distinct()
+            ).select_related("employee__user").prefetch_related(
+                "employee__user__platform_role_assignments__role"
+            ).distinct()
         )
+        candidate_map = {value: [] for value, _label in ShiftOperationalLeadership.Responsibility.choices}
+        for membership in leadership_candidates:
+            role_codes = {
+                user_role.role.code
+                for user_role in membership.employee.user.platform_role_assignments.all()
+                if user_role.is_active and user_role.role.is_active
+            }
+            for responsibility in candidate_map:
+                if responsibility in role_codes:
+                    candidate_map[responsibility].append(membership)
+        card_presentations = {
+            "incident_supervisor": {
+                "description": "مسؤول المركز الهندسي والبلاغات والتغطية التشغيلية.",
+                "chips": ("البلاغات", "التغطية التشغيلية"), "icon": "!",
+            },
+            "operations_supervisor": {
+                "description": "مسؤول مراجعة واعتماد وتحويل طلبات الصيانة.",
+                "chips": ("اعتماد الطلبات", "التحويل للصيانة"), "icon": "↻",
+            },
+            "maintenance_shift_supervisor": {
+                "description": "مسؤول الجدولة والفنيين وبدء وإنهاء أعمال الصيانة.",
+                "chips": ("الجدولة", "الفنيون", "التنفيذ"), "icon": "⚒",
+            },
+        }
+        leadership_cards = []
+        for value, label in ShiftOperationalLeadership.Responsibility.choices:
+            assignment = operational_leadership.get(value)
+            leadership_cards.append({
+                "responsibility": value, "label": label, "assignment": assignment,
+                "candidates": candidate_map[value], **card_presentations[value],
+            })
 
     assignment_groups = []
     for shift in visible_shift_queryset:
@@ -976,6 +1001,16 @@ def shift_assignment_list_view(
             "operational_leadership": operational_leadership,
             "leadership_cards": leadership_cards,
             "leadership_candidates": leadership_candidates,
+            "leadership_assigned_count": len(operational_leadership),
+            "leadership_missing_labels": [
+                card["label"] for card in leadership_cards if not card["assignment"]
+            ],
+            "leadership_section_label": (
+                "جميع الأقسام" if request.user.is_superuser or has_institutional_scope(request.user)
+                else "رجالي" if get_allowed_sections(request.user) == {"male"}
+                else "نسائي" if get_allowed_sections(request.user) == {"female"}
+                else "نطاق تشغيلي مشترك"
+            ),
             "leadership_responsibilities": ShiftOperationalLeadership.Responsibility.choices,
             "can_manage_leadership": request.user.is_superuser or user_has_permission(
                 request.user, PlatformPermissions.ASSIGN_EMPLOYEES

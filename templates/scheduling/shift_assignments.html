@@ -3,6 +3,7 @@
 
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'css/scheduling/shift_assignments_page.css' %}?v=20260814-compact">
+  <link rel="stylesheet" href="{% static 'css/scheduling/shift_operational_leadership.css' %}?v=20260825">
 {% endblock %}
 
 {% block content %}
@@ -35,44 +36,91 @@
       لا توجد وردية نشطة حاليًا. فعّل وردية أولًا من صفحة حالات الورديات.
     </div>
   {% else %}
-    <section class="assignment-card" aria-labelledby="operationalLeadershipTitle">
-      <div class="assignment-card__header">
-        <span class="assign-eyebrow">الدور يمنح الصلاحيات، والتكليف يحدد مسؤول الوردية</span>
-        <h2 id="operationalLeadershipTitle">القيادة التشغيلية للوردية</h2>
-        <p>قيادة تخصصية مستقلة عن مشرف الوردية ونائبه.</p>
-      </div>
-      <div class="assignment-form__grid">
+    <section class="shift-leadership" aria-labelledby="operationalLeadershipTitle" data-shift-leadership>
+      <header class="shift-leadership__header">
+        <div>
+          <span class="shift-leadership__eyebrow">إدارة الوردية</span>
+          <h2 id="operationalLeadershipTitle">القيادة التشغيلية للوردية</h2>
+          <p>تحديد المسؤولين التخصصيين عن البلاغات والعمليات والصيانة خلال الوردية.</p>
+          <div class="shift-leadership__context" aria-label="سياق الوردية">
+            <span>الوردية: <strong>{{ selected_shift.shift_type.name }}</strong></span>
+            <span>التاريخ: <strong>{{ selected_shift.date|date:"Y-m-d" }}</strong></span>
+            <span>القسم: <strong>{{ leadership_section_label }}</strong></span>
+            <span>{{ leadership_assigned_count }} من 3 معيّن</span>
+            {% if selected_shift.is_finished %}<span class="is-finished">وردية منتهية</span>{% endif %}
+          </div>
+        </div>
+        <div class="shift-leadership__completion" aria-label="اكتمال القيادة التشغيلية">
+          <strong>{{ leadership_assigned_count }} / 3</strong>
+          <span>{% if leadership_assigned_count == 3 %}القيادة مكتملة{% else %}تحتاج تعيين{% endif %}</span>
+          <div class="shift-leadership__progress" aria-hidden="true"><i style="--completion: {{ leadership_assigned_count }}"></i></div>
+        </div>
+      </header>
+      <aside class="shift-leadership__policy">
+        <strong>الدور يمنح الصلاحيات، والتكليف يحدد المسؤول الفعلي عن هذه الوردية.</strong>
+        <span>يمكن تغيير المسؤول دون تعديل دوره أو صلاحياته.</span>
+        <span><b>القيادة العامة للوردية</b> يديرها مشرف الوردية ونائبه، وتبقى مستقلة عن القيادة التشغيلية التخصصية أدناه.</span>
+      </aside>
+      {% if active_shift and selected_shift.pk == active_shift.pk and leadership_assigned_count < 3 %}
+        <div class="shift-leadership__attention" role="status">
+          الوردية الحالية لديها وظائف تشغيلية غير مسكّنة: {{ leadership_missing_labels|join:"، " }}
+        </div>
+      {% endif %}
+      {% if not can_manage_leadership %}
+        <p class="shift-leadership__readonly">ليس لديك صلاحية تعديل القيادة التشغيلية. يمكنك الاطلاع على التكليفات الحالية.</p>
+      {% endif %}
+      <div class="shift-leadership__grid">
         {% for card in leadership_cards %}
-          <article class="leadership-slot">
-            <h3>{{ card.label }}</h3>
+          <article class="shift-leadership-card {% if card.assignment %}is-assigned{% else %}is-unassigned{% endif %}" data-leadership-card>
+            <div class="shift-leadership-card__header">
+              <span class="shift-leadership-card__icon" aria-hidden="true">{{ card.icon }}</span>
+              <div><h3>{{ card.label }}</h3><p>{{ card.description }}</p></div>
+              <span class="shift-leadership__status">{% if card.assignment %}معيّن{% else %}غير معيّن{% endif %}</span>
+            </div>
+            <div class="shift-leadership-card__chips">{% for chip in card.chips %}<span>{{ chip }}</span>{% endfor %}</div>
             {% if card.assignment %}
-              <strong>{{ card.assignment.employee.full_name }}</strong>
-              <p>{{ card.assignment.employee.operational_section_label }} · {% if card.assignment.employee.user.is_active %}الحساب نشط{% else %}الحساب غير نشط{% endif %}</p>
-              <small>عضو مؤكد في الوردية</small>
+              <div class="shift-leadership-person">
+                <span class="shift-leadership-person__avatar" aria-hidden="true">{{ card.assignment.employee.full_name|slice:":1" }}</span>
+                <div><strong>{{ card.assignment.employee.full_name }}</strong>
+                  <span>الرقم الوظيفي {{ card.assignment.employee.employee_number }}</span>
+                  <small>{{ card.assignment.employee.operational_section_label }} · {% if card.assignment.employee.user.is_active %}حساب نشط{% else %}الحساب غير نشط{% endif %} · ضمن الوردية</small>
+                </div>
+              </div>
             {% else %}
-              <strong>غير معيّن</strong>
-              <p>لا يوجد مسؤول لهذه الوظيفة في الوردية.</p>
+              <div class="shift-leadership-card__empty"><strong>لم يتم تعيين مسؤول بعد.</strong><span>اختر موظفًا مؤهلًا من أعضاء الوردية.</span></div>
             {% endif %}
             {% if can_manage_leadership %}
-              <form method="post" action="{% url 'scheduling:operational-leadership-assign' %}">
+              <form class="shift-leadership-selector" method="post" action="{% url 'scheduling:operational-leadership-assign' %}" data-current-id="{% if card.assignment %}{{ card.assignment.employee_id }}{% endif %}" data-current-name="{% if card.assignment %}{{ card.assignment.employee.full_name }}{% endif %}" data-role-label="{{ card.label }}">
                 {% csrf_token %}
                 <input type="hidden" name="shift_plan_id" value="{{ selected_shift.pk }}">
                 <input type="hidden" name="responsibility" value="{{ card.responsibility }}">
-                <label>اختر موظفًا
-                  <select name="employee_id">
-                    <option value="">غير معيّن</option>
-                    <option value="">اختر من أعضاء الوردية المؤكدين</option>
-                    {% for membership in leadership_candidates %}
-                      <option value="{{ membership.employee_id }}">{{ membership.employee.full_name }} — {{ membership.employee.operational_section_label }}</option>
-                    {% endfor %}
+                {% if card.candidates %}
+                  <label for="leader-{{ card.responsibility }}">{% if card.assignment %}تغيير المسؤول{% else %}تعيين المسؤول{% endif %}</label>
+                  <select id="leader-{{ card.responsibility }}" name="employee_id" aria-describedby="leader-help-{{ card.responsibility }}">
+                    <option value="">اختر موظفًا مؤهلًا</option>
+                    {% for membership in card.candidates %}<option value="{{ membership.employee_id }}" {% if card.assignment.employee_id == membership.employee_id %}selected{% endif %}>{{ membership.employee.full_name }} — الرقم {{ membership.employee.employee_number }}</option>{% endfor %}
                   </select>
-                </label>
-                <button class="assign-btn assign-btn--primary" type="submit">حفظ التكليف</button>
+                  <small id="leader-help-{{ card.responsibility }}" class="shift-leadership-selector__dirty" aria-live="polite"></small>
+                  <div class="shift-leadership-actions">
+                    <button class="assign-btn assign-btn--primary" type="submit" disabled data-save>{% if card.assignment %}حفظ التغيير{% else %}تعيين المسؤول{% endif %}</button>
+                    <button class="assign-btn assign-btn--secondary" type="button" hidden data-reset>تراجع</button>
+                    {% if card.assignment %}<button class="shift-leadership-actions__remove" type="button" data-remove>إزالة التكليف</button>{% endif %}
+                  </div>
+                {% else %}
+                  <div class="shift-leadership-card__no-candidates"><strong>لا يوجد موظف مؤهل لهذا التكليف.</strong><span>يجب أن يكون الموظف نشطًا، يحمل الدور المطلوب، ومسكّنًا في نفس الوردية والقسم.</span></div>
+                {% endif %}
               </form>
             {% endif %}
           </article>
         {% endfor %}
       </div>
+      <dialog class="shift-leadership-dialog" data-leadership-dialog aria-labelledby="leadershipDialogTitle">
+        <form method="dialog"><button class="shift-leadership-dialog__close" aria-label="إغلاق">×</button></form>
+        <h3 id="leadershipDialogTitle" data-dialog-title>تأكيد التغيير</h3>
+        <p data-dialog-copy></p>
+        <dl><div><dt>المسؤول الحالي</dt><dd data-dialog-current>غير معيّن</dd></div><div><dt>المسؤول الجديد</dt><dd data-dialog-next>غير معيّن</dd></div></dl>
+        <div class="shift-leadership-actions"><button type="button" class="assign-btn assign-btn--secondary" data-dialog-cancel>إلغاء</button><button type="button" class="assign-btn assign-btn--primary" data-dialog-confirm>تأكيد التغيير</button></div>
+      </dialog>
     </section>
     <section class="assignment-card assignment-create-card" id="assignmentCreateCard">
       <div class="assignment-card__header">
@@ -312,4 +360,5 @@
     });
   });
 </script>
+<script src="{% static 'js/scheduling/shift_operational_leadership.js' %}?v=20260825" defer></script>
 {% endblock %}

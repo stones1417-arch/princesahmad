@@ -3,6 +3,7 @@ from datetime import timedelta
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.test import TestCase
+from django.urls import reverse
 from django.utils import timezone
 
 from apps.accounts.role_permissions import ROLE_PERMISSIONS_BY_CODE
@@ -140,3 +141,44 @@ class ShiftOperationalLeadershipTests(TestCase):
                 employee = self.member(responsibility, section="male")
                 self.assign(responsibility, employee)
         self.assertEqual(ShiftOperationalLeadership.objects.count(), 12)
+
+    def test_enterprise_ui_contract_and_unassigned_summary(self):
+        self.client.force_login(self.actor)
+        response = self.client.get(reverse("scheduling:assignments"))
+        self.assertEqual(response.status_code, 200)
+        for text in (
+            "القيادة التشغيلية للوردية", "الدور يمنح الصلاحيات",
+            "القيادة العامة للوردية",
+            "0 / 3", "مشرف البلاغات", "مشرف العمليات", "مشرف الصيانة",
+            "لا يوجد موظف مؤهل لهذا التكليف",
+        ):
+            self.assertContains(response, text)
+        content = response.content.decode()
+        self.assertIn("data-leadership-dialog", content)
+        self.assertIn("shift_operational_leadership.js", content)
+        self.assertNotIn("window.alert", content)
+        self.assertNotIn("window.confirm", content)
+        self.assertNotIn("window.prompt", content)
+
+    def test_assigned_card_uses_role_eligible_candidates_only(self):
+        incident = self.member("incident_supervisor")
+        operations = self.member("operations_supervisor")
+        self.assign("incident_supervisor", incident)
+        self.client.force_login(self.actor)
+        response = self.client.get(reverse("scheduling:assignments"))
+        self.assertContains(response, "1 / 3")
+        self.assertContains(response, incident.full_name)
+        incident_select = response.content.decode().split(
+            'id="leader-incident_supervisor"', 1
+        )[1].split("</select>", 1)[0]
+        self.assertIn(incident.full_name, incident_select)
+        self.assertNotIn(operations.full_name, incident_select)
+
+    def test_read_only_ui_hides_mutation_controls(self):
+        viewer = create_user(username="leadership-viewer")
+        assign_role_to_user(user=viewer, role_code="incident_supervisor", assigned_by=self.actor)
+        self.client.force_login(viewer)
+        response = self.client.get(reverse("scheduling:assignments"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "ليس لديك صلاحية تعديل القيادة التشغيلية")
+        self.assertNotContains(response, "data-save")
