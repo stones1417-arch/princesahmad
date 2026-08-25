@@ -4,6 +4,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 
 from django.db.models import Q
+from django.utils import timezone
 
 from apps.distribution.models import DoorAssignment
 from apps.locations.models import Door
@@ -20,6 +21,7 @@ class EngineeringDoorMetric:
     employee_count: int
     employee_names: list[str]
     open_incident_count: int
+    today_incident_count: int
     active_maintenance_count: int
     density_percent: None
     density_level: None
@@ -84,24 +86,32 @@ class EngineeringCenterService:
                 assignments_by_door[assignment.door_id].append(assignment)
 
         incident_counts = defaultdict(int)
+        today_incident_counts = defaultdict(int)
         incident_activity = {}
+        today = timezone.localdate()
         incidents = Incident.objects.filter(
-            status__in=cls.OPEN_INCIDENT_STATUSES,
-        ).filter(
             Q(door_id__in=door_ids) | Q(door_shift__door_number__in=door_numbers)
+        ).filter(
+            Q(status__in=cls.OPEN_INCIDENT_STATUSES) | Q(created_at__date=today)
         )
         if allowed_sections is not None:
             incidents = incidents.filter(section__in=allowed_sections)
-        incidents = incidents.values("door_id", "door_shift__door_number", "updated_at")
+        incidents = incidents.values(
+            "door_id", "door_shift__door_number", "status", "created_at", "updated_at"
+        )
         door_id_by_number = {door.door_number: door.pk for door in doors}
         for incident in incidents:
             door_id = incident["door_id"] or door_id_by_number.get(incident["door_shift__door_number"])
             if not door_id:
                 continue
-            incident_counts[door_id] += 1
-            incident_activity[door_id] = max(
-                incident_activity.get(door_id, incident["updated_at"]), incident["updated_at"]
-            )
+            if incident["status"] in cls.OPEN_INCIDENT_STATUSES:
+                incident_counts[door_id] += 1
+                incident_activity[door_id] = max(
+                    incident_activity.get(door_id, incident["updated_at"]),
+                    incident["updated_at"],
+                )
+            if timezone.localdate(incident["created_at"]) == today:
+                today_incident_counts[door_id] += 1
 
         maintenance_counts = defaultdict(int)
         maintenance_activity = {}
@@ -148,6 +158,7 @@ class EngineeringCenterService:
                 employee_count=len(assignment_rows),
                 employee_names=names,
                 open_incident_count=incident_counts[door.pk],
+                today_incident_count=today_incident_counts[door.pk],
                 active_maintenance_count=maintenance_counts[door.pk],
                 density_percent=None,
                 density_level=None,

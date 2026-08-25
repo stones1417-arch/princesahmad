@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.contrib.staticfiles import finders
 from django.core.management import call_command
@@ -41,6 +43,7 @@ class EngineeringCenterClosureTests(TestCase):
         for item in snapshot["doors"]:
             self.assertIsInstance(item.employee_count, int)
             self.assertIsInstance(item.open_incident_count, int)
+            self.assertIsInstance(item.today_incident_count, int)
             self.assertIsInstance(item.active_maintenance_count, int)
 
     def test_status_data_security_and_json_contract(self):
@@ -55,7 +58,7 @@ class EngineeringCenterClosureTests(TestCase):
         self.assertEqual([item["number"] for item in payload["doors"][:8]], ["1", "2", "3", "4", "5", "6B", "6A", "7"])
         self.assertNotIn("6", {item["number"] for item in payload["doors"]})
         for item in payload["doors"]:
-            self.assertTrue({"employee_count", "open_incident_count", "active_maintenance_count"} <= item.keys())
+            self.assertTrue({"employee_count", "open_incident_count", "today_incident_count", "active_maintenance_count"} <= item.keys())
 
     def test_page_has_only_overview_and_official_map_tabs(self):
         self.client.force_login(self.admin)
@@ -91,6 +94,7 @@ class EngineeringCenterClosureTests(TestCase):
         self.assertContains(response, 'class="engineering-card__metrics"', count=42)
         self.assertContains(response, 'data-metric="employees"', count=42)
         self.assertContains(response, 'data-metric="incidents"', count=42)
+        self.assertContains(response, 'data-metric="incidents-today"', count=42)
         self.assertContains(response, 'data-metric="maintenance"', count=42)
         self.assertContains(response, 'id="resultCount"')
         self.assertContains(response, 'id="refreshTime"')
@@ -160,6 +164,46 @@ class EngineeringCenterClosureTests(TestCase):
         response = self.client.get(reverse("ops:doors"))
         self.assertContains(response, "لم تُحدد سعة تشغيلية لهذا الباب", count=42)
         self.assertNotContains(response, 'role="progressbar"')
+
+    def test_active_and_today_incident_metrics_remain_distinct_after_close(self):
+        door = Door.objects.get(door_number="1")
+        yesterday_door = Door.objects.get(door_number="2")
+        closed_today = Incident.objects.create(
+            door=door, description="Closed today", created_by=self.admin
+        )
+        closed_today.status = Incident.Status.CLOSED
+        closed_today.closed_at = timezone.now()
+        closed_today.closed_by = self.admin
+        closed_today.save(update_fields=["status", "closed_at", "closed_by", "updated_at"])
+
+        old_open = Incident.objects.create(
+            door=yesterday_door, description="Old and open", created_by=self.admin
+        )
+        yesterday = timezone.now() - timedelta(days=1)
+        Incident.objects.filter(pk=old_open.pk).update(created_at=yesterday)
+
+        with self.assertNumQueries(4):
+            snapshot = EngineeringCenterService.build(active_shift=None)
+        metrics = {item.door.door_number: item for item in snapshot["doors"]}
+        self.assertEqual(metrics["1"].open_incident_count, 0)
+        self.assertEqual(metrics["1"].today_incident_count, 1)
+        self.assertEqual(metrics["2"].open_incident_count, 1)
+        self.assertEqual(metrics["2"].today_incident_count, 0)
+        self.assertEqual(snapshot["summary"]["open_incidents"], 1)
+
+        self.client.force_login(self.admin)
+        payload = self.client.get(reverse("ops:door-status-data")).json()
+        refreshed = {item["number"]: item for item in payload["doors"]}
+        self.assertEqual(refreshed["1"]["open_incident_count"], 0)
+        self.assertEqual(refreshed["1"]["today_incident_count"], 1)
+        self.assertEqual(refreshed["2"]["open_incident_count"], 1)
+        self.assertEqual(refreshed["2"]["today_incident_count"], 0)
+
+        followup = self.client.get(
+            reverse("ops:door-incident-followup", args=[door.pk])
+        ).json()
+        self.assertEqual([item["id"] for item in followup["incidents"]], [closed_today.pk])
+        self.assertTrue(followup["incidents"][0]["is_closed"])
 
     def test_incident_followup_endpoint_is_read_only_scoped_and_current(self):
         door = Door.objects.get(door_number="1")

@@ -515,6 +515,7 @@ def door_status_data_ajax(request):
                 "status_label": item.status_label,
                 "employee_count": item.employee_count,
                 "open_incident_count": item.open_incident_count,
+                "today_incident_count": item.today_incident_count,
                 "active_maintenance_count": item.active_maintenance_count,
                 "density_percent": None,
                 "density_label": "غير محددة",

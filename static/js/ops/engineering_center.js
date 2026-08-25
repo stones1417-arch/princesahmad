@@ -241,6 +241,7 @@
         card.querySelector("[data-metric='status']").lastChild.textContent = item.status_label;
         card.querySelector("[data-metric='employees']").textContent = item.employee_count;
         card.querySelector("[data-metric='incidents']").textContent = item.open_incident_count;
+        card.querySelector("[data-metric='incidents-today']").textContent = item.today_incident_count;
         card.querySelector("[data-metric='maintenance']").textContent = item.active_maintenance_count;
         card.querySelector("[data-detail='status']")?.replaceChildren(item.status_label);
         card.querySelector("[data-metric='activity']").textContent = item.last_activity ? new Date(item.last_activity).toLocaleString("ar-SA", { day: "numeric", month: "long", hour: "numeric", minute: "2-digit" }) : "لا يوجد نشاط مسجل";
