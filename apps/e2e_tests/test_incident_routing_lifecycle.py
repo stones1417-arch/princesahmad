@@ -211,7 +211,7 @@ class IncidentRoutingLifecycleE2ETests(TestCase):
 
         self.client.force_login(self.incident_supervisor)
         completion_page = self.client.get(reverse("ops:incidents"))
-        self.assertContains(completion_page, "اكتملت الصيانة — بانتظار تأكيد مشرف الوردية")
+        self.assertContains(completion_page, "اكتملت الصيانة — بانتظار تأكيد مشرف البلاغات")
         self.assertContains(completion_page, "تأكيد معالجة البلاغ وإغلاقه")
 
         self.assertEqual(self.client.post(update_url, {

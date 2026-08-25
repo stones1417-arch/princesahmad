@@ -1334,7 +1334,7 @@ def incidents_view(request):
     escalation_filter = str(request.GET.get("escalation_level", "") or "").strip()
     maintenance_filter = str(request.GET.get("has_maintenance", "") or "").strip()
 
-    incidents = (
+    incident_scope = (
         IncidentRoutingService.visible_incidents(Incident.objects, request.user)
         .select_related(
             "door",
@@ -1347,8 +1347,8 @@ def incidents_view(request):
             "maintenance_request",
         )
         .prefetch_related("routing_events", "routing_events__actor")
-        .order_by("-created_at")
     )
+    incidents = incident_scope.order_by("-created_at")
 
     valid_statuses = {
         value
@@ -1443,14 +1443,13 @@ def incidents_view(request):
     ).strip()
     if engineering_door_id:
         engineering_door = get_object_or_404(doors, pk=engineering_door_id)
-    incident_assignees = _incident_assignees(
-        active_shift,
-        user=request.user,
+    incident_leadership = leadership_for_shift(active_shift).get(
+        ShiftOperationalLeadership.Responsibility.INCIDENT_SUPERVISOR
     )
 
     today = timezone.localdate()
 
-    all_incidents = Incident.objects.all()
+    all_incidents = incident_scope
 
     closed_statuses = (
         Incident.Status.RESOLVED,
@@ -1462,7 +1461,13 @@ def incidents_view(request):
         "incidents": incidents,
         "doors": doors,
         "engineering_door": engineering_door,
-        "incident_assignees": incident_assignees,
+        "incident_supervisor": incident_leadership,
+        "current_section_label": (
+            "جميع الأقسام" if request.user.is_superuser or has_institutional_scope(request.user)
+            else "رجالي" if get_allowed_sections(request.user) == {"male"}
+            else "نسائي" if get_allowed_sections(request.user) == {"female"}
+            else "نطاق مشترك"
+        ),
 
         "status_choices": (
             Incident.Status.choices
@@ -1524,6 +1529,22 @@ def incidents_view(request):
                 closed_at__date=today,
             ).count()
         ),
+        "in_progress_incidents": all_incidents.filter(
+            status=Incident.Status.IN_PROGRESS
+        ).count(),
+        "escalated_incidents": all_incidents.exclude(
+            escalation_level=Incident.EscalationLevel.NONE
+        ).exclude(status__in=closed_statuses).count(),
+        "maintenance_incidents": all_incidents.filter(
+            maintenance_request__isnull=False
+        ).exclude(status__in=closed_statuses).count(),
+        "unassigned_incidents": all_incidents.filter(
+            assigned_to__isnull=True
+        ).exclude(status__in=closed_statuses).count(),
+        "active_filters": any((
+            status_filter, priority_filter, section_filter, type_filter, query,
+            door_filter, assigned_filter, escalation_filter, maintenance_filter,
+        )),
     }
 
     return render(

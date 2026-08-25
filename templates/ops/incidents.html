@@ -1,4 +1,7 @@
 {% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/ops/incident_center.css' %}?v=20260825">{% endblock %}
 
 {% block title %}
 البلاغات التشغيلية
@@ -28,7 +31,7 @@
          رأس الصفحة
     ================================================== -->
 
-    <section class="incidents-page-header">
+    <section class="incidents-page-header incident-center__header">
 
         <div class="incidents-page-heading">
 
@@ -38,13 +41,11 @@
 
             <div>
 
-                <h1>
-                    البلاغات التشغيلية
-                </h1>
+                <span class="incident-center__eyebrow">المركز الهندسي</span>
+                <h1>مركز البلاغات التشغيلية</h1>
 
                 <p>
-                    تسجيل البلاغات الميدانية ومتابعة حالتها
-                    وتحويلها إلى الجهة أو الموظف المختص.
+                    إدارة البلاغات الميدانية ومتابعة معالجتها وتصعيدها وربطها بالصيانة.
                 </p>
 
             </div>
@@ -219,7 +220,18 @@
 
         </article>
 
+        <article class="incident-stat-card"><div class="incident-stat-content"><span>قيد المعالجة</span><strong>{{ in_progress_incidents|default:0 }}</strong></div></article>
+        <article class="incident-stat-card"><div class="incident-stat-content"><span>المصعّدة</span><strong>{{ escalated_incidents|default:0 }}</strong></div></article>
+        <article class="incident-stat-card"><div class="incident-stat-content"><span>مرتبطة بالصيانة</span><strong>{{ maintenance_incidents|default:0 }}</strong></div></article>
+
     </section>
+
+    {% if unassigned_incidents or escalated_incidents or not incident_supervisor %}
+    <section class="incident-center__attention" aria-labelledby="incidentAttentionTitle">
+        <h2 id="incidentAttentionTitle">تحتاج انتباهك الآن</h2>
+        <div>{% if not incident_supervisor %}<span>لا يوجد مشرف بلاغات للوردية الحالية</span>{% endif %}{% if unassigned_incidents %}<span>{{ unassigned_incidents }} بلاغ دون مسؤول</span>{% endif %}{% if escalated_incidents %}<span>{{ escalated_incidents }} بلاغ مصعّد</span>{% endif %}</div>
+    </section>
+    {% endif %}
 
 
     <!-- ==================================================
@@ -477,36 +489,17 @@
                 </div>
 
 
-                <!-- التوجيه المؤسسي التلقائي -->
-
-                <div class="incident-form-field">
-
-                    <label for="assignedToName">
-
-                        <span>
-                            المسؤول التنفيذي
-                        </span>
-
-                        <small class="optional-mark">
-                            تلقائي
-                        </small>
-
-                    </label>
-
-                    <select
-                        id="assignedToName"
-                        disabled
-                    >
-                        <option value="">
-                            يُعيّن مشرف الوردية ثم النائب تلقائيًا
-                        </option>
-                    </select>
-
-                    <small
-                        id="assignedToNameError"
-                        class="incident-field-error"
-                    ></small>
-
+                <div class="incident-center__routing" aria-labelledby="incidentRoutingTitle">
+                    <div><span class="incident-center__eyebrow">التوجيه التشغيلي</span><strong id="incidentRoutingTitle">مشرف البلاغات</strong></div>
+                    {% if incident_supervisor %}
+                        <p>{{ incident_supervisor.employee.full_name }}</p>
+                        <dl><div><dt>الوردية</dt><dd>{% if active_shift %}{{ active_shift.shift_type.name }}{% endif %}</dd></div><div><dt>القسم</dt><dd>{{ current_section_label }}</dd></div></dl>
+                        <span class="incident-center__routing-status">سيتم توجيه البلاغ تلقائيًا</span>
+                        <small>سيُسند البلاغ إلى مشرف البلاغات المعيّن لهذه الوردية.</small>
+                    {% else %}
+                        <p class="incident-center__routing-warning">لا يوجد مشرف بلاغات معيّن لهذه الوردية.</p>
+                        <small>يمكن إنشاء البلاغ، لكنه سيبقى بانتظار التعيين حتى يتم تسكين مشرف البلاغات.</small>
+                    {% endif %}
                 </div>
 
 
@@ -619,7 +612,7 @@
                     </span>
 
                     <span id="incidentSaveButtonText">
-                        حفظ البلاغ
+                        إنشاء البلاغ
                     </span>
 
                 </button>
@@ -817,6 +810,11 @@
 
         </form>
 
+        {% if active_filters %}<div class="incident-center__active-filters" aria-label="الفلاتر النشطة">
+            {% if q %}<span>البحث: {{ q }}</span>{% endif %}{% if selected_status %}<span>الحالة: {{ selected_status }}</span>{% endif %}{% if selected_priority %}<span>الأولوية: {{ selected_priority }}</span>{% endif %}{% if selected_type %}<span>النوع: {{ selected_type }}</span>{% endif %}{% if selected_door %}<span>الباب: {{ selected_door }}</span>{% endif %}
+            <a href="{% url 'ops:incidents' %}">مسح الكل</a>
+        </div>{% endif %}
+
     </section>
 
 
@@ -832,11 +830,11 @@
             <div>
 
                 <h2>
-                    سجل البلاغات
+                    البلاغات
                 </h2>
 
                 <p>
-                    جميع البلاغات التشغيلية المسجلة.
+                    البلاغات التشغيلية ضمن نطاقك وصلاحياتك.
                 </p>
 
             </div>
@@ -1012,6 +1010,9 @@
 
                             </button>{% endif %}
 
+                            {% if can_escalate_incident or can_convert_incident or can_close_incident or incident.maintenance_request %}<details class="incident-center__actions-menu">
+                            <summary>إجراءات أخرى</summary>
+                            <div>
                             {% if can_escalate_incident and incident.escalation_level != "general_manager" %}
                                 <button type="button" class="incident-escalate-button"
                                     data-action-url="{% url 'ops:incident-escalate' incident.id %}"
@@ -1048,9 +1049,15 @@
                                     </button>
                                 {% endif %}
                             {% endif %}
+                            </div>
+                            </details>{% endif %}
 
-                            <details class="incident-routing-details">
+                            <button type="button" class="incident-center__detail-button" data-incident-detail="incident-detail-{{ incident.id }}">عرض التفاصيل</button>
+                            <details class="incident-routing-details" id="incident-detail-{{ incident.id }}">
                                 <summary>مسار البلاغ</summary>
+                                <h3>{{ incident.incident_number }}</h3>
+                                <p>الوصف: {{ incident.description }}</p>
+                                <p>المبلّغ: {{ incident.reported_by_name|default:"—" }}</p>
                                 <p>القسم: {{ incident.get_section_display|default:incident.section }}</p>
                                 <p>الوردية: {{ incident.shift_plan|default:"بدون وردية نشطة" }}</p>
                                 <p>المسؤول التنفيذي: {{ incident.assigned_to_name|default:"بانتظار التعيين" }}</p>
@@ -1061,7 +1068,7 @@
                                         — {{ incident.maintenance_request.get_status_display }}
                                     </p>
                                     {% if incident.maintenance_request.status == "done" or incident.maintenance_request.status == "closed" %}
-                                        <p>اكتملت الصيانة — بانتظار تأكيد مشرف الوردية</p>
+                                        <p>اكتملت الصيانة — بانتظار تأكيد مشرف البلاغات</p>
                                     {% endif %}
                                 {% endif %}
                                 <ol>
@@ -1096,13 +1103,13 @@
 
                                 <strong>
 
-                                    لا توجد بلاغات
+                                    لا توجد بلاغات تشغيلية
 
                                 </strong>
 
                                 <p>
 
-                                    لم يتم العثور على بيانات.
+                                    {% if active_filters %}لا توجد بلاغات مطابقة لمعايير البحث الحالية.{% else %}لا توجد بلاغات مسجلة ضمن نطاقك حاليًا.{% endif %}
 
                                 </p>
 
@@ -1121,6 +1128,29 @@
         </div>
 
     </section>
+
+    <div class="incident-center__context" aria-label="سياق مركز البلاغات">
+        <span>الجهة المالكة: <strong>المركز الهندسي</strong></span>
+        <span>الوردية: <strong>{% if active_shift %}{{ active_shift.shift_type.name }}{% else %}لا توجد وردية نشطة{% endif %}</strong></span>
+        <span>القسم: <strong>{{ current_section_label }}</strong></span>
+        <span class="{% if not incident_supervisor %}is-warning{% endif %}">مشرف البلاغات: <strong>{% if incident_supervisor %}{{ incident_supervisor.employee.full_name }}{% else %}غير معيّن{% endif %}</strong></span>
+        <a href="{% url 'ops:incidents' %}" aria-label="تحديث مركز البلاغات">تحديث</a>
+    </div>
+
+    <section class="incident-center__leadership" aria-labelledby="incidentLeadershipTitle">
+        <div><span class="incident-center__eyebrow">قيادة البلاغات الحالية</span><h2 id="incidentLeadershipTitle">مشرف البلاغات</h2></div>
+        {% if incident_supervisor %}
+            <div class="incident-center__leader-person"><strong>{{ incident_supervisor.employee.full_name }}</strong><span>مشرف البلاغات · {{ incident_supervisor.employee.operational_section_label }}</span><small>حالة التكليف: معيّن</small></div>
+        {% else %}
+            <div class="incident-center__leader-missing"><strong>لا يوجد مشرف بلاغات معيّن لهذه الوردية.</strong><span>ستبقى البلاغات الجديدة بانتظار التعيين حتى يتم تسكين المسؤول.</span></div>
+            {% if perms.roles.assign_employees %}<a href="{% url 'scheduling:assignments' %}">إدارة تسكين الوردية</a>{% endif %}
+        {% endif %}
+    </section>
+
+    <dialog id="incidentCenterDrawer" class="incident-center__drawer" aria-labelledby="incidentDrawerTitle">
+        <header><h2 id="incidentDrawerTitle">تفاصيل البلاغ</h2><button type="button" data-drawer-close aria-label="إغلاق التفاصيل">×</button></header>
+        <div data-drawer-content></div>
+    </dialog>
 
     <dialog id="incidentEscalationDialog" class="incident-action-dialog" aria-labelledby="incidentEscalationTitle">
         <form id="incidentEscalationForm" method="dialog">
@@ -2765,11 +2795,6 @@ function clearAllIncidentFieldErrors(){
     );
 
     clearIncidentFieldError(
-        "assignedToName",
-        "assignedToNameError"
-    );
-
-    clearIncidentFieldError(
         "incidentDescription",
         "incidentDescriptionError"
     );
@@ -2832,35 +2857,6 @@ function updateIncidentDoorSummary(){
     summaryText.innerText =
         selectedOption.textContent.trim();
 }
-
-function updateIncidentAssigneeScope(){
-    const doorSelect = incidentGetElement("incidentDoor");
-    const assigneeSelect = incidentGetElement("assignedToName");
-    if(!doorSelect || !assigneeSelect){
-        return;
-    }
-
-    const selectedDoor = doorSelect.options[doorSelect.selectedIndex];
-    const section = selectedDoor?.dataset.section || "";
-    let selectedStillAllowed = !assigneeSelect.value;
-
-    Array.from(assigneeSelect.options).forEach(function(option, index){
-        if(index === 0){
-            return;
-        }
-        const allowed = !section || section === "shared" || option.dataset.section === section;
-        option.hidden = !allowed;
-        option.disabled = !allowed;
-        if(allowed && option.selected){
-            selectedStillAllowed = true;
-        }
-    });
-
-    if(!selectedStillAllowed){
-        assigneeSelect.value = "";
-    }
-}
-
 
 /* ==================================================
    حالة زر الحفظ
@@ -2933,11 +2929,6 @@ function validateIncidentCreateForm(){
             "reportedByName"
         )?.value.trim() || "";
 
-    const assignedToName =
-        incidentGetElement(
-            "assignedToName"
-        )?.value.trim() || "";
-
     const description =
         incidentGetElement(
             "incidentDescription"
@@ -2972,18 +2963,6 @@ function validateIncidentCreateForm(){
             "reportedByName",
             "reportedByNameError",
             "اسم المبلّغ طويل جدًا."
-        );
-
-        isValid = false;
-    }
-
-    if(
-        assignedToName.length > 150
-    ){
-        setIncidentFieldError(
-            "assignedToName",
-            "assignedToNameError",
-            "اسم الجهة أو الموظف طويل جدًا."
         );
 
         isValid = false;
@@ -3555,22 +3534,8 @@ document.addEventListener(
                 }
             );
 
-        incidentGetElement("assignedToName")
-            ?.addEventListener(
-                "input",
-                function(){
-
-                    clearIncidentFieldError(
-                        "assignedToName",
-                        "assignedToNameError"
-                    );
-
-                }
-            );
-
         updateIncidentDescriptionCounter();
         updateIncidentDoorSummary();
-        updateIncidentAssigneeScope();
         configureIncidentRoutingActions();
 
     }
@@ -3590,6 +3555,7 @@ window.addEventListener(
     }
 );
 </script>
+<script src="{% static 'js/ops/incident_center.js' %}?v=20260825" defer></script>
 
 </div>
 

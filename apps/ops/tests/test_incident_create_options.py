@@ -19,6 +19,7 @@ from apps.roles.services.role_manager import (
     get_platform_permissions,
 )
 from apps.scheduling.models import ShiftAssignment
+from apps.scheduling.operational_leadership_service import assign_shift_operational_leader
 
 
 class IncidentCreateOptionsTests(TestCase):
@@ -164,7 +165,7 @@ class IncidentCreateOptionsTests(TestCase):
         response = self.client.get(reverse("ops:incidents"))
 
         self.assertEqual(len(response.context["doors"]), 42)
-        self.assertEqual(list(response.context["incident_assignees"]), [])
+        self.assertIsNone(response.context["incident_supervisor"])
 
     def test_general_incident_without_door_is_supported(self):
         self.client.force_login(self.admin)
@@ -294,20 +295,38 @@ class IncidentCreateOptionsTests(TestCase):
         self.assertEqual(self._post(door_id=inactive.pk).status_code, 404)
         self.assertEqual(Incident.objects.count(), 0)
 
-    def test_only_active_shift_responsibles_in_actor_section_are_visible(self):
+    def test_manual_assignee_selector_and_old_supervisor_copy_are_removed(self):
         self.client.force_login(self.actor)
-
         response = self.client.get(reverse("ops:incidents"))
+        self.assertNotContains(response, 'id="assignedToName"')
+        self.assertNotContains(response, "يُعيّن مشرف الوردية ثم النائب")
+        self.assertContains(response, "لا يوجد مشرف بلاغات معيّن لهذه الوردية")
 
-        user_ids = {
-            assignment.employee.user_id
-            for assignment in response.context["incident_assignees"]
-        }
-        self.assertIn(self.supervisor.pk, user_ids)
-        self.assertIn(self.deputy.pk, user_ids)
-        self.assertNotIn(self.female_supervisor.pk, user_ids)
-        self.assertNotIn(self.ordinary_user.pk, user_ids)
-        self.assertNotIn(self.inactive_supervisor.pk, user_ids)
+    def test_incident_center_presents_specialist_and_enterprise_contract(self):
+        specialist = self._create_shift_responsible(
+            username="center-incident-specialist", employee_number="CENTER-INC",
+            section="male", role_code="incident_supervisor",
+            assignment_role=ShiftAssignment.OperationalRole.SUPERVISOR,
+        )
+        assign_shift_operational_leader(
+            shift_plan=self.shift, responsibility="incident_supervisor",
+            employee=specialist.employee, actor=self.admin,
+        )
+        Incident.objects.create(
+            shift_plan=self.shift, description="بلاغ واجهة المركز",
+            created_by=self.admin, assigned_to=specialist,
+            assigned_to_name=specialist.employee.full_name, section="male",
+        )
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("ops:incidents"))
+        for text in (
+            "مركز البلاغات التشغيلية", "الجهة المالكة", "قيادة البلاغات الحالية",
+            specialist.employee.full_name, "سيتم توجيه البلاغ تلقائيًا",
+            "قيد المعالجة", "المصعّدة", "مرتبطة بالصيانة", "عرض التفاصيل",
+        ):
+            self.assertContains(response, text)
+        self.assertContains(response, "incident_center.css")
+        self.assertContains(response, "incident_center.js")
 
     def test_general_shift_supervisor_is_not_specialist_fallback(self):
         male_door = Door.objects.filter(operational_section="male").first()
