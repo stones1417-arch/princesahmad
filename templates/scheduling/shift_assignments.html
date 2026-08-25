@@ -35,6 +35,45 @@
       لا توجد وردية نشطة حاليًا. فعّل وردية أولًا من صفحة حالات الورديات.
     </div>
   {% else %}
+    <section class="assignment-card" aria-labelledby="operationalLeadershipTitle">
+      <div class="assignment-card__header">
+        <span class="assign-eyebrow">الدور يمنح الصلاحيات، والتكليف يحدد مسؤول الوردية</span>
+        <h2 id="operationalLeadershipTitle">القيادة التشغيلية للوردية</h2>
+        <p>قيادة تخصصية مستقلة عن مشرف الوردية ونائبه.</p>
+      </div>
+      <div class="assignment-form__grid">
+        {% for card in leadership_cards %}
+          <article class="leadership-slot">
+            <h3>{{ card.label }}</h3>
+            {% if card.assignment %}
+              <strong>{{ card.assignment.employee.full_name }}</strong>
+              <p>{{ card.assignment.employee.operational_section_label }} · {% if card.assignment.employee.user.is_active %}الحساب نشط{% else %}الحساب غير نشط{% endif %}</p>
+              <small>عضو مؤكد في الوردية</small>
+            {% else %}
+              <strong>غير معيّن</strong>
+              <p>لا يوجد مسؤول لهذه الوظيفة في الوردية.</p>
+            {% endif %}
+            {% if can_manage_leadership %}
+              <form method="post" action="{% url 'scheduling:operational-leadership-assign' %}">
+                {% csrf_token %}
+                <input type="hidden" name="shift_plan_id" value="{{ selected_shift.pk }}">
+                <input type="hidden" name="responsibility" value="{{ card.responsibility }}">
+                <label>اختر موظفًا
+                  <select name="employee_id">
+                    <option value="">غير معيّن</option>
+                    <option value="">اختر من أعضاء الوردية المؤكدين</option>
+                    {% for membership in leadership_candidates %}
+                      <option value="{{ membership.employee_id }}">{{ membership.employee.full_name }} — {{ membership.employee.operational_section_label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <button class="assign-btn assign-btn--primary" type="submit">حفظ التكليف</button>
+              </form>
+            {% endif %}
+          </article>
+        {% endfor %}
+      </div>
+    </section>
     <section class="assignment-card assignment-create-card" id="assignmentCreateCard">
       <div class="assignment-card__header">
         <h2>إضافة تسكين جديد</h2>
@@ -239,7 +278,7 @@
               {% else %}
                 <div class="assignment-empty-inline">
                   <strong>لا يوجد موظفون مسكنون في هذه الوردية</strong>
-                  <span>يمكنك إضافة موظف من نموذج التسكين أعلاه</span>
+                  <span>لم تتم إضافة موظفين لهذه الوردية بعد.</span>
                 </div>
               {% endif %}
             </article>
@@ -248,7 +287,7 @@
       {% else %}
         <div class="assignment-empty-inline assignment-empty-inline--global">
           <strong>لا يوجد موظفون مسكنون</strong>
-          <span>يمكنك إضافة موظف من نموذج التسكين أعلاه</span>
+          <span>لم تتم إضافة موظفين لهذه الوردية بعد.</span>
         </div>
       {% endif %}
     </section>

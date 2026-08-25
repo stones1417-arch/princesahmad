@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import ShiftType, ShiftPlan, ShiftAssignment
+from .models import ShiftType, ShiftPlan, ShiftAssignment, ShiftOperationalLeadership
 
 
 @admin.register(ShiftType)
@@ -17,3 +17,9 @@ class ShiftPlanAdmin(admin.ModelAdmin):
 class ShiftAssignmentAdmin(admin.ModelAdmin):
     list_display = ('employee', 'shift_plan')
     list_filter = ('shift_plan',)
+
+
+@admin.register(ShiftOperationalLeadership)
+class ShiftOperationalLeadershipAdmin(admin.ModelAdmin):
+    list_display = ("shift_plan", "responsibility", "employee")
+    list_filter = ("responsibility", "shift_plan")

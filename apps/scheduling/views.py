@@ -36,10 +36,16 @@ from .models import (
     Season,
     SeasonalShiftTemplate,
     ShiftAssignment,
+    ShiftOperationalLeadership,
     ShiftPlan,
     ShiftType,
 )
 from .services import activate_shift, finish_shift
+from .operational_leadership_service import (
+    assign_shift_operational_leader,
+    leadership_for_shift,
+    remove_shift_operational_leader,
+)
 
 
 # ==================================================
@@ -864,6 +870,9 @@ def shift_assignment_list_view(
     assignments = ShiftAssignment.objects.none()
     available_employees = Employee.objects.none()
     confirmed_count = 0
+    operational_leadership = {}
+    leadership_cards = []
+    leadership_candidates = []
 
     if selected_shift:
         assignments = (
@@ -903,6 +912,25 @@ def shift_assignment_list_view(
                 is_confirmed=True,
             ).count()
         )
+        operational_leadership = leadership_for_shift(selected_shift)
+        leadership_cards = [
+            {
+                "responsibility": value,
+                "label": label,
+                "assignment": operational_leadership.get(value),
+            }
+            for value, label in ShiftOperationalLeadership.Responsibility.choices
+        ]
+        leadership_candidates = list(
+            assignments.filter(
+                is_confirmed=True,
+                employee__user__is_active=True,
+                employee__user__platform_role_assignments__is_active=True,
+                employee__user__platform_role_assignments__role__code__in=[
+                    value for value, _label in ShiftOperationalLeadership.Responsibility.choices
+                ],
+            ).select_related("employee__user").distinct()
+        )
 
     assignment_groups = []
     for shift in visible_shift_queryset:
@@ -939,13 +967,49 @@ def shift_assignment_list_view(
             "available_employees": available_employees,
             "confirmed_count": confirmed_count,
             "assignment_groups": assignment_groups,
-            "shift_choices": list(shift_queryset),
+            "shift_choices": list(visible_shift_queryset),
             "role_choices": (
                 ShiftAssignment
                 .OperationalRole
                 .choices
             ),
+            "operational_leadership": operational_leadership,
+            "leadership_cards": leadership_cards,
+            "leadership_candidates": leadership_candidates,
+            "leadership_responsibilities": ShiftOperationalLeadership.Responsibility.choices,
+            "can_manage_leadership": request.user.is_superuser or user_has_permission(
+                request.user, PlatformPermissions.ASSIGN_EMPLOYEES
+            ),
         },
+    )
+
+
+@login_required
+@require_POST
+def shift_operational_leadership_assign_view(request):
+    shift_plan = get_object_or_404(ShiftPlan, pk=request.POST.get("shift_plan_id"))
+    employee_id = request.POST.get("employee_id")
+    try:
+        responsibility = str(request.POST.get("responsibility", ""))
+        if employee_id:
+            employee = get_object_or_404(
+                Employee.objects.select_related("user"), pk=employee_id
+            )
+            assign_shift_operational_leader(
+                shift_plan=shift_plan, responsibility=responsibility,
+                employee=employee, actor=request.user, request=request,
+            )
+        else:
+            remove_shift_operational_leader(
+                shift_plan=shift_plan, responsibility=responsibility,
+                actor=request.user, request=request,
+            )
+    except ValidationError as error:
+        messages.error(request, "; ".join(error.messages))
+    else:
+        messages.success(request, "تم تحديث القيادة التشغيلية للوردية.")
+    return redirect(
+        f"{reverse('scheduling:assignments')}?date={shift_plan.date.isoformat()}"
     )
 
 

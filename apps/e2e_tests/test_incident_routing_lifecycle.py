@@ -15,6 +15,7 @@ from apps.core.tests.factories import (
 from apps.ops.models import DoorShift, Incident, IncidentRoutingEvent, MaintenanceRequest
 from apps.roles.services.role_manager import assign_role_to_user
 from apps.scheduling.models import ShiftAssignment
+from apps.scheduling.operational_leadership_service import assign_shift_operational_leader
 
 
 class IncidentRoutingLifecycleE2ETests(TestCase):
@@ -37,6 +38,29 @@ class IncidentRoutingLifecycleE2ETests(TestCase):
             "routing-supervisor", "shift_supervisor", "male", "RT-SUP",
             ShiftAssignment.OperationalRole.SHIFT_HEAD,
         )
+        cls.incident_supervisor = cls._role_user(
+            "routing-incident", "incident_supervisor", "male", "RT-INC",
+            ShiftAssignment.OperationalRole.SUPERVISOR,
+        )
+        cls.operations_supervisor = cls._role_user(
+            "routing-operations", "operations_supervisor", "male", "RT-OPS",
+            ShiftAssignment.OperationalRole.SUPERVISOR,
+        )
+        cls.maintenance_supervisor = cls._role_user(
+            "routing-maintenance-specialist", "maintenance_shift_supervisor", "male", "RT-MSP",
+            ShiftAssignment.OperationalRole.SUPERVISOR,
+        )
+        for responsibility, user in (
+            ("incident_supervisor", cls.incident_supervisor),
+            ("operations_supervisor", cls.operations_supervisor),
+            ("maintenance_shift_supervisor", cls.maintenance_supervisor),
+        ):
+            assign_shift_operational_leader(
+                shift_plan=cls.shift,
+                responsibility=responsibility,
+                employee=user.employee,
+                actor=cls.supervisor,
+            )
         cls.deputy = cls._role_user(
             "routing-deputy", "shift_deputy", "male", "RT-DEP",
             ShiftAssignment.OperationalRole.SHIFT_DEPUTY,
@@ -76,7 +100,7 @@ class IncidentRoutingLifecycleE2ETests(TestCase):
         return user
 
     def _create_incident(self):
-        self.client.force_login(self.supervisor)
+        self.client.force_login(self.incident_supervisor)
         response = self.client.post(reverse("ops:incident-create"), {
             "door_id": self.door.pk,
             "description": "تعطل وحدة التحكم الإلكترونية بالباب",
@@ -89,7 +113,8 @@ class IncidentRoutingLifecycleE2ETests(TestCase):
 
     def test_complete_incident_routing_lifecycle_through_runtime_endpoints(self):
         incident = self._create_incident()
-        self.assertEqual(incident.assigned_to, self.supervisor)
+        self.assertEqual(incident.assigned_to, self.incident_supervisor)
+        self.assertNotEqual(incident.assigned_to, self.supervisor)
         self.assertContains(
             self.client.get(reverse("scheduling:current")), incident.incident_number
         )
@@ -104,7 +129,7 @@ class IncidentRoutingLifecycleE2ETests(TestCase):
             self.client.get(reverse("scheduling:current")), incident.incident_number
         )
         incident.refresh_from_db()
-        self.assertEqual(incident.assigned_to, self.supervisor)
+        self.assertEqual(incident.assigned_to, self.incident_supervisor)
 
         self.client.force_login(self.head)
         self.assertContains(self.client.get(reverse("ops:incidents")), incident.incident_number)
@@ -119,7 +144,7 @@ class IncidentRoutingLifecycleE2ETests(TestCase):
         for url, payload in protected_posts:
             self.assertEqual(self.client.post(url, payload).status_code, 403)
 
-        self.client.force_login(self.supervisor)
+        self.client.force_login(self.incident_supervisor)
         update_url = reverse("ops:incident-update", args=[incident.pk])
         self.assertEqual(self.client.post(update_url, {"status": "in_progress"}).status_code, 200)
         shift_update = self.client.post(
@@ -135,17 +160,17 @@ class IncidentRoutingLifecycleE2ETests(TestCase):
         self.assertEqual(self.client.post(escalation_url, {"note": "يتطلب إشراف القسم"}).status_code, 200)
         incident.refresh_from_db()
         self.assertEqual(incident.escalation_level, Incident.EscalationLevel.DEPARTMENT_HEAD)
-        self.assertEqual(incident.assigned_to, self.supervisor)
+        self.assertEqual(incident.assigned_to, self.incident_supervisor)
 
         self.client.force_login(self.head)
         self.assertEqual(self.client.post(escalation_url, {"note": "بلاغ حرج"}).status_code, 200)
         incident.refresh_from_db()
         self.assertEqual(incident.escalation_level, Incident.EscalationLevel.GENERAL_MANAGER)
-        self.assertEqual(incident.assigned_to, self.supervisor)
+        self.assertEqual(incident.assigned_to, self.incident_supervisor)
         self.client.force_login(self.general_manager)
         self.assertContains(self.client.get(reverse("ops:incidents")), incident.incident_number)
 
-        self.client.force_login(self.supervisor)
+        self.client.force_login(self.incident_supervisor)
         start = timezone.now() + timedelta(hours=1)
         end = start + timedelta(hours=2)
         conversion_url = reverse("ops:incident-convert-maintenance", args=[incident.pk])
@@ -171,9 +196,9 @@ class IncidentRoutingLifecycleE2ETests(TestCase):
         self.assertContains(converted_page, "عرض طلب الصيانة")
 
         maintenance_url = reverse("ops:maintenance-update-status-ajax", args=[maintenance.pk])
-        self.client.force_login(self.head)
+        self.client.force_login(self.operations_supervisor)
         self.assertEqual(self.client.post(maintenance_url, {"status": "approved"}).status_code, 200)
-        self.client.force_login(self.maintenance_manager)
+        self.client.force_login(self.maintenance_supervisor)
         self.assertEqual(self.client.post(maintenance_url, {"status": "in_progress"}).status_code, 200)
         self.assertEqual(self.client.post(maintenance_url, {
             "status": "done", "closing_notes": "تم الإصلاح والاختبار",
@@ -184,7 +209,7 @@ class IncidentRoutingLifecycleE2ETests(TestCase):
         self.assertIsNotNone(maintenance.fixed_at)
         self.assertIsNone(incident.closed_at)
 
-        self.client.force_login(self.supervisor)
+        self.client.force_login(self.incident_supervisor)
         completion_page = self.client.get(reverse("ops:incidents"))
         self.assertContains(completion_page, "اكتملت الصيانة — بانتظار تأكيد مشرف الوردية")
         self.assertContains(completion_page, "تأكيد معالجة البلاغ وإغلاقه")
@@ -194,7 +219,7 @@ class IncidentRoutingLifecycleE2ETests(TestCase):
         }).status_code, 200)
         incident.refresh_from_db()
         self.assertEqual(incident.status, Incident.Status.CLOSED)
-        self.assertEqual(incident.closed_by, self.supervisor)
+        self.assertEqual(incident.closed_by, self.incident_supervisor)
         self.assertIsNotNone(incident.closed_at)
         major_events = list(incident.routing_events.values_list("event_type", flat=True))
         expected = [
@@ -220,7 +245,7 @@ class IncidentRoutingLifecycleE2ETests(TestCase):
 
     def test_permission_aware_dialogs_and_routing_presentation(self):
         incident = self._create_incident()
-        self.client.force_login(self.supervisor)
+        self.client.force_login(self.incident_supervisor)
         content = self.client.get(reverse("ops:incidents")).content.decode()
         self.assertIn("incidentEscalationDialog", content)
         self.assertIn("incidentConversionDialog", content)

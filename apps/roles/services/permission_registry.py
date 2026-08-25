@@ -33,6 +33,8 @@ class PlatformPermissions:
     ESCALATE_INCIDENT = "roles.escalate_incident"
     CONVERT_INCIDENT_TO_MAINTENANCE = "roles.convert_incident_to_maintenance"
     CLOSE_INCIDENT = "roles.close_incident"
+    VIEW_DOOR_COVERAGE_SETTINGS = "roles.view_door_coverage_settings"
+    CHANGE_DOOR_COVERAGE_SETTINGS = "roles.change_door_coverage_settings"
     VIEW_REPORTS = "roles.view_reports"
     CREATE_REPORT = "roles.create_report"
     UPDATE_REPORT = "roles.update_report"
@@ -73,6 +75,8 @@ PERMISSION_LABELS = {
     PlatformPermissions.ESCALATE_INCIDENT: "تصعيد البلاغ",
     PlatformPermissions.CONVERT_INCIDENT_TO_MAINTENANCE: "تحويل البلاغ إلى الصيانة",
     PlatformPermissions.CLOSE_INCIDENT: "إغلاق البلاغ التشغيلي",
+    PlatformPermissions.VIEW_DOOR_COVERAGE_SETTINGS: "عرض إعدادات تغطية الأبواب",
+    PlatformPermissions.CHANGE_DOOR_COVERAGE_SETTINGS: "تعديل إعدادات تغطية الأبواب",
     PlatformPermissions.VIEW_REPORTS: "عرض التقارير",
     PlatformPermissions.CREATE_REPORT: "إنشاء تقرير",
     PlatformPermissions.UPDATE_REPORT: "تعديل تقرير",

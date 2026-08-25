@@ -6,6 +6,7 @@
     <div><span class="eyebrow">منظومة التشغيل الميداني</span><h1>مركز العمليات المباشرة</h1><p>إدارة موحدة للأبواب والتوزيع والبلاغات والصيانة والراحات.</p>{% if active_shift %}<div class="active-shift-line">● الوردية النشطة: <strong>{{ active_shift.shift_type.name }}</strong> — {{ active_shift.date|date:"Y-m-d" }}</div>{% else %}<div class="active-shift-line danger">● لا توجد وردية نشطة</div>{% endif %}</div>
     <div class="head-actions"><span class="live">● تحديث مباشر</span><a href="{% url 'ops:command-center' %}">غرفة القيادة</a><a href="{% url 'exports_center:dashboard' %}">تصدير البيانات</a></div>
   </header>
+  <div class="active-shift-line">مشرف العمليات: <strong>{% if operations_supervisor %}{{ operations_supervisor.employee.full_name }}{% else %}غير معيّن{% endif %}</strong></div>
 
   <section class="service-catalog">
     <a href="{% url 'ops:doors' %}"><span class="service-icon">🚪</span><div><small>الأصول التشغيلية</small><strong>المركز الهندسي</strong><p>مراقبة الأبواب والحالة التشغيلية والبلاغات والصيانة.</p></div><b>{{ metrics.total_doors }}</b></a>

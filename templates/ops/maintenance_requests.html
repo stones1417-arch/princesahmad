@@ -34,6 +34,7 @@
 
             <div>
                 <h1>مركز إدارة الصيانة</h1>
+                <p>مشرف الصيانة للوردية: <strong>{% if maintenance_shift_supervisor %}{{ maintenance_shift_supervisor.employee.full_name }}{% else %}غير معيّن{% endif %}</strong></p>
 
                 <p>
                     استقبال طلبات الصيانة ومتابعة تنفيذها وإغلاقها

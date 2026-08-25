@@ -8,6 +8,8 @@ from apps.roles.models import UserRole
 from apps.roles.services.access_control import user_has_role
 from apps.roles.services.section_access import get_allowed_sections
 from apps.scheduling.models import ShiftAssignment
+from apps.scheduling.models import ShiftOperationalLeadership
+from apps.scheduling.operational_leadership_service import resolve_shift_leader
 
 from .models import Incident, IncidentRoutingEvent, MaintenanceRequest
 
@@ -19,6 +21,7 @@ class IncidentRoutingService:
     ROLE_DEPUTY = "shift_deputy"
     ROLE_HEAD = "doors_department_head"
     ROLE_GENERAL_MANAGER = "general_manager"
+    ROLE_INCIDENT_SUPERVISOR = "incident_supervisor"
 
     @staticmethod
     def _role_users(role_code, section):
@@ -39,26 +42,13 @@ class IncidentRoutingService:
     def resolve_primary_assignee(cls, active_shift, section):
         if active_shift is None or section not in {"male", "female"}:
             return None, ""
-        base = ShiftAssignment.objects.filter(
-            shift_plan=active_shift,
-            is_confirmed=True,
-            employee__is_active=True,
-            employee__operational_section=section,
-            employee__user__is_active=True,
-            employee__user__platform_role_assignments__is_active=True,
-            employee__user__platform_role_assignments__role__is_active=True,
-        ).select_related("employee", "employee__user")
-        candidates = (
-            (ShiftAssignment.OperationalRole.SHIFT_HEAD, cls.ROLE_SUPERVISOR),
-            (ShiftAssignment.OperationalRole.SHIFT_DEPUTY, cls.ROLE_DEPUTY),
+        leader = resolve_shift_leader(
+            active_shift,
+            ShiftOperationalLeadership.Responsibility.INCIDENT_SUPERVISOR,
         )
-        for assignment_role, platform_role in candidates:
-            assignment = base.filter(
-                role=assignment_role,
-                employee__user__platform_role_assignments__role__code=platform_role,
-            ).order_by("pk").first()
-            if assignment:
-                return assignment.employee.user, assignment.employee.full_name
+        if leader and getattr(leader, "employee", None):
+            if leader.employee.operational_section == section:
+                return leader, leader.employee.full_name
         return None, ""
 
     @classmethod
@@ -74,6 +64,12 @@ class IncidentRoutingService:
             user, "doors_department_deputy"
         ):
             return queryset
+        if user_has_role(user, cls.ROLE_INCIDENT_SUPERVISOR):
+            shift_ids = ShiftOperationalLeadership.objects.filter(
+                employee__user=user,
+                responsibility=ShiftOperationalLeadership.Responsibility.INCIDENT_SUPERVISOR,
+            ).values_list("shift_plan_id", flat=True)
+            return queryset.filter(shift_plan_id__in=shift_ids)
         if user_has_role(user, cls.ROLE_SUPERVISOR) or user_has_role(
             user, cls.ROLE_DEPUTY
         ):

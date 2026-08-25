@@ -144,6 +144,35 @@ ROLE_PERMISSIONS: tuple[RolePermissionDefinition, ...] = (
         ),
     ),
     RolePermissionDefinition(
+        code="incident_supervisor",
+        name="مشرف البلاغات",
+        description="قيادة البلاغات والتغطية التشغيلية في الوردية دون توزيع الموظفين.",
+        permissions=(
+            P.VIEW_SHIFTS, P.VIEW_DOORS, P.CREATE_INCIDENT, P.UPDATE_INCIDENT,
+            P.ESCALATE_INCIDENT, P.CONVERT_INCIDENT_TO_MAINTENANCE,
+            P.CLOSE_INCIDENT, P.VIEW_MAINTENANCE_REQUESTS,
+            P.VIEW_DOOR_COVERAGE_SETTINGS, P.CHANGE_DOOR_COVERAGE_SETTINGS,
+        ),
+    ),
+    RolePermissionDefinition(
+        code="operations_supervisor",
+        name="مشرف العمليات",
+        description="مراجعة واعتماد وتحويل طلبات الصيانة ضمن الوردية.",
+        permissions=(
+            P.VIEW_SHIFTS, P.VIEW_DOORS, P.VIEW_MAINTENANCE_REQUESTS,
+            P.APPROVE_MAINTENANCE_REQUEST,
+        ),
+    ),
+    RolePermissionDefinition(
+        code="maintenance_shift_supervisor",
+        name="مشرف الصيانة",
+        description="جدولة وتنفيذ وإكمال الصيانة المعتمدة ضمن الوردية.",
+        permissions=(
+            P.VIEW_SHIFTS, P.VIEW_DOORS, P.VIEW_MAINTENANCE_REQUESTS,
+            P.ASSIGN_MAINTENANCE_TECHNICIAN, P.CLOSE_MAINTENANCE_REQUEST,
+        ),
+    ),
+    RolePermissionDefinition(
         code="distribution_supervisor",
         name="مشرف التوزيع",
         description="إدارة التوزيع ضمن نطاق القسم دون إدارة المستخدمين.",

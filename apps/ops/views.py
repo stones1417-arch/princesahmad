@@ -17,7 +17,8 @@ from apps.locations.models import Door
 
 from apps.dashboard.models import SystemActivityLog
 from apps.audit.models import DoorStateHistory
-from apps.scheduling.models import ShiftAssignment, ShiftPlan
+from apps.scheduling.models import ShiftAssignment, ShiftOperationalLeadership, ShiftPlan
+from apps.scheduling.operational_leadership_service import leadership_for_shift
 from apps.breaks.models import Break
 from apps.distribution.models import DoorAssignment
 from apps.roles.services.section_access import (
@@ -25,7 +26,7 @@ from apps.roles.services.section_access import (
     get_allowed_sections,
     has_institutional_scope,
 )
-from apps.roles.services.access_control import user_has_permission
+from apps.roles.services.access_control import user_has_permission, user_has_role
 from apps.roles.services.permission_registry import PlatformPermissions
 
 from .command_center_service import CommandCenterService
@@ -185,6 +186,7 @@ def operations_center_view(request):
     """
 
     context = OperationsCenterService.build()
+    operational_leadership = leadership_for_shift(context.get("active_shift"))
 
     metrics = context["metrics"]
     total_doors = metrics.total_doors or 0
@@ -253,6 +255,9 @@ def operations_center_view(request):
             "operations_status": operations_status,
             "incident_queue": incident_queue,
             "maintenance_queue": maintenance_queue,
+            "operations_supervisor": operational_leadership.get(
+                ShiftOperationalLeadership.Responsibility.OPERATIONS_SUPERVISOR
+            ),
         }
     )
 
@@ -469,9 +474,13 @@ def door_status_view(request):
         "engineering_summary": snapshot["summary"],
         "can_manage_staff_targets": request.user.is_superuser or user_has_permission(
             request.user, PlatformPermissions.CHANGE_SYSTEM_SETTINGS
+        ) or user_has_permission(
+            request.user, PlatformPermissions.CHANGE_DOOR_COVERAGE_SETTINGS
         ),
         "can_view_staff_targets": user_has_permission(
             request.user, PlatformPermissions.VIEW_SYSTEM_SETTINGS
+        ) or user_has_permission(
+            request.user, PlatformPermissions.VIEW_DOOR_COVERAGE_SETTINGS
         ),
         "can_create_incident": request.user.is_superuser or user_has_permission(
             request.user, PlatformPermissions.CREATE_INCIDENT
@@ -481,6 +490,9 @@ def door_status_view(request):
             request.user, PlatformPermissions.VIEW_MAINTENANCE_REQUESTS
         ),
         "can_view_distribution": can_view_distribution,
+        "incident_supervisor": leadership_for_shift(active_shift).get(
+            ShiftOperationalLeadership.Responsibility.INCIDENT_SUPERVISOR
+        ),
     }
 
     return render(
@@ -535,8 +547,8 @@ def _coverage_settings_context(request, *, posted=None, errors=None):
         "unconfigured_count": len(rows) - len(configured),
         "total_target": sum(row.target_staff_count or 0 for row in rows),
         "can_change_settings": user_has_permission(
-            request.user, PlatformPermissions.CHANGE_SYSTEM_SETTINGS
-        ),
+            request.user, PlatformPermissions.CHANGE_DOOR_COVERAGE_SETTINGS
+        ) or user_has_permission(request.user, PlatformPermissions.CHANGE_SYSTEM_SETTINGS),
         "updated_count": request.GET.get("updated", ""),
     }
 
@@ -545,10 +557,18 @@ def _coverage_settings_context(request, *, posted=None, errors=None):
 def door_coverage_settings_view(request):
     """Manage approved per-door staffing targets without touching assignments."""
     if request.method == "GET":
-        _require_ops_permission(request, PlatformPermissions.VIEW_SYSTEM_SETTINGS)
+        if not (
+            user_has_permission(request.user, PlatformPermissions.VIEW_DOOR_COVERAGE_SETTINGS)
+            or user_has_permission(request.user, PlatformPermissions.VIEW_SYSTEM_SETTINGS)
+        ):
+            raise PermissionDenied("لا تملك صلاحية عرض إعدادات التغطية التشغيلية.")
         return render(request, "ops/door_coverage_settings.html", _coverage_settings_context(request))
 
-    _require_ops_permission(request, PlatformPermissions.CHANGE_SYSTEM_SETTINGS)
+    if not (
+        user_has_permission(request.user, PlatformPermissions.CHANGE_DOOR_COVERAGE_SETTINGS)
+        or user_has_permission(request.user, PlatformPermissions.CHANGE_SYSTEM_SETTINGS)
+    ):
+        raise PermissionDenied("لا تملك صلاحية تعديل إعدادات التغطية التشغيلية.")
     doors = list(filter_doors_for_user(
         Door.objects.filter(is_active=True), request.user
     ).order_by("sort_order", "door_number"))
@@ -961,6 +981,20 @@ def maintenance_requests_view(request):
         )
         .order_by("-created_at")
     )
+    specialist_responsibility = None
+    if not request.user.is_superuser and user_has_role(request.user, "operations_supervisor"):
+        specialist_responsibility = ShiftOperationalLeadership.Responsibility.OPERATIONS_SUPERVISOR
+    elif not request.user.is_superuser and user_has_role(request.user, "maintenance_shift_supervisor"):
+        specialist_responsibility = ShiftOperationalLeadership.Responsibility.MAINTENANCE_SUPERVISOR
+    specialist_shift_ids = None
+    if specialist_responsibility:
+        specialist_shift_ids = ShiftOperationalLeadership.objects.filter(
+            responsibility=specialist_responsibility,
+            employee__user=request.user,
+        ).values_list("shift_plan_id", flat=True)
+        maintenance_requests = maintenance_requests.filter(
+            door_shift__shift_plan_id__in=specialist_shift_ids
+        )
 
     valid_statuses = {
         value
@@ -1032,6 +1066,10 @@ def maintenance_requests_view(request):
         MaintenanceRequest.objects,
         request.user,
     )
+    if specialist_shift_ids is not None:
+        all_requests = all_requests.filter(
+            door_shift__shift_plan_id__in=specialist_shift_ids
+        )
     closed_statuses = (
         MaintenanceRequest.Status.CLOSED,
         MaintenanceRequest.Status.DONE,
@@ -1040,6 +1078,9 @@ def maintenance_requests_view(request):
     context = {
         "requests": maintenance_requests,
         "active_shift": active_shift,
+        "maintenance_shift_supervisor": leadership_for_shift(active_shift).get(
+            ShiftOperationalLeadership.Responsibility.MAINTENANCE_SUPERVISOR
+        ),
 
         "status_choices": (
             (

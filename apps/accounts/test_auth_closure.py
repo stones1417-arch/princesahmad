@@ -62,7 +62,7 @@ class AuthenticationClosureTests(TestCase):
     def test_every_registered_role_permission_resolves(self):
         definitions = get_role_definitions()
 
-        self.assertEqual(len(definitions), 11)
+        self.assertEqual(len(definitions), 14)
         for definition in definitions.values():
             permission_codes = definition["permissions"]
             self.assertEqual(

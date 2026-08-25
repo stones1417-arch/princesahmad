@@ -28,6 +28,7 @@
       <p id="refreshMessage" class="engineering-center__refresh-message" role="status" hidden></p>
     </div>
   </header>
+  <div class="engineering-center__notice" role="status">مشرف البلاغات للوردية الحالية: <strong>{% if incident_supervisor %}{{ incident_supervisor.employee.full_name }}{% else %}غير معيّن — لا يوجد مشرف بلاغات معيّن لهذه الوردية.{% endif %}</strong></div>
 
   {% if not active_shift %}<div class="engineering-center__notice" role="status">لا توجد وردية نشطة حاليًا؛ يعرض المركز كتالوج الأبواب الكامل، وأعداد الموظفين الحالية تساوي صفرًا.</div>{% endif %}
 

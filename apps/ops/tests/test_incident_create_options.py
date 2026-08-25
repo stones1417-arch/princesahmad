@@ -309,14 +309,14 @@ class IncidentCreateOptionsTests(TestCase):
         self.assertNotIn(self.ordinary_user.pk, user_ids)
         self.assertNotIn(self.inactive_supervisor.pk, user_ids)
 
-    def test_primary_assignee_is_selected_automatically(self):
+    def test_general_shift_supervisor_is_not_specialist_fallback(self):
         male_door = Door.objects.filter(operational_section="male").first()
         self.client.force_login(self.actor)
 
         supervisor_response = self._post(door_id=male_door.pk)
 
         self.assertEqual(supervisor_response.status_code, 200)
-        self.assertEqual(Incident.objects.get().assigned_to_id, self.supervisor.pk)
+        self.assertIsNone(Incident.objects.get().assigned_to_id)
 
     def test_forged_ordinary_and_cross_section_assignees_are_rejected(self):
         male_door = Door.objects.filter(operational_section="male").first()

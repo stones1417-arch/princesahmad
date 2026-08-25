@@ -148,6 +148,8 @@ class Role(models.Model):
             ("escalate_incident", "يمكن تصعيد البلاغ"),
             ("convert_incident_to_maintenance", "يمكن تحويل البلاغ إلى الصيانة"),
             ("close_incident", "يمكن إغلاق البلاغ التشغيلي"),
+            ("view_door_coverage_settings", "يمكن عرض إعدادات تغطية الأبواب"),
+            ("change_door_coverage_settings", "يمكن تعديل إعدادات تغطية الأبواب"),
 
             ("view_reports", "يمكن عرض التقارير"),
             ("create_report", "يمكن إنشاء تقرير"),

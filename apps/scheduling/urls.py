@@ -52,6 +52,11 @@ urlpatterns = [
         views.shift_assignment_create_view,
         name="assignment-create",
     ),
+    path(
+        "assignments/operational-leadership/",
+        views.shift_operational_leadership_assign_view,
+        name="operational-leadership-assign",
+    ),
 
     path(
         "assignments/<int:pk>/confirm/",

@@ -7,7 +7,8 @@ from apps.ops.models import Incident
 from apps.roles.services.access_control import user_has_permission
 from apps.roles.services.permission_registry import PlatformPermissions
 from apps.roles.services.section_access import get_allowed_sections
-from apps.scheduling.models import ShiftAssignment, ShiftPlan
+from apps.scheduling.models import ShiftAssignment, ShiftOperationalLeadership, ShiftPlan
+from apps.scheduling.operational_leadership_service import leadership_for_shift
 
 
 class ShiftCenterService:
@@ -21,6 +22,7 @@ class ShiftCenterService:
             is_active=True
         ).first()
         sections = get_allowed_sections(request.user)
+        specialist_leadership = leadership_for_shift(active_shift)
         assignments = ShiftAssignment.objects.none()
         if active_shift:
             assignments = ShiftAssignment.objects.filter(
@@ -173,5 +175,14 @@ class ShiftCenterService:
             "has_active_filters": any((query, door, priority, status, escalation, maintenance)),
             "can_manage_assignments": user_has_permission(
                 request.user, PlatformPermissions.ASSIGN_EMPLOYEES
+            ),
+            "incident_supervisor_assignment": specialist_leadership.get(
+                ShiftOperationalLeadership.Responsibility.INCIDENT_SUPERVISOR
+            ),
+            "operations_supervisor_assignment": specialist_leadership.get(
+                ShiftOperationalLeadership.Responsibility.OPERATIONS_SUPERVISOR
+            ),
+            "maintenance_supervisor_assignment": specialist_leadership.get(
+                ShiftOperationalLeadership.Responsibility.MAINTENANCE_SUPERVISOR
             ),
         }

@@ -528,6 +528,23 @@ class MaintenanceService:
         maintenance.full_clean()
         maintenance.save()
 
+        from apps.notifications.models import Notification
+        from apps.scheduling.models import ShiftOperationalLeadership
+        from apps.scheduling.operational_leadership_service import resolve_shift_leader
+
+        operations_leader = resolve_shift_leader(
+            locked_door.shift_plan,
+            ShiftOperationalLeadership.Responsibility.OPERATIONS_SUPERVISOR,
+        )
+        if operations_leader:
+            Notification.objects.create(
+                user=operations_leader,
+                title="طلب صيانة جديد للمراجعة",
+                message=f"الطلب {maintenance.request_number} ينتظر المراجعة التشغيلية.",
+                section=maintenance.section,
+                url="/ops/maintenance/",
+            )
+
         return maintenance
 
     @staticmethod
@@ -712,6 +729,25 @@ class MaintenanceService:
                     f"{updated_maintenance.request_number}"
                 ),
             )
+            from apps.notifications.models import Notification
+            from apps.scheduling.models import ShiftOperationalLeadership
+            from apps.scheduling.operational_leadership_service import resolve_shift_leader
+
+            maintenance_leader = resolve_shift_leader(
+                door_shift.shift_plan,
+                ShiftOperationalLeadership.Responsibility.MAINTENANCE_SUPERVISOR,
+            )
+            if maintenance_leader:
+                Notification.objects.create(
+                    user=maintenance_leader,
+                    title="طلب صيانة معتمد للوردية",
+                    message=(
+                        f"تم اعتماد الطلب {updated_maintenance.request_number} "
+                        "وأصبح جاهزًا للجدولة والتنفيذ."
+                    ),
+                    section=updated_maintenance.section,
+                    url="/ops/maintenance/",
+                )
 
         if (
             changed

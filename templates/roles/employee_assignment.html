@@ -4,6 +4,7 @@
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/roles/employee_assignment.css' %}?v=20260823-1">{% endblock %}
 {% block content %}
 <main class="role-assignment-page" dir="rtl">
+  <p class="assignment-context-note">الدور يمنح الصلاحيات. التكليف داخل الوردية يتم من قسم القيادة التشغيلية في صفحة تسكين الوردية.</p>
   <header class="assignment-header"><div><span class="assignment-kicker"><i></i> إدارة مؤسسية</span><h1>تسكين الموظف والصلاحيات</h1><p>اختر الموظف، راجع أدواره وصلاحياته الفعلية، ثم اعتمد التسكين.</p></div><svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="23" cy="22" r="10"/><path d="M6 53c0-13 7-21 17-21s17 8 17 21M43 18h15M50.5 10.5v15M42 41l5 5 11-12"/></svg></header>
   {% if messages %}<section class="assignment-messages" aria-label="نتيجة العملية">{% for message in messages %}<p class="{{ message.tags }}">{{ message }}</p>{% endfor %}</section>{% endif %}
   <nav class="assignment-steps" aria-label="مراحل التسكين"><span class="active"><b>1</b> اختيار الموظف</span><i>←</i><span class="{% if selected_employee %}active{% endif %}"><b>2</b> اختيار الدور</span><i>←</i><span class="{% if selected_employee and selected_role %}active{% endif %}"><b>3</b> المراجعة والاعتماد</span></nav>
