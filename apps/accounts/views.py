@@ -12,13 +12,18 @@ from django.contrib.auth import (
     update_session_auth_hash,
 )
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.forms import PasswordChangeForm
+from django.contrib.auth.forms import PasswordChangeForm, SetPasswordForm
+from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
-from django.shortcuts import redirect, render
+from django.db.models import Q
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.encoding import force_str
+from django.utils.http import urlsafe_base64_decode
+from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
@@ -51,14 +56,25 @@ from apps.roles.services.access_control import (
 from apps.roles.services.permission_registry import PlatformPermissions
 from apps.roles.services.role_manager import assign_role_to_user
 from apps.roles.services.section_access import get_allowed_sections
+from apps.roles.decorators import permission_required
+from apps.dashboard.models import SystemActivityLog
 
 from .forms import (
     ProfileContactForm,
     ProfilePhotoForm,
+    RegistrationApprovalForm,
+    RegistrationRejectionForm,
 )
 from .models import AccountProfile, AccountRegistrationRequest
 from .services.two_factor_audit_service import record_2fa_event
 from .services.two_factor_readiness import get_user_otp_channels
+from .services.registration_request_service import (
+    approve_account_registration_request,
+    get_approvable_roles,
+    reject_registration_request,
+    send_activation_email,
+    verify_registration_request,
+)
 from .security import (
     clear_login_failures,
     clear_two_factor_verification,
@@ -73,6 +89,108 @@ from .security import (
 security_logger = logging.getLogger(
     "platform.security"
 )
+
+
+@permission_required(PlatformPermissions.MANAGE_USERS)
+def registration_request_list(request):
+    queryset = AccountRegistrationRequest.objects.select_related("created_user", "approved_role", "linked_employee")
+    status = request.GET.get("status", "").strip()
+    section = request.GET.get("section", "").strip()
+    query = request.GET.get("q", "").strip()
+    if status:
+        queryset = queryset.filter(status=status)
+    if section:
+        queryset = queryset.filter(Q(operational_section=section) | Q(gender=section, operational_section=""))
+    if query:
+        queryset = queryset.filter(Q(full_name__icontains=query) | Q(employee_number__icontains=query) | Q(email__icontains=query))
+    today = timezone.localdate()
+    all_requests = AccountRegistrationRequest.objects
+    kpis = {
+        "pending": all_requests.filter(status=AccountRegistrationRequest.Status.PENDING).count(),
+        "review": all_requests.filter(status=AccountRegistrationRequest.Status.NEEDS_EDIT).count(),
+        "waiting": all_requests.filter(status=AccountRegistrationRequest.Status.APPROVED).count(),
+        "activated_today": all_requests.filter(status=AccountRegistrationRequest.Status.ACTIVATED, activated_at__date=today).count(),
+        "rejected": all_requests.filter(status=AccountRegistrationRequest.Status.REJECTED).count(),
+    }
+    return render(request, "accounts/registration_request_list.html", {"requests": queryset, "kpis": kpis, "statuses": AccountRegistrationRequest.Status.choices, "sections": Employee.OperationalSection.choices})
+
+
+@permission_required(PlatformPermissions.MANAGE_USERS)
+def registration_request_review(request, pk):
+    registration = get_object_or_404(AccountRegistrationRequest.objects.select_related("created_user", "linked_employee", "approved_role"), pk=pk)
+    roles = get_approvable_roles(request.user)
+    approval_form = RegistrationApprovalForm(roles=roles, initial={"operational_section": registration.operational_section or registration.gender})
+    return render(request, "accounts/registration_request_review.html", {"registration": registration, "verification": verify_registration_request(registration), "approval_form": approval_form, "rejection_form": RegistrationRejectionForm()})
+
+
+@require_POST
+@permission_required(PlatformPermissions.MANAGE_USERS)
+def registration_request_approve(request, pk):
+    registration = get_object_or_404(AccountRegistrationRequest, pk=pk)
+    form = RegistrationApprovalForm(request.POST, roles=get_approvable_roles(request.user))
+    if not form.is_valid():
+        messages.error(request, "تعذر الاعتماد. تحقق من القسم والدور.")
+        return redirect("accounts:registration-request-review", pk=pk)
+    try:
+        user = approve_account_registration_request(registration, reviewer=request.user, role_code=form.cleaned_data["role_code"].code, operational_section=form.cleaned_data["operational_section"])
+    except (ValidationError, PermissionDenied) as exc:
+        messages.error(request, str(exc))
+        return redirect("accounts:registration-request-review", pk=pk)
+    messages.success(request, f"تم اعتماد الطلب وإنشاء الحساب {user.username} بانتظار التفعيل.")
+    return redirect("accounts:registration-request-review", pk=pk)
+
+
+@require_POST
+@permission_required(PlatformPermissions.MANAGE_USERS)
+def registration_request_reject(request, pk):
+    registration = get_object_or_404(AccountRegistrationRequest, pk=pk)
+    form = RegistrationRejectionForm(request.POST)
+    if form.is_valid():
+        try:
+            reject_registration_request(registration, reviewer=request.user, reason=form.cleaned_data["reason"])
+            messages.success(request, "تم رفض الطلب.")
+        except ValidationError as exc:
+            messages.error(request, str(exc))
+    else:
+        messages.error(request, "سبب الرفض مطلوب.")
+    return redirect("accounts:registration-request-review", pk=pk)
+
+
+@require_POST
+@permission_required(PlatformPermissions.MANAGE_USERS)
+def registration_request_resend(request, pk):
+    registration = get_object_or_404(AccountRegistrationRequest, pk=pk)
+    try:
+        sent = send_activation_email(registration.pk)
+    except ValidationError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, "تم إرسال رابط التفعيل.") if sent else messages.error(request, "تم إنشاء الحساب، وتعذر إرسال رابط التفعيل.")
+    return redirect("accounts:registration-request-review", pk=pk)
+
+
+def activate_account(request, uid, token):
+    try:
+        user = User.objects.get(pk=force_str(urlsafe_base64_decode(uid)))
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+    valid = bool(user and not user.is_active and default_token_generator.check_token(user, token))
+    form = SetPasswordForm(user, request.POST or None) if valid else None
+    if request.method == "POST" and form and form.is_valid():
+        with transaction.atomic():
+            locked_user = User.objects.select_for_update().get(pk=user.pk)
+            if locked_user.is_active or not default_token_generator.check_token(locked_user, token):
+                return render(request, "accounts/activate.html", {"valid": False})
+            locked_user.set_password(form.cleaned_data["new_password1"])
+            locked_user.is_active = True
+            locked_user.save(update_fields=["password", "is_active"])
+            registration = AccountRegistrationRequest.objects.select_for_update().get(created_user=locked_user)
+            registration.status = registration.Status.ACTIVATED
+            registration.activated_at = timezone.now()
+            registration.save(update_fields=["status", "activated_at", "updated_at"])
+            SystemActivityLog.objects.create(user=locked_user, module="طلبات إنشاء الحساب", action=SystemActivityLog.ActionType.UPDATE, description=f"تفعيل الحساب للطلب #{registration.pk}")
+        return render(request, "accounts/activate_done.html")
+    return render(request, "accounts/activate.html", {"valid": valid, "form": form, "activation_user": user if valid else None})
 
 
 # ============================================================

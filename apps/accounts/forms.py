@@ -2,6 +2,22 @@ from pathlib import Path
 
 from django import forms
 
+from apps.hr.models import Employee
+from apps.roles.models import Role
+
+
+class RegistrationApprovalForm(forms.Form):
+    operational_section = forms.ChoiceField(label="القسم التشغيلي", choices=Employee.OperationalSection.choices)
+    role_code = forms.ModelChoiceField(label="الدور الوظيفي", queryset=Role.objects.none(), to_field_name="code")
+
+    def __init__(self, *args, roles=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["role_code"].queryset = roles if roles is not None else Role.objects.none()
+
+
+class RegistrationRejectionForm(forms.Form):
+    reason = forms.CharField(label="سبب الرفض", widget=forms.Textarea, min_length=3, max_length=1000)
+
 from apps.core.file_security import safe_uploaded_basename, validate_image_content
 
 from .models import AccountProfile

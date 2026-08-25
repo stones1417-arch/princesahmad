@@ -7,6 +7,12 @@ app_name = "accounts"
 
 
 urlpatterns = [
+    path("registration-requests/", views.registration_request_list, name="registration-request-list"),
+    path("registration-requests/<int:pk>/", views.registration_request_review, name="registration-request-review"),
+    path("registration-requests/<int:pk>/approve/", views.registration_request_approve, name="registration-request-approve"),
+    path("registration-requests/<int:pk>/reject/", views.registration_request_reject, name="registration-request-reject"),
+    path("registration-requests/<int:pk>/resend/", views.registration_request_resend, name="registration-request-resend"),
+    path("activate/<uid>/<token>/", views.activate_account, name="activate"),
     path(
         "login/",
         views.login_view,

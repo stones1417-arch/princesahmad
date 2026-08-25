@@ -151,6 +151,7 @@ class AccountRegistrationRequest(models.Model):
         PENDING = "pending", "قيد المراجعة"
         NEEDS_EDIT = "needs_edit", "تحتاج مراجعة"
         APPROVED = "approved", "موافق عليه"
+        ACTIVATED = "activated", "مفعّل"
         REJECTED = "rejected", "مرفوض"
         CANCELLED = "cancelled", "ملغي"
 
@@ -229,6 +230,18 @@ class AccountRegistrationRequest(models.Model):
         related_name="account_registration_request",
         verbose_name="سجل الموظف المرتبط",
     )
+    approved_role = models.ForeignKey(
+        "roles.Role", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="approved_account_requests", verbose_name="الدور المعتمد",
+    )
+    operational_section = models.CharField(
+        max_length=10, blank=True, choices=(('male', 'رجالي'), ('female', 'نسائي')),
+        verbose_name="القسم التشغيلي",
+    )
+    activated_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ التفعيل")
+    activation_email_sent_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ إرسال رابط التفعيل")
+    activation_email_error = models.TextField(blank=True, verbose_name="خطأ إرسال رابط التفعيل")
+    rejection_reason = models.TextField(blank=True, verbose_name="سبب الرفض")
     created_at = models.DateTimeField(
         auto_now_add=True,
         verbose_name="تاريخ الطلب",

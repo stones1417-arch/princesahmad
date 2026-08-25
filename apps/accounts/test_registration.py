@@ -100,7 +100,7 @@ class RegistrationRequestFlowTests(TestCase):
 
         created = approve_account_registration_request(request_obj, reviewer=approver)
 
-        self.assertTrue(created.is_active)
+        self.assertFalse(created.is_active)
         self.assertFalse(created.is_staff)
         self.assertFalse(created.is_superuser)
         self.assertFalse(created.has_usable_password())
