@@ -11,6 +11,7 @@ urlpatterns = [
     path("activity-log/export/excel/", views.export_activity_log_excel_view, name="activity-log-export"),
     path("doors/", views.door_status_view, name="doors"),
     path("doors/status-data/", views.door_status_data_ajax, name="door-status-data"),
+    path("doors/staff-targets/", views.update_door_staff_targets, name="door-staff-targets"),
     path("doors/<int:pk>/incident-status/", views.door_incident_followup_ajax, name="door-incident-followup"),
     path("doors/<int:pk>/update/ajax/", views.update_door_status_ajax, name="door-update-ajax"),
     path("doors/<int:pk>/maintenance/create/ajax/", views.create_maintenance_request_ajax, name="maintenance-create-ajax"),

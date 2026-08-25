@@ -15,7 +15,7 @@
   const panels = [...root.querySelectorAll("[data-engineering-panel]")];
   const mapFrame = root.querySelector("[data-map-frame]");
   const followupBackdrop = root.querySelector("[data-followup-backdrop]");
-  const controlIds = ["q", "status", "density", "incident", "maint", "sort"];
+  const controlIds = ["q", "status", "coverage", "incident", "maint", "sort"];
   let refreshPending = false;
   let activeFollowupButton = null;
   let activeFollowupDrawer = null;
@@ -49,7 +49,7 @@
   }
 
   function activeFilters() {
-    return ["q", "status", "density", "incident", "maint"].filter((id) => {
+    return ["q", "status", "coverage", "incident", "maint"].filter((id) => {
       const value = document.querySelector(`#${id}`).value.trim();
       return id === "q" ? Boolean(value) : value !== "all";
     }).length;
@@ -58,7 +58,7 @@
   function applyFilters() {
     const query = document.querySelector("#q").value.trim().toLowerCase();
     const status = document.querySelector("#status").value;
-    const density = document.querySelector("#density").value;
+    const coverage = document.querySelector("#coverage").value;
     const incident = document.querySelector("#incident").value;
     const maintenance = document.querySelector("#maint").value;
     const sort = document.querySelector("#sort").value;
@@ -68,17 +68,19 @@
     allCards.forEach((card) => {
       const matches = (!query || card.dataset.number.toLowerCase().includes(query))
         && (status === "all" || card.dataset.status === status)
-        && (density === "all" || card.dataset.density === density)
+        && (coverage === "all" || card.dataset.coverage === coverage)
         && (incident === "all" || (incident === "yes") === (Number(card.dataset.incidents) > 0))
         && (maintenance === "all" || (maintenance === "yes") === (Number(card.dataset.maintenance) > 0));
       card.hidden = !matches;
       if (matches) visible += 1;
     });
 
-    const key = sort === "order" ? "order" : sort;
-    allCards.sort((a, b) => sort === "order"
-      ? Number(a.dataset[key]) - Number(b.dataset[key])
-      : Number(b.dataset[key]) - Number(a.dataset[key]));
+    allCards.sort((a, b) => {
+      if (sort === "order") return Number(a.dataset.order) - Number(b.dataset.order);
+      if (sort === "coverage-low") return Number(a.dataset.coveragePercent) - Number(b.dataset.coveragePercent);
+      if (sort === "coverage-high") return Number(b.dataset.coveragePercent) - Number(a.dataset.coveragePercent);
+      return Number(b.dataset[sort]) - Number(a.dataset[sort]);
+    });
     allCards.forEach((card) => grid.appendChild(card));
 
     resultCount.textContent = `عرض ${visible} من ${allCards.length}`;
@@ -91,7 +93,7 @@
 
   function resetFilters() {
     document.querySelector("#q").value = "";
-    ["status", "density", "incident", "maint"].forEach((id) => { document.querySelector(`#${id}`).value = "all"; });
+    ["status", "coverage", "incident", "maint"].forEach((id) => { document.querySelector(`#${id}`).value = "all"; });
     document.querySelector("#sort").value = "order";
     applyFilters();
     document.querySelector("#q").focus();
@@ -238,11 +240,17 @@
         card.dataset.employees = item.employee_count;
         card.dataset.incidents = item.open_incident_count;
         card.dataset.maintenance = item.active_maintenance_count;
+        card.dataset.coverage = item.staff_coverage_level;
+        card.dataset.coveragePercent = item.staff_coverage_percent ?? -1;
         card.querySelector("[data-metric='status']").lastChild.textContent = item.status_label;
         card.querySelector("[data-metric='employees']").textContent = item.employee_count;
         card.querySelector("[data-metric='incidents']").textContent = item.open_incident_count;
         card.querySelector("[data-metric='incidents-today']").textContent = item.today_incident_count;
         card.querySelector("[data-metric='maintenance']").textContent = item.active_maintenance_count;
+        card.querySelector("[data-metric='coverage']").textContent = item.target_staff_count ? `${item.staff_coverage_percent}%` : "غير مهيأة";
+        card.querySelector("[data-metric='coverage-ratio']").textContent = item.target_staff_count ? `${item.employee_count} من ${item.target_staff_count} موظفين` : "لم يُحدد العدد المستهدف لهذا الباب";
+        card.querySelector("[data-metric='coverage-level']").textContent = item.target_staff_count ? item.staff_coverage_label : "";
+        card.querySelector("[data-metric='coverage-detail']").textContent = item.target_staff_count ? item.staff_coverage_detail : "";
         card.querySelector("[data-detail='status']")?.replaceChildren(item.status_label);
         card.querySelector("[data-metric='activity']").textContent = item.last_activity ? new Date(item.last_activity).toLocaleString("ar-SA", { day: "numeric", month: "long", hour: "numeric", minute: "2-digit" }) : "لا يوجد نشاط مسجل";
         updateAlertIndicators(card, item.open_incident_count, item.active_maintenance_count);

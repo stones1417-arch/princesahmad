@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
 
@@ -1138,6 +1139,30 @@ class Incident(models.Model):
             self.closed_at = None
 
         super().save(*args, **kwargs)
+
+
+class DoorOperationalProfile(models.Model):
+    """Approved per-door operational staffing target; separate from visitor density."""
+
+    door = models.OneToOneField(
+        Door,
+        on_delete=models.CASCADE,
+        related_name="operational_profile",
+    )
+    target_staff_count = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["door__sort_order", "door__door_number"]
+        verbose_name = "ملف التشغيل للباب"
+        verbose_name_plural = "ملفات التشغيل للأبواب"
+
+    def __str__(self):
+        return f"الباب {self.door.door_number}"
 
 
 class IncidentRoutingEvent(models.Model):

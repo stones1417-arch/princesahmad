@@ -1,9 +1,10 @@
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Case, Count, IntegerField, Q, Value, When
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views.decorators.http import require_GET, require_POST
@@ -35,6 +36,7 @@ from .incident_routing_service import IncidentRoutingService
 from .maintenance_service import MaintenanceService
 from .models import (
     DoorCurrentState,
+    DoorOperationalProfile,
     DoorShift,
     Incident,
     MaintenanceRequest,
@@ -463,7 +465,9 @@ def door_status_view(request):
         ).order_by("-changed_at")[:8] if active_shift else DoorStateHistory.objects.none(),
         "engineering_doors": snapshot["doors"],
         "engineering_summary": snapshot["summary"],
-        "density_source": "NOT_AVAILABLE",
+        "can_manage_staff_targets": request.user.is_superuser or user_has_permission(
+            request.user, PlatformPermissions.CHANGE_SYSTEM_SETTINGS
+        ),
         "can_create_incident": request.user.is_superuser or user_has_permission(
             request.user, PlatformPermissions.CREATE_INCIDENT
         ),
@@ -499,6 +503,56 @@ def door_incident_followup_ajax(request, pk):
 
 
 @login_required
+@require_POST
+def update_door_staff_targets(request):
+    """Bulk-update approved staffing targets without changing assignments."""
+    _require_ops_permission(request, PlatformPermissions.CHANGE_SYSTEM_SETTINGS)
+    doors = list(
+        filter_doors_for_user(
+            Door.objects.filter(is_active=True), request.user
+        ).order_by("sort_order", "door_number")
+    )
+    submitted = {}
+    for door in doors:
+        field_name = f"target_{door.pk}"
+        if field_name not in request.POST:
+            continue
+        raw_value = str(request.POST.get(field_name, "") or "").strip()
+        if not raw_value:
+            submitted[door.pk] = None
+            continue
+        if not raw_value.isdigit() or int(raw_value) < 1:
+            return JsonResponse(
+                {"success": False, "error": "العدد التشغيلي المستهدف يجب أن يكون عددًا موجبًا."},
+                status=400,
+            )
+        submitted[door.pk] = int(raw_value)
+
+    existing = {
+        profile.door_id: profile
+        for profile in DoorOperationalProfile.objects.filter(door_id__in=submitted)
+    }
+    to_create = []
+    to_update = []
+    for door_id, target in submitted.items():
+        profile = existing.get(door_id)
+        if profile is None:
+            if target is not None:
+                to_create.append(
+                    DoorOperationalProfile(door_id=door_id, target_staff_count=target)
+                )
+        elif profile.target_staff_count != target:
+            profile.target_staff_count = target
+            to_update.append(profile)
+    with transaction.atomic():
+        DoorOperationalProfile.objects.bulk_create(to_create)
+        DoorOperationalProfile.objects.bulk_update(
+            to_update, ["target_staff_count", "updated_at"]
+        )
+    return redirect("ops:doors")
+
+
+@login_required
 def door_status_data_ajax(request):
     """Return the engineering-center card snapshot for lightweight polling."""
     _require_ops_permission(request, PlatformPermissions.VIEW_DOORS)
@@ -517,8 +571,11 @@ def door_status_data_ajax(request):
                 "open_incident_count": item.open_incident_count,
                 "today_incident_count": item.today_incident_count,
                 "active_maintenance_count": item.active_maintenance_count,
-                "density_percent": None,
-                "density_label": "غير محددة",
+                "target_staff_count": item.target_staff_count,
+                "staff_coverage_percent": item.staff_coverage_percent,
+                "staff_coverage_level": item.staff_coverage_level,
+                "staff_coverage_label": item.staff_coverage_label,
+                "staff_coverage_detail": item.staff_coverage_detail,
                 "last_activity": item.last_activity.isoformat() if item.last_activity else None,
             }
             for item in snapshot["doors"]

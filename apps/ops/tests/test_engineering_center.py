@@ -3,18 +3,24 @@ from datetime import timedelta
 from django.contrib.auth import get_user_model
 from django.contrib.staticfiles import finders
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from apps.core.tests.factories import create_door
+from apps.core.tests.factories import create_door, create_employee, create_shift_plan
+from apps.distribution.models import DoorAssignment
 from apps.locations.door_directions import OFFICIAL_DOOR_CODES
 from apps.locations.models import Door
 from apps.ops.engineering_center_service import EngineeringCenterService
 from apps.ops.engineering_incident_followup_service import (
     EngineeringIncidentFollowupService,
 )
-from apps.ops.models import Incident, IncidentRoutingEvent, MaintenanceRequest
+from apps.ops.models import (
+    DoorOperationalProfile,
+    Incident,
+    IncidentRoutingEvent,
+    MaintenanceRequest,
+)
 from apps.roles.services.permission_registry import PlatformPermissions
 from apps.roles.services.role_manager import assign_role_to_user, create_or_update_role
 
@@ -102,7 +108,7 @@ class EngineeringCenterClosureTests(TestCase):
     def test_filters_empty_state_and_auto_refresh_contract(self):
         self.client.force_login(self.admin)
         response = self.client.get(reverse("ops:doors"))
-        for control_id in ("q", "status", "density", "incident", "maint", "sort", "resetFilters"):
+        for control_id in ("q", "status", "coverage", "incident", "maint", "sort", "resetFilters"):
             self.assertContains(response, f'id="{control_id}"')
         self.assertContains(response, "لا توجد أبواب مطابقة للفلاتر الحالية.")
         script_path = finders.find("js/ops/engineering_center.js")
@@ -162,11 +168,112 @@ class EngineeringCenterClosureTests(TestCase):
         self.client.force_login(self.unauthorized)
         self.assertEqual(self.client.post(incident_url).status_code, 403)
 
-    def test_density_is_present_once_per_card_without_progress_bar(self):
+    def test_staff_coverage_replaces_unverifiable_density_claim(self):
         self.client.force_login(self.admin)
         response = self.client.get(reverse("ops:doors"))
-        self.assertContains(response, "لم تُحدد سعة تشغيلية لهذا الباب", count=42)
+        self.assertContains(response, "التغطية التشغيلية", count=43)
+        self.assertContains(response, "لم يُحدد العدد المستهدف لهذا الباب", count=42)
+        self.assertNotContains(response, "الكثافة")
+        self.assertNotContains(response, "لا توجد سعة معتمدة")
         self.assertNotContains(response, 'role="progressbar"')
+
+    def test_staff_coverage_formula_and_levels(self):
+        cases = (
+            (2, 3, 67, "low"),
+            (3, 3, 100, "complete"),
+            (4, 3, 133, "surplus"),
+            (0, 3, 0, "uncovered"),
+            (2, None, None, "unconfigured"),
+            (7, 10, 70, "partial"),
+            (13, 10, 130, "surplus"),
+        )
+        for current, target, percent, level in cases:
+            result = EngineeringCenterService.staff_coverage(
+                current_staff=current, target_staff=target
+            )
+            self.assertEqual(result[0], percent)
+            self.assertEqual(result[1], level)
+
+    def test_staff_coverage_uses_active_distribution_and_keeps_query_bound(self):
+        door = Door.objects.get(door_number="6A")
+        shift = create_shift_plan(is_active=True)
+        DoorOperationalProfile.objects.create(door=door, target_staff_count=3)
+        employees = [create_employee(employee_number=f"COVER-{index}") for index in range(4)]
+        for index, employee in enumerate(employees):
+            assignment = DoorAssignment.objects.create(
+                shift_plan=shift,
+                door=door,
+                employee=employee,
+                role=DoorAssignment.Role.MONITOR,
+                is_active=True,
+            )
+            with self.assertNumQueries(6):
+                snapshot = EngineeringCenterService.build(active_shift=shift)
+            metric = next(item for item in snapshot["doors"] if item.door.pk == door.pk)
+            self.assertEqual(metric.staff_coverage_percent, (33, 67, 100, 133)[index])
+            if index == 2:
+                assignment.is_active = False
+                assignment.save(update_fields=["is_active"])
+                snapshot = EngineeringCenterService.build(active_shift=shift)
+                metric = next(item for item in snapshot["doors"] if item.door.pk == door.pk)
+                self.assertEqual(metric.staff_coverage_percent, 67)
+                assignment.is_active = True
+                assignment.save(update_fields=["is_active"])
+
+    def test_staff_target_configuration_permissions_scope_and_csrf(self):
+        door = Door.objects.get(door_number="6B")
+        url = reverse("ops:door-staff-targets")
+        self.client.force_login(self.viewer)
+        self.assertEqual(self.client.post(url, {f"target_{door.pk}": "3"}).status_code, 403)
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.post(url, {f"target_{door.pk}": "3"}).status_code, 302)
+        self.assertEqual(
+            DoorOperationalProfile.objects.get(door=door).target_staff_count, 3
+        )
+        csrf_client = Client(enforce_csrf_checks=True)
+        csrf_client.force_login(self.admin)
+        self.assertEqual(
+            csrf_client.post(url, {f"target_{door.pk}": "4"}).status_code, 403
+        )
+        create_or_update_role(
+            code="coverage_manager",
+            name="Coverage manager",
+            permission_codes=[
+                PlatformPermissions.VIEW_DOORS,
+                PlatformPermissions.CHANGE_SYSTEM_SETTINGS,
+            ],
+            operational_section="male",
+        )
+        manager = get_user_model().objects.create_user(username="coverage-manager")
+        assign_role_to_user(user=manager, role_code="coverage_manager")
+        female_door = Door.objects.filter(
+            operational_section=Door.OperationalSection.FEMALE
+        ).first()
+        self.client.force_login(manager)
+        response = self.client.post(
+            url,
+            {
+                f"target_{door.pk}": "5",
+                f"target_{female_door.pk}": "9",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(
+            DoorOperationalProfile.objects.filter(door=female_door).exists()
+        )
+
+    def test_coverage_filter_sort_and_auto_refresh_contract(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("ops:doors"))
+        self.assertContains(response, "كل مستويات التغطية")
+        self.assertContains(response, 'option value="coverage-low"')
+        self.assertContains(response, 'option value="coverage-high"')
+        script_path = finders.find("js/ops/engineering_center.js")
+        with open(script_path, encoding="utf-8") as script_file:
+            script = script_file.read()
+        self.assertIn("item.staff_coverage_percent", script)
+        self.assertIn("card.dataset.coverage", script)
+        self.assertIn("coverage-low", script)
 
     def test_active_and_today_incident_metrics_remain_distinct_after_close(self):
         door = Door.objects.get(door_number="1")

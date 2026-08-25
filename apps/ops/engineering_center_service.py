@@ -23,14 +23,22 @@ class EngineeringDoorMetric:
     open_incident_count: int
     today_incident_count: int
     active_maintenance_count: int
-    density_percent: None
-    density_level: None
+    target_staff_count: int | None
+    staff_coverage_percent: int | None
+    staff_coverage_level: str
+    staff_coverage_label: str
+    staff_coverage_detail: str
     last_activity: object
     door_shift: DoorShift | None
 
 
 class EngineeringCenterService:
-    """Build the engineering-center snapshot with a fixed number of bulk queries."""
+    """Build the engineering-center snapshot with a fixed number of bulk queries.
+
+    Staff coverage is intentionally separate from future visitor-density metrics.
+    Real occupancy or flow must come from an authorized counter, sensor, camera
+    analytics API, or manual occupancy feed before being exposed here.
+    """
 
     OPEN_INCIDENT_STATUSES = (
         Incident.Status.NEW,
@@ -45,11 +53,35 @@ class EngineeringCenterService:
         MaintenanceRequest.Status.OPEN,
     )
 
+    @staticmethod
+    def staff_coverage(*, current_staff, target_staff):
+        if not target_staff:
+            return None, "unconfigured", "غير مهيأة", "لم يُحدد العدد المستهدف لهذا الباب"
+        percent = round((current_staff / target_staff) * 100)
+        difference = current_staff - target_staff
+        if current_staff == 0:
+            level, label = "uncovered", "بدون تغطية"
+        elif percent < 70:
+            level, label = "low", "تغطية منخفضة"
+        elif percent < 100:
+            level, label = "partial", "تغطية جزئية"
+        elif percent < 130:
+            level, label = "complete", "تغطية مكتملة"
+        else:
+            level, label = "surplus", "فائض تشغيلي"
+        if difference < 0:
+            detail = f"نقص {abs(difference)} موظف"
+        elif difference > 0:
+            detail = f"فائض {difference} موظف"
+        else:
+            detail = "مكتملة"
+        return percent, level, label, detail
+
     @classmethod
     def build(cls, *, active_shift, include_employee_names=False, allowed_sections=None):
         doors = list(
             Door.objects.filter(is_active=True)
-            .select_related("zone")
+            .select_related("zone", "operational_profile")
             .order_by("sort_order", "door_number")
         )
         door_ids = [door.pk for door in doors]
@@ -151,6 +183,15 @@ class EngineeringCenterService:
             names = []
             if include_employee_names:
                 names = [item.employee.full_name for item in assignment_rows]
+            try:
+                target_staff = door.operational_profile.target_staff_count
+            except Door.operational_profile.RelatedObjectDoesNotExist:
+                target_staff = None
+            coverage_percent, coverage_level, coverage_label, coverage_detail = (
+                cls.staff_coverage(
+                    current_staff=len(assignment_rows), target_staff=target_staff
+                )
+            )
             rows.append(EngineeringDoorMetric(
                 door=door,
                 status=status,
@@ -160,8 +201,11 @@ class EngineeringCenterService:
                 open_incident_count=incident_counts[door.pk],
                 today_incident_count=today_incident_counts[door.pk],
                 active_maintenance_count=maintenance_counts[door.pk],
-                density_percent=None,
-                density_level=None,
+                target_staff_count=target_staff,
+                staff_coverage_percent=coverage_percent,
+                staff_coverage_level=coverage_level,
+                staff_coverage_label=coverage_label,
+                staff_coverage_detail=coverage_detail,
                 last_activity=max(activities) if activities else None,
                 door_shift=door_shift,
             ))
