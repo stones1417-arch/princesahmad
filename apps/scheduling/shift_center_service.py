@@ -1,8 +1,11 @@
 from django.db.models import Count, Q
 from django.utils import timezone
 
+from apps.ops.engineering_center_service import EngineeringCenterService
 from apps.ops.incident_routing_service import IncidentRoutingService
 from apps.ops.models import Incident
+from apps.roles.services.access_control import user_has_permission
+from apps.roles.services.permission_registry import PlatformPermissions
 from apps.roles.services.section_access import get_allowed_sections
 from apps.scheduling.models import ShiftAssignment, ShiftPlan
 
@@ -91,17 +94,84 @@ class ShiftCenterService:
             maintenance=Count("pk", filter=Q(maintenance_request__isnull=False), distinct=True),
             completed=Count("pk", filter=Q(status__in=cls.CLOSED, closed_at__date=today), distinct=True),
         )
+        incident_rows = list(incidents.order_by("-created_at"))
+        coverage = EngineeringCenterService.build(
+            active_shift=active_shift,
+            allowed_sections=sections,
+        )
+        coverage_rows = coverage["doors"]
+        coverage_summary = {
+            "complete": sum(
+                row.staff_coverage_level in ("complete", "surplus")
+                for row in coverage_rows
+            ),
+            "partial": sum(
+                row.staff_coverage_level in ("partial", "low")
+                for row in coverage_rows
+            ),
+            "uncovered": sum(
+                row.staff_coverage_level == "uncovered" for row in coverage_rows
+            ),
+            "suspended": sum(
+                row.staff_coverage_level == "suspended" for row in coverage_rows
+            ),
+            "assigned_staff": coverage["summary"]["assigned_employees"],
+        }
+        attention_items = []
+        if active_shift and not supervisor:
+            attention_items.append({
+                "level": "critical",
+                "title": "الوردية تعمل بدون مشرف معيّن",
+                "description": "يجب تعيين مشرف لضمان توجيه البلاغات التشغيلية تلقائيًا.",
+                "tab": "overview",
+            })
+        if counters["new"]:
+            attention_items.append({
+                "level": "critical",
+                "title": f"{counters['new']} بلاغ جديد ينتظر الاستلام",
+                "description": "بلاغات واردة لم تبدأ معالجتها بعد.",
+                "tab": "inbox",
+            })
+        if counters["escalated"]:
+            attention_items.append({
+                "level": "warning",
+                "title": f"{counters['escalated']} بلاغ مصعّد",
+                "description": "بلاغات تحتاج متابعة إشرافية ضمن المسار الحالي.",
+                "tab": "escalated",
+            })
+        if coverage_summary["uncovered"]:
+            attention_items.append({
+                "level": "warning",
+                "title": f"{coverage_summary['uncovered']} باب مفتوح بدون تغطية",
+                "description": "التغطية محسوبة وفق الخطة التشغيلية المعتمدة.",
+                "tab": "overview",
+            })
+
+        activity_feed = []
+        for incident in incident_rows:
+            events = list(incident.routing_events.all())
+            if events:
+                activity_feed.append({"incident": incident, "event": events[-1]})
+        activity_feed.sort(key=lambda item: item["event"].created_at, reverse=True)
+
         return {
             "active_shift": active_shift,
             "supervisor_assignment": supervisor,
             "deputy_assignment": deputy,
             "assignment_count": assignments.count(),
             "operational_sections": sections,
-            "incidents": incidents.order_by("-created_at"),
+            "incidents": incident_rows,
             "incident_counters": counters,
             "selected_tab": tab,
             "filters": {"q": query, "door": door, "priority": priority, "status": status, "escalation": escalation, "maintenance": maintenance},
             "priority_choices": Incident.Priority.choices,
             "status_choices": Incident.Status.choices,
             "escalation_choices": Incident.EscalationLevel.choices,
+            "coverage_summary": coverage_summary,
+            "attention_items": attention_items,
+            "activity_feed": activity_feed[:5],
+            "has_active_filters": any((query, door, priority, status, escalation, maintenance)),
+            "can_manage_assignments": user_has_permission(
+                request.user, PlatformPermissions.ASSIGN_EMPLOYEES
+            ),
         }

@@ -1,5 +1,8 @@
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
+from django.db import connection
+from unittest.mock import patch
 
 from apps.core.tests.factories import create_door, create_shift_plan, create_user, create_zone
 from apps.ops.models import DoorShift, Incident, IncidentRoutingEvent
@@ -84,3 +87,71 @@ class ShiftCenterTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "لا توجد وردية نشطة حاليًا")
         self.assertContains(response, unassigned.incident_number)
+
+    def test_executive_header_command_and_coverage_summary_are_present(self):
+        response = self.client.get(reverse("scheduling:current"))
+        self.assertContains(response, "التشغيل المباشر")
+        self.assertContains(response, "وردية نشطة")
+        self.assertContains(response, "قيادة الوردية")
+        self.assertContains(response, "القوة الحالية")
+        self.assertContains(response, "التغطية التشغيلية")
+        self.assertContains(response, "مكتملة التغطية")
+
+    def test_missing_supervisor_and_deputy_have_institutional_presentation(self):
+        response = self.client.get(reverse("scheduling:current"))
+        self.assertContains(response, "الوردية تعمل بدون مشرف معيّن")
+        self.assertContains(response, "إدارة تسكين الوردية")
+
+    @patch("apps.scheduling.shift_center_service.user_has_permission", return_value=False)
+    def test_missing_supervisor_assignment_action_is_permission_aware(self, _permission):
+        response = self.client.get(reverse("scheduling:current"))
+        self.assertContains(response, "الوردية تعمل بدون مشرف معيّن")
+        self.assertNotContains(response, "إدارة تسكين الوردية")
+
+    def test_kpis_tabs_filters_and_counts_use_semantic_navigation(self):
+        self.incident()
+        response = self.client.get(reverse("scheduling:current"))
+        self.assertContains(response, 'href="?tab=inbox"')
+        self.assertContains(response, "تحتاج انتباهك الآن")
+        self.assertContains(response, "تصفية البلاغات")
+        self.assertContains(response, "بلاغات الوردية")
+        self.assertEqual(response.context["incident_counters"]["new"], 1)
+
+    def test_incident_card_responsibility_primary_actions_and_timeline(self):
+        incident = self.incident()
+        IncidentRoutingEvent.objects.create(
+            incident=incident,
+            event_type=IncidentRoutingEvent.EventType.PROCESSING_STARTED,
+            actor=self.user,
+            note="تحديث ميداني",
+        )
+        response = self.client.get(reverse("scheduling:current"))
+        self.assertContains(response, "المسؤولية الحالية")
+        self.assertContains(response, "بدء المعالجة")
+        self.assertContains(response, "إجراءات")
+        self.assertContains(response, "عرض التفاصيل ومسار البلاغ")
+        self.assertContains(response, "منذ")
+
+    def test_overview_activity_feed_and_empty_state(self):
+        response = self.client.get(reverse("scheduling:current"), {"tab": "overview"})
+        self.assertContains(response, "ملخص الوردية")
+        self.assertContains(response, "آخر النشاطات")
+        response = self.client.get(reverse("scheduling:current"), {"tab": "completed"})
+        self.assertContains(response, "لا توجد بلاغات في هذا التبويب")
+
+    def test_shift_center_remains_permission_protected(self):
+        unauthorized = create_user(username="shift-center-unauthorized")
+        self.client.force_login(unauthorized)
+        response = self.client.get(reverse("scheduling:current"))
+        self.assertEqual(response.status_code, 403)
+
+    def test_incident_cards_do_not_add_queries_per_incident(self):
+        self.incident()
+        self.client.get(reverse("scheduling:current"))
+        with CaptureQueriesContext(connection) as single:
+            self.client.get(reverse("scheduling:current"))
+        for index in range(10):
+            self.incident(description=f"بلاغ تجميعي {index}")
+        with CaptureQueriesContext(connection) as many:
+            self.client.get(reverse("scheduling:current"))
+        self.assertLessEqual(len(many), len(single) + 1)
