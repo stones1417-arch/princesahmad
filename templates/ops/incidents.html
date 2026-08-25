@@ -243,8 +243,12 @@
                     </h2>
 
                     <p>
+                        {% if engineering_door %}
+                        الباب {{ engineering_door.door_number }}
+                        {% else %}
                         أدخل بيانات البلاغ وحدد نوعه وأولويته
                         والباب المرتبط به عند الحاجة.
+                        {% endif %}
                     </p>
 
                 </div>
@@ -271,7 +275,7 @@
         <form
             id="incidentCreateForm"
             method="post"
-            action="{% url 'ops:incident-create' %}"
+            action="{% if engineering_door %}{% url 'ops:engineering-incident-create' engineering_door.pk %}{% else %}{% url 'ops:incident-create' %}{% endif %}"
             class="incident-create-form"
             autocomplete="off"
             novalidate
@@ -381,6 +385,14 @@
 
                 <div class="incident-form-field">
 
+                    {% if engineering_door %}
+                    <div class="incident-fixed-door" data-engineering-fixed-door>
+                        <span>موقع البلاغ</span>
+                        <strong>الباب {{ engineering_door.door_number }}</strong>
+                        <input type="hidden" name="door_id" value="{{ engineering_door.pk }}">
+                    </div>
+                    {% else %}
+
                     <label for="incidentDoor">
 
                         <span>
@@ -430,6 +442,8 @@
                     <small class="incident-field-help">
                         اتركه «بلاغ عام» إذا لم يكن البلاغ متعلقًا بباب محدد.
                     </small>
+
+                    {% endif %}
 
                 </div>
 
@@ -561,12 +575,10 @@
 
                 <div>
 
-                    <span>
-                        نطاق البلاغ
-                    </span>
+                    <span>{% if engineering_door %}موقع البلاغ{% else %}نطاق البلاغ{% endif %}</span>
 
                     <strong id="incidentSelectedDoorText">
-                        بلاغ عام بدون باب
+                        {% if engineering_door %}الباب {{ engineering_door.door_number }}{% else %}بلاغ عام بدون باب{% endif %}
                     </strong>
 
                 </div>
@@ -1549,6 +1561,27 @@
 
 .incident-form-field{
     min-width:0;
+}
+
+.incident-fixed-door{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    min-height:76px;
+    padding:14px;
+    border:1px solid #d7e4df;
+    border-radius:12px;
+    background:#f6faf8;
+}
+
+.incident-fixed-door span{
+    color:var(--muted);
+    font-size:12px;
+}
+
+.incident-fixed-door strong{
+    color:var(--green-dark);
+    font-size:18px;
 }
 
 .incident-form-field.full{

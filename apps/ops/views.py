@@ -1271,6 +1271,12 @@ def incidents_view(request):
         Door.objects.filter(is_active=True),
         request.user,
     ).order_by("sort_order", "door_number")
+    engineering_door = None
+    engineering_door_id = str(
+        request.GET.get("engineering_door", "") or ""
+    ).strip()
+    if engineering_door_id:
+        engineering_door = get_object_or_404(doors, pk=engineering_door_id)
     incident_assignees = _incident_assignees(
         active_shift,
         user=request.user,
@@ -1289,6 +1295,7 @@ def incidents_view(request):
         "active_shift": active_shift,
         "incidents": incidents,
         "doors": doors,
+        "engineering_door": engineering_door,
         "incident_assignees": incident_assignees,
 
         "status_choices": (
@@ -1365,6 +1372,7 @@ def incidents_view(request):
 def create_incident_ajax(
     request,
     pk=None,
+    engineering_door_pk=None,
 ):
     """
     إنشاء بلاغ تشغيلي جديد.
@@ -1376,17 +1384,38 @@ def create_incident_ajax(
     door_shift = None
     door = None
 
-    door_id = str(
+    posted_door_id = str(
         request.POST.get("door_id", "") or ""
     ).strip()
 
-    if door_id:
+    if engineering_door_pk is not None:
+        if posted_door_id and posted_door_id != str(engineering_door_pk):
+            return JsonResponse(
+                {"success": False, "error": "سياق الباب المرسل لا يطابق بطاقة المركز الهندسي."},
+                status=400,
+            )
         door = get_object_or_404(
             filter_doors_for_user(
                 Door.objects.filter(is_active=True),
                 request.user,
             ),
-            pk=door_id,
+            pk=engineering_door_pk,
+        )
+        door_shift = (
+            DoorShift.objects.filter(
+                shift_plan=active_shift,
+                door_number=door.door_number,
+                is_active=True,
+            ).first()
+        )
+
+    elif posted_door_id:
+        door = get_object_or_404(
+            filter_doors_for_user(
+                Door.objects.filter(is_active=True),
+                request.user,
+            ),
+            pk=posted_door_id,
         )
 
         door_shift = (
@@ -1406,6 +1435,12 @@ def create_incident_ajax(
         )
         or ""
     ).strip()
+
+    if engineering_door_pk is not None and door_shift_id:
+        return JsonResponse(
+            {"success": False, "error": "لا يُقبل تبديل سياق الباب في طلب المركز الهندسي."},
+            status=400,
+        )
 
     selected_door_id = (
         door_shift_id

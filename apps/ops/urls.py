@@ -18,6 +18,11 @@ urlpatterns = [
     path("maintenance/<int:pk>/update-status/ajax/", views.update_maintenance_status_ajax, name="maintenance-update-status-ajax"),
     path("incidents/", views.incidents_view, name="incidents"),
     path("incidents/create/", views.create_incident_ajax, name="incident-create"),
+    path(
+        "doors/<int:engineering_door_pk>/incidents/create/",
+        views.create_incident_ajax,
+        name="engineering-incident-create",
+    ),
     path("incidents/<int:pk>/update/", views.update_incident_status_ajax, name="incident-update"),
     path("incidents/<int:pk>/escalate/", views.escalate_incident_ajax, name="incident-escalate"),
     path("incidents/<int:pk>/convert-maintenance/", views.convert_incident_to_maintenance_ajax, name="incident-convert-maintenance"),

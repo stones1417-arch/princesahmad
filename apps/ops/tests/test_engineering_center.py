@@ -120,13 +120,16 @@ class EngineeringCenterClosureTests(TestCase):
         self.assertContains(response, "data-incident-followup", count=42)
         self.assertNotContains(response, "عرض التفاصيل")
         self.assertContains(response, "data-incident-action", count=42)
+        self.assertContains(response, "data-incident-action data-door-id", count=42)
         self.assertContains(response, "إنشاء بلاغ تشغيلي", count=42)
         self.assertNotContains(response, "data-door-state-action")
         self.assertNotContains(response, "data-distribution-action")
         self.assertNotContains(response, 'role="menu"')
         self.assertNotContains(response, 'class="engineering-actions__toggle"')
-        self.assertContains(response, "?door=6A&amp;create=1")
-        self.assertContains(response, "?door=6B&amp;create=1")
+        door_6a = Door.objects.get(door_number="6A")
+        door_6b = Door.objects.get(door_number="6B")
+        self.assertContains(response, f"?engineering_door={door_6a.pk}&amp;create=1")
+        self.assertContains(response, f"?engineering_door={door_6b.pk}&amp;create=1")
 
     def test_view_only_user_cannot_see_privileged_quick_actions_or_links(self):
         self.client.force_login(self.viewer)

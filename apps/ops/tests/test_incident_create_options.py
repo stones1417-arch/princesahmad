@@ -1,6 +1,6 @@
 from django.contrib.auth.models import Group
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.urls import reverse
 
 from apps.core.tests.factories import (
@@ -12,6 +12,7 @@ from apps.core.tests.factories import (
 )
 from apps.locations.models import Door
 from apps.ops.models import Incident
+from apps.ops.engineering_center_service import EngineeringCenterService
 from apps.roles.models import Role, UserRole
 from apps.roles.services.role_manager import (
     assign_role_to_user,
@@ -125,6 +126,18 @@ class IncidentCreateOptionsTests(TestCase):
         payload.update(overrides)
         return self.client.post(reverse("ops:incident-create"), payload)
 
+    def _engineering_post(self, door, **overrides):
+        payload = {
+            "door_id": str(door.pk),
+            "description": "Engineering center incident",
+            "incident_type": Incident.IncidentType.GENERAL,
+            "priority": Incident.Priority.MEDIUM,
+        }
+        payload.update(overrides)
+        return self.client.post(
+            reverse("ops:engineering-incident-create", args=[door.pk]), payload
+        )
+
     def test_master_door_catalog_is_available_in_official_order(self):
         self.client.force_login(self.admin)
         response = self.client.get(reverse("ops:incidents"))
@@ -161,6 +174,115 @@ class IncidentCreateOptionsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         incident = Incident.objects.get(pk=response.json()["incident"]["id"])
         self.assertIsNone(incident.door_id)
+
+    def test_general_form_keeps_selectable_door_catalog(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("ops:incidents"))
+        self.assertContains(response, 'id="incidentDoor"')
+        self.assertContains(response, "بلاغ عام بدون باب")
+        self.assertNotContains(response, "data-engineering-fixed-door")
+
+    def test_engineering_context_renders_fixed_door_and_resets_between_doors(self):
+        self.client.force_login(self.admin)
+        door_1 = Door.objects.get(door_number="1")
+        door_6b = Door.objects.get(door_number="6B")
+        first = self.client.get(
+            reverse("ops:incidents"), {"engineering_door": door_1.pk, "create": 1}
+        )
+        second = self.client.get(
+            reverse("ops:incidents"), {"engineering_door": door_6b.pk, "create": 1}
+        )
+        self.assertContains(first, "الباب 1")
+        self.assertContains(second, "الباب 6B")
+        self.assertNotContains(second, "الباب 1")
+        for response, door in ((first, door_1), (second, door_6b)):
+            self.assertContains(response, "data-engineering-fixed-door")
+            self.assertContains(response, f'name="door_id" value="{door.pk}"')
+            self.assertContains(
+                response,
+                reverse("ops:engineering-incident-create", args=[door.pk]),
+            )
+            self.assertNotContains(response, 'id="incidentDoor"')
+
+    def test_engineering_endpoint_uses_url_door_and_rejects_forgery(self):
+        self.client.force_login(self.admin)
+        source = Door.objects.get(door_number="2")
+        other = Door.objects.get(door_number="3")
+        forged = self._engineering_post(source, door_id=str(other.pk))
+        self.assertEqual(forged.status_code, 400)
+        forged_shift = self._engineering_post(source, door_shift_id="999999")
+        self.assertEqual(forged_shift.status_code, 400)
+        self.assertEqual(Incident.objects.count(), 0)
+        created = self._engineering_post(source)
+        self.assertEqual(created.status_code, 200)
+        self.assertEqual(Incident.objects.get().door_id, source.pk)
+
+    def test_engineering_endpoint_blocks_inactive_and_cross_section_doors(self):
+        inactive = Door.objects.get(door_number="41")
+        inactive.is_active = False
+        inactive.save(update_fields=["is_active"])
+        self.client.force_login(self.admin)
+        self.assertEqual(self._engineering_post(inactive).status_code, 404)
+        self.client.force_login(self.actor)
+        female = Door.objects.filter(
+            operational_section=Door.OperationalSection.FEMALE
+        ).first()
+        self.assertEqual(self._engineering_post(female).status_code, 404)
+        self.assertEqual(Incident.objects.count(), 0)
+
+    def test_engineering_special_door_codes_are_authoritative(self):
+        self.client.force_login(self.admin)
+        for code in ("6A", "6B"):
+            door = Door.objects.get(door_number=code)
+            response = self._engineering_post(door)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(
+                Incident.objects.get(pk=response.json()["incident"]["id"]).door,
+                door,
+            )
+        self.assertFalse(Door.objects.filter(door_number="6").exists())
+
+    def test_source_door_followup_and_metrics_receive_created_incident_only(self):
+        self.client.force_login(self.admin)
+        source = Door.objects.get(door_number="1")
+        other = Door.objects.get(door_number="2")
+        before = EngineeringCenterService.build(active_shift=self.shift)
+        before_by_id = {item.door.pk: item for item in before["doors"]}
+        response = self._engineering_post(source)
+        incident_id = response.json()["incident"]["id"]
+        after = EngineeringCenterService.build(active_shift=self.shift)
+        after_by_id = {item.door.pk: item for item in after["doors"]}
+        self.assertEqual(
+            after_by_id[source.pk].open_incident_count,
+            before_by_id[source.pk].open_incident_count + 1,
+        )
+        self.assertEqual(
+            after_by_id[source.pk].today_incident_count,
+            before_by_id[source.pk].today_incident_count + 1,
+        )
+        self.assertEqual(
+            after_by_id[other.pk].open_incident_count,
+            before_by_id[other.pk].open_incident_count,
+        )
+        source_payload = self.client.get(
+            reverse("ops:door-incident-followup", args=[source.pk])
+        ).json()
+        other_payload = self.client.get(
+            reverse("ops:door-incident-followup", args=[other.pk])
+        ).json()
+        self.assertIn(incident_id, [item["id"] for item in source_payload["incidents"]])
+        self.assertNotIn(incident_id, [item["id"] for item in other_payload["incidents"]])
+
+    def test_engineering_create_endpoint_requires_csrf(self):
+        door = Door.objects.get(door_number="1")
+        csrf_client = Client(enforce_csrf_checks=True)
+        csrf_client.force_login(self.admin)
+        response = csrf_client.post(
+            reverse("ops:engineering-incident-create", args=[door.pk]),
+            {"door_id": door.pk, "description": "No CSRF token"},
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(Incident.objects.count(), 0)
 
     def test_invalid_and_inactive_door_posts_are_rejected(self):
         self.client.force_login(self.admin)
