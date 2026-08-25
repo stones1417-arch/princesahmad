@@ -13,7 +13,7 @@
   <section class="coverage-summary" aria-label="ملخص الإعدادات">
     <article><small>الأبواب المهيأة</small><strong>{{ configured_count }}</strong></article>
     <article><small>غير المهيأة</small><strong>{{ unconfigured_count }}</strong></article>
-    <article><small>إجمالي العدد المستهدف</small><strong>{{ total_target }}</strong></article>
+    <article><small>إجمالي العدد المستهدف</small><strong id="totalTargetPreview">{{ total_target }}</strong><span id="unsavedPreviewIndicator" class="coverage-preview-indicator" hidden>معاينة غير محفوظة</span></article>
   </section>
   <section class="coverage-tools" aria-label="البحث والتصفية">
     <label><span>البحث</span><input id="coverageSearch" type="search" placeholder="ابحث برقم الباب"></label>
@@ -23,6 +23,11 @@
     <button id="resetCoverageFilters" type="button">إعادة ضبط الفلاتر</button>
   </section>
   {% if can_change_settings %}
+  <section class="coverage-preset" aria-labelledby="presetHeading">
+    <div><strong id="presetHeading">الخطة التشغيلية المبدئية</strong><small>تعبئة قيم مقترحة للأبواب ويمكن تعديلها قبل الحفظ.</small></div>
+    <button id="openCoveragePreset" type="button" aria-haspopup="dialog">تحميل الخطة المبدئية</button>
+    <p id="presetWarning" class="coverage-preset__warning" role="alert" hidden></p>
+  </section>
   <section class="coverage-bulk" aria-label="التطبيق الجماعي">
     <strong><span id="selectedCount">0</span> محدد</strong>
     <label><span>عدد مستهدف للمحدد</span><input id="bulkTarget" type="number" min="1" max="999"></label>
@@ -45,14 +50,24 @@
               {% if can_change_settings %}<input class="coverage-target" type="number" min="1" max="999" step="1" name="target_{{ item.door.pk }}" value="{{ item.form_value }}" aria-describedby="targetHelp{{ item.door.pk }} targetError{{ item.door.pk }}"><small id="targetHelp{{ item.door.pk }}">فارغ = غير مهيأ</small>{% else %}<strong>{{ item.target_staff_count|default:"غير مهيأ" }}</strong>{% endif %}
               <span id="targetError{{ item.door.pk }}" class="coverage-field-error" role="alert">{{ item.form_error }}</span>
             </td>
-            <td data-label="معاينة التغطية"><strong data-preview-percent>{% if item.target_staff_count %}{{ item.staff_coverage_percent }}%{% else %}—{% endif %}</strong><span class="coverage-level coverage-level--{{ item.staff_coverage_level }}" data-preview-level>{{ item.staff_coverage_label }}</span></td>
+            <td data-label="معاينة التغطية"><strong data-preview-percent>{% if item.target_staff_count %}{{ item.staff_coverage_percent }}%{% else %}—{% endif %}</strong><span class="coverage-level coverage-level--{{ item.staff_coverage_level }}" data-preview-level>{{ item.staff_coverage_label }}</span><small data-preview-ratio>{% if item.target_staff_count %}{{ item.employee_count }} من {{ item.target_staff_count }}{% endif %}</small><small data-preview-detail>{{ item.staff_coverage_detail }}</small></td>
           </tr>
         {% empty %}<tr><td colspan="6">لا توجد أبواب نشطة ضمن نطاقك.</td></tr>{% endfor %}
         </tbody>
       </table>
     </div>
-    {% if can_change_settings %}<footer class="coverage-actions"><span role="status"><strong id="dirtyCount">0</strong> تغييرات غير محفوظة</span><button id="resetCoverageChanges" type="button" disabled>تراجع عن التغييرات</button><button id="saveCoverageSettings" type="submit" disabled>حفظ التغييرات</button></footer>{% endif %}
+    {% if can_change_settings %}<footer class="coverage-actions"><span role="status">لديك <strong id="dirtyCount">0</strong> تغييرات غير محفوظة</span><button id="resetCoverageChanges" type="button" disabled>إلغاء التغييرات</button><button id="saveCoverageSettings" type="submit" disabled>حفظ الإعدادات</button></footer>{% endif %}
   </form>
+  {% if can_change_settings %}
+  <dialog id="coveragePresetDialog" class="coverage-preset-dialog" aria-labelledby="coveragePresetTitle" aria-describedby="coveragePresetDescription">
+    <form method="dialog">
+      <header><h2 id="coveragePresetTitle">تحميل الخطة التشغيلية المبدئية</h2><button value="cancel" aria-label="إغلاق نافذة الخطة المبدئية">×</button></header>
+      <p id="coveragePresetDescription">سيتم تعبئة الأعداد المستهدفة المقترحة للـ42 بابًا في النموذج فقط. لن يتم حفظ أي تغييرات حتى تضغط «حفظ الإعدادات».</p>
+      {% if configured_count %}<p class="coverage-preset-dialog__notice">بعض الأبواب لديها إعدادات حالية. تحميل الخطة سيغيّر النموذج فقط ويمكنك إلغاء التغييرات قبل الحفظ.</p>{% endif %}
+      <footer><button value="cancel">إلغاء</button><button id="applyCoveragePreset" type="button">تحميل القيم</button></footer>
+    </form>
+  </dialog>
+  {% endif %}
 </main>
 {% endblock %}
 {% block extra_js %}<script src="{% static 'js/ops/coverage_settings.js' %}?v=20260825" defer></script>{% endblock %}

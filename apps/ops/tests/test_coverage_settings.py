@@ -137,6 +137,29 @@ class DoorCoverageSettingsTests(TestCase):
         door = Door.objects.get(door_number="5")
         self.assertEqual(csrf_client.post(self.url, {f"target_{door.pk}": "2"}).status_code, 403)
 
+    def test_initial_plan_is_client_only_complete_and_catalog_safe(self):
+        self.client.force_login(self.admin)
+        before = DoorOperationalProfile.objects.count()
+        response = self.client.get(self.url)
+        self.assertEqual(DoorOperationalProfile.objects.count(), before)
+        self.assertContains(response, 'id="openCoveragePreset"')
+        self.assertContains(response, 'id="coveragePresetDialog"')
+        self.assertContains(response, 'aria-labelledby="coveragePresetTitle"')
+        self.assertContains(response, "لن يتم حفظ أي تغييرات")
+        script_path = finders.find("js/ops/coverage_settings.js")
+        with open(script_path, encoding="utf-8") as script_file:
+            script = script_file.read()
+        plan_fragment = script.split("Object.freeze({", 1)[1].split("});", 1)[0]
+        self.assertEqual(plan_fragment.count(":"), 42)
+        self.assertIn('"1":3', plan_fragment)
+        self.assertIn('"6B":4', plan_fragment)
+        self.assertIn('"6A":4', plan_fragment)
+        self.assertNotIn('"6":', plan_fragment)
+        self.assertIn("rows.length === planNumbers.length", script)
+        self.assertIn("row.dataset.number", script)
+        self.assertIn("updateDirty(); filterRows();", script)
+        self.assertNotIn("fetch(", script)
+
     def test_engineering_center_has_single_authorized_entry_and_no_inline_form(self):
         self.client.force_login(self.admin)
         response = self.client.get(reverse("ops:doors"))

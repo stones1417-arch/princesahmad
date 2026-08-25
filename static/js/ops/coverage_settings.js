@@ -8,6 +8,13 @@
   const complete = Number(root.dataset.complete);
   const surplus = Number(root.dataset.surplus);
   const labels = {unconfigured: "غير مهيأة", uncovered: "بدون تغطية", low: "تغطية منخفضة", partial: "تغطية جزئية", complete: "تغطية مكتملة", surplus: "فائض تشغيلي"};
+  const initialCoveragePlan = Object.freeze({
+    "1":3,"2":3,"3":2,"4":2,"5":3,"6B":4,"6A":4,"7":3,"8":3,"9":2,
+    "10":2,"11":2,"12":3,"13":3,"14":2,"15":2,"16":2,"17":3,"18":3,"19":2,
+    "20":2,"21":3,"22":3,"23":2,"24":2,"25":3,"26":3,"27":2,"28":2,"29":3,
+    "30":3,"31":2,"32":2,"33":3,"34":3,"35":2,"36":2,"37":3,"38":3,"39":2,
+    "40":2,"41":3
+  });
 
   function coverage(current, rawTarget) {
     if (rawTarget === "") return {percent: null, level: "unconfigured"};
@@ -33,6 +40,16 @@
     badge.className = `coverage-level coverage-level--${result.level}`;
     const valid = input.value === "" || (Number.isInteger(Number(input.value)) && Number(input.value) >= 1 && Number(input.value) <= 999);
     input.setCustomValidity(valid ? "" : "أدخل عددًا صحيحًا من 1 إلى 999.");
+    const ratio = row.querySelector("[data-preview-ratio]");
+    const detail = row.querySelector("[data-preview-detail]");
+    if (result.percent === null) {
+      ratio.textContent = ""; detail.textContent = "لم يُحدد العدد المستهدف";
+    } else {
+      const current = Number(row.dataset.current); const target = Number(input.value);
+      const difference = current - target;
+      ratio.textContent = `${current} من ${target}`;
+      detail.textContent = difference < 0 ? `نقص ${Math.abs(difference)} موظف` : difference > 0 ? `فائض ${difference} موظف` : "مكتملة";
+    }
   }
 
   function updateDirty() {
@@ -42,6 +59,11 @@
     }).length;
     const count = document.getElementById("dirtyCount");
     if (count) count.textContent = dirty;
+    const total = rows.reduce((sum, row) => sum + (Number(row.querySelector(".coverage-target")?.value) || 0), 0);
+    const totalPreview = document.getElementById("totalTargetPreview");
+    if (totalPreview) totalPreview.textContent = total;
+    const indicator = document.getElementById("unsavedPreviewIndicator");
+    if (indicator) indicator.hidden = dirty === 0;
     ["saveCoverageSettings", "resetCoverageChanges"].forEach(id => {
       const button = document.getElementById(id);
       if (button) button.disabled = dirty === 0;
@@ -98,6 +120,29 @@
   });
   document.getElementById("resetCoverageChanges")?.addEventListener("click", () => {
     rows.forEach(row => { const input = row.querySelector(".coverage-target"); if (input) { input.value = row.dataset.original; updateRow(row); } });
+    updateDirty(); filterRows();
+  });
+  const presetTrigger = document.getElementById("openCoveragePreset");
+  const presetDialog = document.getElementById("coveragePresetDialog");
+  const presetWarning = document.getElementById("presetWarning");
+  presetTrigger?.addEventListener("click", () => presetDialog.showModal());
+  presetDialog?.addEventListener("close", () => presetTrigger.focus());
+  document.getElementById("applyCoveragePreset")?.addEventListener("click", () => {
+    const rowNumbers = new Set(rows.map(row => row.dataset.number));
+    const planNumbers = Object.keys(initialCoveragePlan);
+    const catalogMatches = rows.length === planNumbers.length && planNumbers.every(number => rowNumbers.has(number));
+    if (!catalogMatches) {
+      presetDialog.close();
+      presetWarning.textContent = "تعذر تحميل الخطة لأن كتالوج الأبواب لا يطابق الخطة الحالية.";
+      presetWarning.hidden = false;
+      return;
+    }
+    rows.forEach(row => {
+      row.querySelector(".coverage-target").value = initialCoveragePlan[row.dataset.number];
+      updateRow(row);
+    });
+    presetWarning.hidden = true;
+    presetDialog.close();
     updateDirty(); filterRows();
   });
   form?.addEventListener("submit", event => { if (!form.checkValidity()) { event.preventDefault(); form.reportValidity(); } });
