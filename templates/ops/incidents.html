@@ -993,6 +993,7 @@
                                     {{ incident.maintenance_request.request_number }} · {{ incident.maintenance_request.get_status_display }}{% if incident.maintenance_request.status == "done" or incident.maintenance_request.status == "closed" %} · ينتظر التحقق{% endif %}
                                 </small>
                             {% else %}<br><small>الصيانة: غير مرتبط</small>{% endif %}
+                            {% for action in incident.open_supervisory_actions|slice:":1" %}<br><span class="incident-badge status-in_progress">{% if action.action_type == 'request_update' %}طلب تحديث{% elif action.action_type == 'executive_directive' %}توجيه تنفيذي{% elif action.action_type == 'supervisory_directive' %}توجيه إشرافي{% endif %}</span>{% endfor %}
 
                         </td>
 
@@ -1091,6 +1092,19 @@
                                     {% endif %}
                                     <p class="incident-center__maintenance-flow">مشرف البلاغات ← مشرف العمليات ← مشرف الصيانة ← مشرف البلاغات</p>
                                 {% else %}<p>لا يوجد طلب صيانة مرتبط.</p>{% endif %}
+                                <h4>القيادة الإشرافية</h4>
+                                <p>مستوى التصعيد الحالي: <strong>{{ incident.get_escalation_level_display }}</strong></p>
+                                <p>رئيس قسم الأبواب: {% if incident.escalation_level == 'department_head' or incident.escalation_level == 'general_manager' %}ضمن مسار المتابعة{% else %}لا توجد متابعة حالية{% endif %}</p>
+                                <p>الوكيل المفوض: يظهر في مركز القيادة عند وجود تفويض نشط.</p>
+                                {% if incident.escalation_level == 'general_manager' %}<p>المدير العام: الحالة ضمن صندوق القرار التنفيذي.</p>{% endif %}
+                                <ol class="incident-supervisory-timeline">
+                                  {% for action in incident.latest_supervisory_actions %}
+                                    <li><strong>{{ action.get_action_type_display }}</strong> — {{ action.get_status_display }}<br><small>من {{ action.actor.get_full_name|default:action.actor.username }}{% if action.target_user %} إلى {{ action.target_user.get_full_name|default:action.target_user.username }}{% endif %} · {{ action.created_at|date:"Y-m-d H:i" }}</small><p>{{ action.note }}</p>
+                                    {% if action.action_type == 'request_update' and action.status == 'open' and action.target_user_id == user.id %}<button type="button" data-supervisory-dialog="supervisory-response-{{ action.pk }}">إرسال الرد</button><dialog id="supervisory-response-{{ action.pk }}" class="incident-action-dialog"><form class="js-supervisory-transition" action="{% url 'ops:supervisory-request-respond' action.pk %}" method="post">{% csrf_token %}<h3>الرد على طلب التحديث</h3><p>{{ action.subject }} — {{ action.note }}</p><label>الرد<textarea name="note" required></textarea></label><p role="alert" class="incident-dialog-error"></p><div class="incident-dialog-actions"><button type="button" data-supervisory-close>إلغاء</button><button type="submit">إرسال التحديث</button></div></form></dialog>{% endif %}
+                                    {% if action.action_type == 'supervisory_directive' or action.action_type == 'executive_directive' %}{% if action.target_user_id == user.id and action.status == 'open' %}<form class="js-supervisory-transition" action="{% url 'ops:supervisory-directive-acknowledge' action.pk %}" method="post">{% csrf_token %}<button type="submit">تأكيد الاستلام</button><p role="alert" class="incident-dialog-error"></p></form>{% elif action.target_user_id == user.id and action.status == 'acknowledged' %}<form class="js-supervisory-transition" action="{% url 'ops:supervisory-directive-complete' action.pk %}" method="post">{% csrf_token %}<label>ملاحظة الاكتمال<textarea name="note" required></textarea></label><button type="submit">تسجيل الاكتمال</button><p role="alert" class="incident-dialog-error"></p></form>{% endif %}{% endif %}
+                                    </li>
+                                  {% empty %}<li>لا توجد إجراءات إشرافية مرتبطة.</li>{% endfor %}
+                                </ol>
                                 <h4>المسار الزمني</h4>
                                 <ol>
                                     {% for event in incident.routing_events.all %}
@@ -3557,6 +3571,11 @@ window.addEventListener(
 
     }
 );
+</script>
+<script>
+document.querySelectorAll('[data-supervisory-dialog]').forEach(button=>button.addEventListener('click',()=>document.getElementById(button.dataset.supervisoryDialog)?.showModal()));
+document.querySelectorAll('[data-supervisory-close]').forEach(button=>button.addEventListener('click',()=>button.closest('dialog')?.close()));
+document.querySelectorAll('.js-supervisory-transition').forEach(form=>form.addEventListener('submit',async event=>{event.preventDefault();const error=form.querySelector('[role="alert"]');if(error)error.textContent='';try{const response=await fetch(form.action,{method:'POST',body:new FormData(form),headers:{'X-Requested-With':'XMLHttpRequest'}});const data=await response.json();if(!response.ok){if(error)error.textContent=data.message||'تعذر تنفيذ الإجراء.';return}location.reload()}catch(exception){if(error)error.textContent='تعذر الاتصال بالخادم.'}}));
 </script>
 <script src="{% static 'js/ops/incident_center.js' %}?v=20260825" defer></script>
 

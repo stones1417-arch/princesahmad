@@ -1207,3 +1207,122 @@ class IncidentRoutingEvent(models.Model):
 
     class Meta:
         ordering = ["created_at", "pk"]
+
+
+class LeadershipDelegation(models.Model):
+    """Time-bounded department-head delegation to an eligible deputy."""
+
+    principal = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="leadership_delegations_given",
+    )
+    delegate = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="leadership_delegations_received",
+    )
+    section = models.CharField(
+        max_length=10, choices=(("male", "رجالي"), ("female", "نسائي")),
+        db_index=True,
+    )
+    starts_at = models.DateTimeField(db_index=True)
+    ends_at = models.DateTimeField(db_index=True)
+    reason = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="leadership_delegations_created",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    revoked_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    revoked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="leadership_delegations_revoked",
+    )
+
+    class Meta:
+        ordering = ["-starts_at", "-pk"]
+        indexes = [models.Index(fields=["section", "starts_at", "ends_at"])]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.principal_id == self.delegate_id:
+            errors["delegate"] = "لا يمكن تفويض الصلاحية إلى المستخدم نفسه."
+        if self.starts_at and self.ends_at and self.starts_at >= self.ends_at:
+            errors["ends_at"] = "يجب أن ينتهي التفويض بعد بدايته."
+        if self.principal_id and not self.principal.is_active:
+            errors["principal"] = "رئيس القسم غير نشط."
+        if self.delegate_id and not self.delegate.is_active:
+            errors["delegate"] = "النائب غير نشط."
+        if errors:
+            raise ValidationError(errors)
+
+
+class IncidentSupervisoryAction(models.Model):
+    """Audited supervisory layer; it never owns or reroutes the incident."""
+
+    class ActionType(models.TextChoices):
+        REQUEST_UPDATE = "request_update", "طلب تحديث"
+        SUPERVISORY_NOTE = "supervisory_note", "ملاحظة إشرافية"
+        ADMINISTRATIVE_NOTE = "administrative_note", "ملاحظة إدارية"
+        SUPERVISORY_DIRECTIVE = "supervisory_directive", "توجيه إشرافي"
+        EXECUTIVE_DIRECTIVE = "executive_directive", "توجيه تنفيذي"
+        RETURN_TO_FOLLOWUP = "return_to_followup", "إعادة للمتابعة"
+        ESCALATE_TO_GENERAL_MANAGER = "escalate_to_general_manager", "تصعيد للمدير العام"
+        ADMINISTRATIVE_ALERT = "administrative_alert", "تنبيه إداري"
+        SUPERVISORY_RESOLVED = "supervisory_resolved", "معالجة إشرافية"
+        RESPONSE = "response", "استجابة"
+
+    class Status(models.TextChoices):
+        OPEN = "open", "مفتوح"
+        ANSWERED = "answered", "تم الرد"
+        ACKNOWLEDGED = "acknowledged", "تم الاطلاع"
+        COMPLETED = "completed", "مكتمل"
+        RESOLVED = "resolved", "معالج إشرافيًا"
+
+    incident = models.ForeignKey(
+        Incident, on_delete=models.CASCADE, related_name="supervisory_actions",
+    )
+    action_type = models.CharField(max_length=40, choices=ActionType.choices, db_index=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN, db_index=True)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="incident_supervisory_actions",
+    )
+    acting_for = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="delegated_incident_supervisory_actions",
+    )
+    target_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="targeted_incident_supervisory_actions",
+    )
+    parent = models.ForeignKey(
+        "self", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="responses",
+    )
+    subject = models.CharField(max_length=200, blank=True)
+    note = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    acknowledged_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="acknowledged_incident_supervisory_actions",
+    )
+    acknowledged_at = models.DateTimeField(null=True, blank=True)
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="completed_incident_supervisory_actions",
+    )
+    completed_at = models.DateTimeField(null=True, blank=True)
+    completion_note = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+        indexes = [models.Index(fields=["incident", "status", "created_at"])]
+
+    def clean(self):
+        super().clean()
+        if not self.note.strip():
+            raise ValidationError({"note": "نص الإجراء الإشرافي مطلوب."})
+        if self.parent_id and self.parent.incident_id != self.incident_id:
+            raise ValidationError({"parent": "يجب أن تتبع الاستجابة البلاغ نفسه."})

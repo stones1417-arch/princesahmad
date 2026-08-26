@@ -3,7 +3,7 @@ from __future__ import annotations
 from urllib.parse import urlencode
 
 from apps.accounts.models import AccountRegistrationRequest
-from apps.roles.services.access_control import user_has_permission
+from apps.roles.services.access_control import user_has_permission, user_has_role
 from apps.roles.services.permission_registry import PlatformPermissions
 from apps.roles.services.section_context import (
     get_effective_section,
@@ -60,3 +60,31 @@ def account_registration_badges(request):
     ).count()
 
     return {"account_registration_pending_count": pending_count}
+
+
+def supervisory_leadership_navigation(request):
+    """Expose exactly one role-appropriate leadership center in global navigation."""
+    user = request.user
+    if not user.is_authenticated or not user.is_active:
+        return {"supervisory_leadership_url_name": ""}
+    if user.is_superuser or user_has_role(user, "doors_department_head"):
+        name = "ops:department-command-center"
+    elif user_has_role(user, "general_manager"):
+        name = "ops:executive-command-center"
+    elif user_has_role(user, "senior_administrator"):
+        name = "ops:administrative-command-center"
+    elif user_has_role(user, "doors_department_deputy"):
+        from django.utils import timezone
+        from apps.ops.models import LeadershipDelegation
+
+        name = (
+            "ops:department-command-center"
+            if LeadershipDelegation.objects.filter(
+                delegate=user, revoked_at__isnull=True,
+                starts_at__lte=timezone.now(), ends_at__gt=timezone.now(),
+            ).exists()
+            else ""
+        )
+    else:
+        name = ""
+    return {"supervisory_leadership_url_name": name}

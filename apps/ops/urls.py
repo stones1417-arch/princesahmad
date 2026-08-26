@@ -4,6 +4,17 @@ from . import views
 app_name = "ops"
 
 urlpatterns = [
+    path("leadership/department/", views.supervisory_command_center_view, {"center": "department"}, name="department-command-center"),
+    path("leadership/administrative/", views.supervisory_command_center_view, {"center": "administrative"}, name="administrative-command-center"),
+    path("leadership/executive/", views.supervisory_command_center_view, {"center": "executive"}, name="executive-command-center"),
+    path("leadership/incidents/<int:pk>/", views.supervisory_command_center_view, {"center": "detail"}, name="supervisory-incident-detail"),
+    path("leadership/incidents/<int:pk>/actions/", views.create_supervisory_action_view, name="supervisory-action-create"),
+    path("leadership/actions/<int:pk>/respond/", views.respond_to_update_request_view, name="supervisory-request-respond"),
+    path("leadership/actions/<int:pk>/resolve/", views.resolve_update_request_view, name="supervisory-request-resolve"),
+    path("leadership/actions/<int:pk>/acknowledge/", views.acknowledge_directive_view, name="supervisory-directive-acknowledge"),
+    path("leadership/actions/<int:pk>/complete/", views.complete_directive_view, name="supervisory-directive-complete"),
+    path("leadership/delegations/", views.create_leadership_delegation_view, name="leadership-delegation-create"),
+    path("leadership/delegations/<int:pk>/revoke/", views.revoke_leadership_delegation_view, name="leadership-delegation-revoke"),
     path("", views.operations_center_view, name="operations-center"),
     path("command-center/", views.command_center_view, name="command-center"),
     path("command-center/data/", views.command_center_data_ajax, name="command-center-data"),

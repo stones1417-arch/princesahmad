@@ -811,22 +811,46 @@ class MaintenanceService:
                     actor=effective_user,
                     note=updated_maintenance.request_number,
                 )
-                if (
-                    event_type == IncidentRoutingEvent.EventType.MAINTENANCE_COMPLETED
-                    and updated_maintenance.source_incident.assigned_to_id
-                ):
+                if event_type == IncidentRoutingEvent.EventType.MAINTENANCE_COMPLETED:
                     from apps.notifications.models import Notification
+                    from apps.ops.models import IncidentSupervisoryAction
+                    from apps.ops.supervisory_leadership_service import (
+                        SupervisoryLeadershipService,
+                    )
 
-                    Notification.objects.create(
-                        user_id=updated_maintenance.source_incident.assigned_to_id,
+                    incident = updated_maintenance.source_incident
+                    recipients = [incident.assigned_to] if incident.assigned_to_id else []
+                    has_open_supervision = IncidentSupervisoryAction.objects.filter(
+                        incident=incident,
+                        status__in=(
+                            IncidentSupervisoryAction.Status.OPEN,
+                            IncidentSupervisoryAction.Status.ANSWERED,
+                            IncidentSupervisoryAction.Status.ACKNOWLEDGED,
+                        ),
+                    ).exists()
+                    if has_open_supervision or incident.escalation_level != incident.EscalationLevel.NONE:
+                        recipients.extend(
+                            assignment.user for assignment in
+                            SupervisoryLeadershipService._role_users(
+                                SupervisoryLeadershipService.HEAD, incident.section
+                            )
+                        )
+                    if incident.escalation_level == incident.EscalationLevel.GENERAL_MANAGER:
+                        recipients.extend(
+                            assignment.user for assignment in
+                            SupervisoryLeadershipService._role_users(
+                                SupervisoryLeadershipService.GENERAL_MANAGER,
+                                incident.section,
+                            )
+                        )
+                    SupervisoryLeadershipService._notify(
+                        recipients=recipients, actor=effective_user,
                         title="اكتملت صيانة بلاغ تشغيلي",
                         message=(
                             "اكتملت الصيانة المرتبطة بالبلاغ "
-                            f"{updated_maintenance.source_incident.incident_number}؛ "
-                            "بانتظار تأكيد الإغلاق."
+                            f"{incident.incident_number}؛ بانتظار تأكيد الإغلاق."
                         ),
-                        section=updated_maintenance.source_incident.section,
-                        url="/scheduling/",
+                        section=incident.section, url="/scheduling/",
                         level=Notification.Level.SUCCESS,
                     )
 

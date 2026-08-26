@@ -2,7 +2,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Case, Count, IntegerField, Q, Value, When
+from django.db.models import Case, Count, IntegerField, Prefetch, Q, Value, When
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -42,8 +42,11 @@ from .models import (
     DoorOperationalProfile,
     DoorShift,
     Incident,
+    IncidentSupervisoryAction,
     MaintenanceRequest,
+    LeadershipDelegation,
 )
+from .supervisory_leadership_service import SupervisoryLeadershipService
 from .operations_center_service import OperationsCenterService
 
 
@@ -53,6 +56,159 @@ LIVE_OPERATION_MODULES = (
     "البلاغات",
     "توزيع الأبواب",
 )
+
+
+@login_required
+def supervisory_command_center_view(request, center="department", pk=None):
+    incidents = SupervisoryLeadershipService.visible_incidents(request.user)
+    selected_section = str(request.GET.get("section") or "").strip()
+    if selected_section in {"male", "female"}:
+        incidents = incidents.filter(section=selected_section)
+    selected_status = str(request.GET.get("status") or "open").strip()
+    if selected_status == "open":
+        incidents = incidents.exclude(status__in=(Incident.Status.RESOLVED, Incident.Status.CLOSED))
+    elif selected_status in Incident.Status.values:
+        incidents = incidents.filter(status=selected_status)
+    selected_incident = None
+    if pk is not None:
+        selected_incident = get_object_or_404(incidents, pk=pk)
+    page = Paginator(incidents.order_by("-created_at"), 30).get_page(request.GET.get("page"))
+    action_choices = []
+    probe_section = selected_incident.section if selected_incident else selected_section
+    if not probe_section:
+        probe_section = next(iter(sorted(get_allowed_sections(request.user))), "")
+    role, delegation = SupervisoryLeadershipService.authority(request.user, probe_section)
+    if role:
+        allowed = SupervisoryLeadershipService.ROLE_ACTIONS.get(role, set())
+        action_choices = [
+            choice for choice in IncidentSupervisoryAction.ActionType.choices
+            if choice[0] in allowed
+        ]
+    attention_queue = []
+    if role in {SupervisoryLeadershipService.HEAD, SupervisoryLeadershipService.DEPUTY}:
+        attention_queue = SupervisoryLeadershipService.head_attention_queue(request.user)
+    active_delegations = LeadershipDelegation.objects.none()
+    deputies = []
+    if user_has_role(request.user, SupervisoryLeadershipService.HEAD) or request.user.is_superuser:
+        active_delegations = LeadershipDelegation.objects.filter(
+            principal=request.user, revoked_at__isnull=True, ends_at__gt=timezone.now(),
+        ).select_related("delegate")
+        from apps.roles.models import UserRole
+        deputies = UserRole.objects.filter(
+            role__code=SupervisoryLeadershipService.DEPUTY, role__is_active=True,
+            is_active=True, user__is_active=True,
+        ).select_related("user", "role")
+    return render(request, "ops/supervisory_command_center.html", {
+        "center": center, "page": page, "selected_incident": selected_incident,
+        "selected_section": selected_section, "selected_status": selected_status,
+        "action_choices": action_choices, "authority_role": role,
+        "active_delegation": delegation, "active_delegations": active_delegations,
+        "deputies": deputies,
+        "attention_queue": attention_queue,
+    })
+
+
+@login_required
+@require_POST
+def create_supervisory_action_view(request, pk):
+    incident = get_object_or_404(Incident, pk=pk)
+    try:
+        action = SupervisoryLeadershipService.create_action(
+            incident=incident, actor=request.user,
+            action_type=str(request.POST.get("action_type") or ""),
+            subject=request.POST.get("subject", ""), note=request.POST.get("note", ""),
+        )
+    except ValidationError as error:
+        return JsonResponse({"ok": False, "message": _validation_error_message(error)}, status=400)
+    except PermissionDenied:
+        return JsonResponse({"ok": False, "message": "لا تملك صلاحية هذا الإجراء."}, status=403)
+    return JsonResponse({"ok": True, "action_id": action.pk, "message": "تم تسجيل الإجراء الإشرافي."})
+
+
+def _supervisory_transition_response(callback):
+    try:
+        action = callback()
+    except ValidationError as error:
+        return JsonResponse(
+            {"ok": False, "message": _validation_error_message(error)}, status=400,
+        )
+    except PermissionDenied:
+        return JsonResponse(
+            {"ok": False, "message": "لا تملك صلاحية هذا الانتقال."}, status=403,
+        )
+    return JsonResponse({"ok": True, "action_id": action.pk, "message": "تم تحديث الإجراء الإشرافي."})
+
+
+@login_required
+@require_POST
+def respond_to_update_request_view(request, pk):
+    action = get_object_or_404(IncidentSupervisoryAction, pk=pk)
+    return _supervisory_transition_response(lambda: (
+        SupervisoryLeadershipService.respond_to_update_request(
+            action, request.user, request.POST.get("note", "")
+        )
+    ))
+
+
+@login_required
+@require_POST
+def resolve_update_request_view(request, pk):
+    action = get_object_or_404(IncidentSupervisoryAction, pk=pk)
+    return _supervisory_transition_response(lambda: (
+        SupervisoryLeadershipService.resolve_update_request(action, request.user)
+    ))
+
+
+@login_required
+@require_POST
+def acknowledge_directive_view(request, pk):
+    action = get_object_or_404(IncidentSupervisoryAction, pk=pk)
+    return _supervisory_transition_response(lambda: (
+        SupervisoryLeadershipService.acknowledge_directive(action, request.user)
+    ))
+
+
+@login_required
+@require_POST
+def complete_directive_view(request, pk):
+    action = get_object_or_404(IncidentSupervisoryAction, pk=pk)
+    return _supervisory_transition_response(lambda: (
+        SupervisoryLeadershipService.complete_directive(
+            action, request.user, request.POST.get("note", "")
+        )
+    ))
+
+
+@login_required
+@require_POST
+def create_leadership_delegation_view(request):
+    from django.contrib.auth import get_user_model
+    try:
+        delegation = SupervisoryLeadershipService.create_delegation(
+            principal=request.user,
+            delegate=get_object_or_404(get_user_model(), pk=request.POST.get("delegate")),
+            section=str(request.POST.get("section") or ""),
+            starts_at=_parse_planned_datetime(request.POST.get("starts_at")),
+            ends_at=_parse_planned_datetime(request.POST.get("ends_at")),
+            reason=request.POST.get("reason", ""),
+        )
+    except ValidationError as error:
+        return JsonResponse({"ok": False, "message": _validation_error_message(error)}, status=400)
+    except PermissionDenied:
+        return JsonResponse({"ok": False, "message": "لا تملك صلاحية إنشاء التفويض."}, status=403)
+    return JsonResponse({"ok": True, "delegation_id": delegation.pk, "message": "تم إنشاء التفويض."})
+
+
+@login_required
+@require_POST
+def revoke_leadership_delegation_view(request, pk):
+    delegation = get_object_or_404(LeadershipDelegation, pk=pk)
+    try:
+        SupervisoryLeadershipService.revoke_delegation(delegation, request.user)
+    except (ValidationError, PermissionDenied) as error:
+        status = 403 if isinstance(error, PermissionDenied) else 400
+        return JsonResponse({"ok": False, "message": _validation_error_message(error)}, status=status)
+    return JsonResponse({"ok": True, "message": "تم إلغاء التفويض."})
 
 
 def _parse_planned_datetime(value):
@@ -1364,7 +1520,28 @@ def incidents_view(request):
             "assigned_to",
             "maintenance_request",
         )
-        .prefetch_related("routing_events", "routing_events__actor")
+        .prefetch_related(
+            "routing_events", "routing_events__actor",
+            Prefetch(
+                "supervisory_actions",
+                queryset=IncidentSupervisoryAction.objects.select_related(
+                    "actor", "acting_for", "target_user", "parent",
+                    "acknowledged_by", "completed_by",
+                ).order_by("-created_at", "-pk")[:6],
+                to_attr="latest_supervisory_actions",
+            ),
+            Prefetch(
+                "supervisory_actions",
+                queryset=IncidentSupervisoryAction.objects.filter(
+                    status__in=(
+                        IncidentSupervisoryAction.Status.OPEN,
+                        IncidentSupervisoryAction.Status.ANSWERED,
+                        IncidentSupervisoryAction.Status.ACKNOWLEDGED,
+                    )
+                ).select_related("actor", "target_user", "parent"),
+                to_attr="open_supervisory_actions",
+            ),
+        )
     )
     incidents = incident_scope.order_by("-created_at")
 

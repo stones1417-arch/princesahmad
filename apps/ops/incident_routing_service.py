@@ -142,7 +142,17 @@ class IncidentRoutingService:
             target_level=target,
             note=locked.escalation_note,
         )
-        for user_id in cls._role_users(role_code, locked.section):
+        recipient_ids = set(cls._role_users(role_code, locked.section))
+        if role_code == cls.ROLE_HEAD:
+            from .models import LeadershipDelegation
+
+            recipient_ids.update(LeadershipDelegation.objects.filter(
+                section=locked.section, revoked_at__isnull=True,
+                starts_at__lte=timezone.now(), ends_at__gt=timezone.now(),
+                delegate__is_active=True,
+            ).values_list("delegate_id", flat=True))
+        recipient_ids.discard(getattr(actor, "pk", None))
+        for user_id in recipient_ids:
             Notification.objects.create(
                 user_id=user_id,
                 title="تصعيد بلاغ تشغيلي",

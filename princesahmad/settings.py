@@ -429,6 +429,11 @@ TEMPLATES = [
                 ),
 
                 (
+                    "apps.core.context_processors."
+                    "supervisory_leadership_navigation"
+                ),
+
+                (
                     "apps.roles.context_processors."
                     "platform_access"
                 ),
