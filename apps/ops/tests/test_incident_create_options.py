@@ -166,6 +166,7 @@ class IncidentCreateOptionsTests(TestCase):
 
         self.assertEqual(len(response.context["doors"]), 42)
         self.assertIsNone(response.context["incident_supervisor"])
+        self.assertContains(response, "لا توجد وردية تشغيلية نشطة حاليًا")
 
     def test_general_incident_without_door_is_supported(self):
         self.client.force_login(self.admin)
@@ -327,6 +328,17 @@ class IncidentCreateOptionsTests(TestCase):
             self.assertContains(response, text)
         self.assertContains(response, "incident_center.css")
         self.assertContains(response, "incident_center.js")
+        for marker in (
+            'class="incident-center__header-actions"',
+            'id="incidentCreateDrawer"',
+            'data-create-drawer-open',
+            'class="incident-center__tabs"',
+            'data-incident-tab="verification"',
+            'class="incident-center__attention"',
+            'data-incident-state=',
+        ):
+            self.assertContains(response, marker)
+        self.assertNotContains(response, 'name="assigned_to"')
 
     def test_general_shift_supervisor_is_not_specialist_fallback(self):
         male_door = Door.objects.filter(operational_section="male").first()

@@ -1512,6 +1512,7 @@ def incidents_view(request):
         "can_convert_incident": user_has_permission(request.user, PlatformPermissions.CONVERT_INCIDENT_TO_MAINTENANCE),
         "can_close_incident": user_has_permission(request.user, PlatformPermissions.CLOSE_INCIDENT),
         "can_update_incident": user_has_permission(request.user, PlatformPermissions.UPDATE_INCIDENT),
+        "can_create_incident": user_has_permission(request.user, PlatformPermissions.CREATE_INCIDENT),
 
         "total_incidents": (
             all_incidents.count()
@@ -1550,6 +1551,9 @@ def incidents_view(request):
         "in_progress_incidents": all_incidents.filter(
             status=Incident.Status.IN_PROGRESS
         ).count(),
+        "new_incidents": all_incidents.filter(
+            status=Incident.Status.NEW
+        ).count(),
         "escalated_incidents": all_incidents.exclude(
             escalation_level=Incident.EscalationLevel.NONE
         ).exclude(status__in=closed_statuses).count(),
@@ -1559,6 +1563,21 @@ def incidents_view(request):
         "unassigned_incidents": all_incidents.filter(
             assigned_to__isnull=True
         ).exclude(status__in=closed_statuses).count(),
+        "awaiting_verification_incidents": all_incidents.filter(
+            maintenance_request__status__in=(
+                MaintenanceRequest.Status.DONE,
+                MaintenanceRequest.Status.CLOSED,
+            )
+        ).exclude(status__in=closed_statuses).count(),
+        "attention_incidents": all_incidents.filter(
+            Q(status=Incident.Status.NEW)
+            | Q(assigned_to__isnull=True)
+            | ~Q(escalation_level=Incident.EscalationLevel.NONE)
+            | Q(maintenance_request__status__in=(
+                MaintenanceRequest.Status.DONE,
+                MaintenanceRequest.Status.CLOSED,
+            ))
+        ).exclude(status__in=closed_statuses).order_by("created_at")[:4],
         "active_filters": any((
             status_filter, priority_filter, section_filter, type_filter, query,
             door_filter, assigned_filter, escalation_filter, maintenance_filter,

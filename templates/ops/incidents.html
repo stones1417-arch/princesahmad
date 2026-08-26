@@ -45,11 +45,16 @@
                 <h1>مركز البلاغات التشغيلية</h1>
 
                 <p>
-                    إدارة البلاغات الميدانية ومتابعة معالجتها وتصعيدها وربطها بالصيانة.
+                    متابعة البلاغات الميدانية وتوجيهها ومعالجتها وتصعيدها وربطها بأعمال الصيانة.
                 </p>
 
             </div>
 
+        </div>
+
+        <div class="incident-center__header-actions">
+            {% if can_create_incident %}<button type="button" class="incident-center__create-cta" data-create-drawer-open>+ إنشاء بلاغ تشغيلي</button>{% endif %}
+            <a href="{% url 'ops:incidents' %}" class="incident-center__refresh">تحديث</a>
         </div>
 
         <div class="incidents-header-status">
@@ -220,16 +225,25 @@
 
         </article>
 
+        <article class="incident-stat-card"><div class="incident-stat-content"><span>جديدة</span><strong>{{ new_incidents|default:0 }}</strong></div></article>
         <article class="incident-stat-card"><div class="incident-stat-content"><span>قيد المعالجة</span><strong>{{ in_progress_incidents|default:0 }}</strong></div></article>
         <article class="incident-stat-card"><div class="incident-stat-content"><span>المصعّدة</span><strong>{{ escalated_incidents|default:0 }}</strong></div></article>
         <article class="incident-stat-card"><div class="incident-stat-content"><span>مرتبطة بالصيانة</span><strong>{{ maintenance_incidents|default:0 }}</strong></div></article>
+        <article class="incident-stat-card"><div class="incident-stat-content"><span>بانتظار تحقق المشرف</span><strong>{{ awaiting_verification_incidents|default:0 }}</strong></div></article>
 
     </section>
 
-    {% if unassigned_incidents or escalated_incidents or not incident_supervisor %}
+    <div class="incident-center__context" aria-label="سياق مركز البلاغات">
+        <span>الجهة المالكة: <strong>المركز الهندسي</strong></span><span>الوردية: <strong>{% if active_shift %}{{ active_shift.shift_type.name }}{% else %}غير نشطة{% endif %}</strong></span><span>القسم: <strong>{{ current_section_label }}</strong></span><span class="{% if not incident_supervisor %}is-warning{% endif %}">مشرف البلاغات: <strong>{% if incident_supervisor %}{{ incident_supervisor.employee.full_name }}{% else %}غير معيّن{% endif %}</strong></span>
+    </div>
+    {% if not active_shift %}<section class="incident-center__operational-alert" role="status"><strong>لا توجد وردية تشغيلية نشطة حاليًا.</strong><p>سيتم تسجيل البلاغ وفق العقد الحالي، وقد يبقى بانتظار التعيين.</p></section>{% endif %}
+    {% if active_shift and not incident_supervisor %}<section class="incident-center__operational-alert incident-center__operational-alert--warning" role="alert"><strong>لا يوجد مشرف بلاغات معيّن لهذه الوردية.</strong><p>ستبقى البلاغات الجديدة بانتظار التعيين حتى يتم تسكين مشرف البلاغات.</p>{% if perms.roles.assign_employees %}<a href="{% url 'scheduling:assignments' %}">إدارة تسكين الوردية</a>{% endif %}</section>{% endif %}
+    <section class="incident-center__leadership" aria-labelledby="incidentLeadershipTitleTop"><div><span class="incident-center__eyebrow">قيادة البلاغات الحالية</span><h2 id="incidentLeadershipTitleTop">مشرف البلاغات</h2></div>{% if incident_supervisor %}<div class="incident-center__leader-person"><strong>{{ incident_supervisor.employee.full_name }}</strong><span>مشرف البلاغات · {{ current_section_label }}</span><small>حالة التكليف: مُعيّن</small></div>{% else %}<div class="incident-center__leader-missing"><strong>غير معيّن</strong><span>بانتظار تسكين مشرف البلاغات عبر القيادة التشغيلية للوردية.</span><small>حالة التكليف: غير معيّن</small></div>{% endif %}</section>
+
+    {% if new_incidents or unassigned_incidents or escalated_incidents or awaiting_verification_incidents or not incident_supervisor %}
     <section class="incident-center__attention" aria-labelledby="incidentAttentionTitle">
         <h2 id="incidentAttentionTitle">تحتاج انتباهك الآن</h2>
-        <div>{% if not incident_supervisor %}<span>لا يوجد مشرف بلاغات للوردية الحالية</span>{% endif %}{% if unassigned_incidents %}<span>{{ unassigned_incidents }} بلاغ دون مسؤول</span>{% endif %}{% if escalated_incidents %}<span>{{ escalated_incidents }} بلاغ مصعّد</span>{% endif %}</div>
+        <div>{% if not incident_supervisor %}<span>لا يوجد مشرف بلاغات للوردية الحالية</span>{% endif %}{% for item in attention_incidents %}<button type="button" data-incident-detail="incident-detail-{{ item.id }}"><strong>{{ item.incident_number }}</strong><small>{% if item.door %}باب {{ item.door.door_number }}{% else %}بلاغ عام{% endif %} · {{ item.get_status_display }}</small><span>فتح البلاغ</span></button>{% endfor %}</div>
     </section>
     {% endif %}
 
@@ -238,7 +252,7 @@
          إنشاء بلاغ تشغيلي
     ================================================== -->
 
-    <section class="incidents-card incident-create-card">
+    <dialog id="incidentCreateDrawer" class="incident-center__create-drawer" aria-labelledby="incidentCreateTitle"><section class="incidents-card incident-create-card">
 
         <div class="incidents-card-header">
 
@@ -250,7 +264,7 @@
 
                 <div>
 
-                    <h2>
+                    <h2 id="incidentCreateTitle">
                         إنشاء بلاغ تشغيلي
                     </h2>
 
@@ -267,9 +281,7 @@
 
             </div>
 
-            <span class="incidents-card-label">
-                بلاغ جديد
-            </span>
+            <button type="button" data-create-drawer-close aria-label="إغلاق نموذج إنشاء البلاغ">×</button>
 
         </div>
 
@@ -621,7 +633,11 @@
 
         </form>
 
-    </section>    <!-- ==================================================
+    </section></dialog>
+
+    <nav class="incident-center__tabs" aria-label="تصنيف البلاغات"><button type="button" data-incident-tab="all" aria-current="page">الكل <small>{{ total_incidents }}</small></button><button type="button" data-incident-tab="new">الجديدة <small>{{ new_incidents }}</small></button><button type="button" data-incident-tab="in_progress">قيد المعالجة <small>{{ in_progress_incidents }}</small></button><button type="button" data-incident-tab="escalated">المصعّدة <small>{{ escalated_incidents }}</small></button><button type="button" data-incident-tab="maintenance">الصيانة <small>{{ maintenance_incidents }}</small></button><button type="button" data-incident-tab="verification">بانتظار التحقق <small>{{ awaiting_verification_incidents }}</small></button><button type="button" data-incident-tab="closed">المغلقة <small>{{ closed_today }}</small></button></nav>
+
+    <!-- ==================================================
          البحث والتصفية
     ================================================== -->
 
@@ -874,7 +890,7 @@
 
                         <th>المبلغ</th>
 
-                        <th>محول إلى</th>
+                        <th>المسؤول الحالي / الصيانة</th>
 
                         <th>التاريخ</th>
 
@@ -889,7 +905,7 @@
                     {% for incident in incidents %}
 
                     <tr
-                        data-id="{{ incident.id }}"
+                        data-id="{{ incident.id }}" data-incident-state="{{ incident.status }}{% if incident.escalation_level != 'none' %} escalated{% endif %}{% if incident.maintenance_request %} maintenance{% endif %}{% if incident.maintenance_request.status == 'done' or incident.maintenance_request.status == 'closed' %} verification{% endif %}"
                     >
 
                         <td>
@@ -970,16 +986,13 @@
 
                         <td>
 
-                            {{ incident.assigned_to_name|default:"بانتظار التعيين" }}
-                            <br>
-                            <small>{{ incident.get_escalation_level_display }}</small>
+                            {% if incident.assigned_to %}<strong>{{ incident.assigned_to_name }}</strong><br><small>مشرف البلاغات</small>{% else %}<span class="incident-center__unassigned">بانتظار التعيين</span>{% endif %}
                             {% if incident.maintenance_request %}
                                 <br>
                                 <small>
-                                    صيانة: {{ incident.maintenance_request.request_number }}
-                                    — {{ incident.maintenance_request.get_status_display }}
+                                    {{ incident.maintenance_request.request_number }} · {{ incident.maintenance_request.get_status_display }}{% if incident.maintenance_request.status == "done" or incident.maintenance_request.status == "closed" %} · ينتظر التحقق{% endif %}
                                 </small>
-                            {% endif %}
+                            {% else %}<br><small>الصيانة: غير مرتبط</small>{% endif %}
 
                         </td>
 
@@ -999,20 +1012,23 @@
 
                         <td>
 
-                            {% if can_update_incident and incident.status != "closed" %}<button
+                            {% if can_close_incident and incident.status != "closed" and incident.status != "resolved" and incident.maintenance_request and incident.maintenance_request.status == "done" %}<button type="button" class="incident-close-button incident-center__primary-action" data-action-url="{% url 'ops:incident-update' incident.id %}" data-number="{{ incident.incident_number }}">التحقق والإغلاق</button>
+                            {% elif can_close_incident and incident.status != "closed" and incident.status != "resolved" and incident.maintenance_request and incident.maintenance_request.status == "closed" %}<button type="button" class="incident-close-button incident-center__primary-action" data-action-url="{% url 'ops:incident-update' incident.id %}" data-number="{{ incident.incident_number }}">التحقق والإغلاق</button>
+                            {% elif can_update_incident and incident.status != "closed" and incident.status != "resolved" %}<button
                                 type="button"
-                                class="incident-update-button"
+                                class="incident-update-button incident-center__primary-action"
                                 data-incident-id="{{ incident.id }}"
                                 data-update-url="{% url 'ops:incident-update' incident.id %}"
                             >
 
-                                بدء المعالجة
+                                {% if incident.status == "new" %}بدء المعالجة{% else %}إضافة تحديث{% endif %}
 
                             </button>{% endif %}
 
-                            {% if can_escalate_incident or can_convert_incident or can_close_incident or incident.maintenance_request %}<details class="incident-center__actions-menu">
+                            {% if incident.status != "closed" and incident.status != "resolved" %}{% if can_escalate_incident or can_convert_incident or can_close_incident or incident.maintenance_request %}<details class="incident-center__actions-menu">
                             <summary>إجراءات أخرى</summary>
                             <div>
+                            {% if can_update_incident and incident.status != "closed" and incident.status != "resolved" %}<button type="button" class="incident-center__detail-button" data-incident-detail="incident-detail-{{ incident.id }}">عرض التفاصيل</button>{% endif %}
                             {% if can_escalate_incident and incident.escalation_level != "general_manager" %}
                                 <button type="button" class="incident-escalate-button"
                                     data-action-url="{% url 'ops:incident-escalate' incident.id %}"
@@ -1041,7 +1057,7 @@
                             {% endif %}
 
                             {% if can_close_incident and incident.status != "closed" %}
-                                {% if not incident.maintenance_request or incident.maintenance_request.status == "done" or incident.maintenance_request.status == "closed" %}
+                                {% if not incident.maintenance_request %}
                                     <button type="button" class="incident-close-button"
                                         data-action-url="{% url 'ops:incident-update' incident.id %}"
                                         data-number="{{ incident.incident_number }}">
@@ -1050,18 +1066,21 @@
                                 {% endif %}
                             {% endif %}
                             </div>
-                            </details>{% endif %}
+                            </details>{% endif %}{% endif %}
 
-                            <button type="button" class="incident-center__detail-button" data-incident-detail="incident-detail-{{ incident.id }}">عرض التفاصيل</button>
+                            {% if not can_update_incident or incident.status == "closed" or incident.status == "resolved" %}<button type="button" class="incident-center__detail-button incident-center__primary-action" data-incident-detail="incident-detail-{{ incident.id }}">عرض التفاصيل</button>{% endif %}
                             <details class="incident-routing-details" id="incident-detail-{{ incident.id }}">
                                 <summary>مسار البلاغ</summary>
                                 <h3>{{ incident.incident_number }}</h3>
+                                <h4>معلومات البلاغ</h4>
                                 <p>الوصف: {{ incident.description }}</p>
                                 <p>المبلّغ: {{ incident.reported_by_name|default:"—" }}</p>
                                 <p>القسم: {{ incident.get_section_display|default:incident.section }}</p>
                                 <p>الوردية: {{ incident.shift_plan|default:"بدون وردية نشطة" }}</p>
-                                <p>المسؤول التنفيذي: {{ incident.assigned_to_name|default:"بانتظار التعيين" }}</p>
+                                <h4>المسؤولية الحالية</h4><p>المسؤول التنفيذي: {{ incident.assigned_to_name|default:"بانتظار تعيين مشرف البلاغات" }}</p><p>الدور: مشرف البلاغات</p>
+                                <h4>التصعيد</h4>
                                 <p>التصعيد: {{ incident.get_escalation_level_display }}</p>
+                                <h4>الصيانة</h4>
                                 {% if incident.maintenance_request %}
                                     <p>
                                         طلب الصيانة: {{ incident.maintenance_request.request_number }}
@@ -1070,7 +1089,9 @@
                                     {% if incident.maintenance_request.status == "done" or incident.maintenance_request.status == "closed" %}
                                         <p>اكتملت الصيانة — بانتظار تأكيد مشرف البلاغات</p>
                                     {% endif %}
-                                {% endif %}
+                                    <p class="incident-center__maintenance-flow">مشرف البلاغات ← مشرف العمليات ← مشرف الصيانة ← مشرف البلاغات</p>
+                                {% else %}<p>لا يوجد طلب صيانة مرتبط.</p>{% endif %}
+                                <h4>المسار الزمني</h4>
                                 <ol>
                                     {% for event in incident.routing_events.all %}
                                         <li>
@@ -1127,24 +1148,6 @@
 
         </div>
 
-    </section>
-
-    <div class="incident-center__context" aria-label="سياق مركز البلاغات">
-        <span>الجهة المالكة: <strong>المركز الهندسي</strong></span>
-        <span>الوردية: <strong>{% if active_shift %}{{ active_shift.shift_type.name }}{% else %}لا توجد وردية نشطة{% endif %}</strong></span>
-        <span>القسم: <strong>{{ current_section_label }}</strong></span>
-        <span class="{% if not incident_supervisor %}is-warning{% endif %}">مشرف البلاغات: <strong>{% if incident_supervisor %}{{ incident_supervisor.employee.full_name }}{% else %}غير معيّن{% endif %}</strong></span>
-        <a href="{% url 'ops:incidents' %}" aria-label="تحديث مركز البلاغات">تحديث</a>
-    </div>
-
-    <section class="incident-center__leadership" aria-labelledby="incidentLeadershipTitle">
-        <div><span class="incident-center__eyebrow">قيادة البلاغات الحالية</span><h2 id="incidentLeadershipTitle">مشرف البلاغات</h2></div>
-        {% if incident_supervisor %}
-            <div class="incident-center__leader-person"><strong>{{ incident_supervisor.employee.full_name }}</strong><span>مشرف البلاغات · {{ incident_supervisor.employee.operational_section_label }}</span><small>حالة التكليف: معيّن</small></div>
-        {% else %}
-            <div class="incident-center__leader-missing"><strong>لا يوجد مشرف بلاغات معيّن لهذه الوردية.</strong><span>ستبقى البلاغات الجديدة بانتظار التعيين حتى يتم تسكين المسؤول.</span></div>
-            {% if perms.roles.assign_employees %}<a href="{% url 'scheduling:assignments' %}">إدارة تسكين الوردية</a>{% endif %}
-        {% endif %}
     </section>
 
     <dialog id="incidentCenterDrawer" class="incident-center__drawer" aria-labelledby="incidentDrawerTitle">
