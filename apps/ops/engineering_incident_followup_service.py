@@ -1,6 +1,7 @@
 from typing import ClassVar
 
 from django.db.models import Case, IntegerField, Q, Value, When
+from django.urls import reverse
 from django.utils import timezone
 
 from .incident_routing_service import IncidentRoutingService
@@ -11,14 +12,14 @@ class EngineeringIncidentFollowupService:
     CLOSED = (Incident.Status.RESOLVED, Incident.Status.CLOSED)
     EVENT_LABELS: ClassVar[dict[str, str]] = {
         "created": "تم إنشاء البلاغ",
-        "assigned": "وصل إلى مركز الوردية وتم إسناده",
-        "processing_started": "بدأ مشرف الوردية المعالجة",
+        "assigned": "تم إسناد البلاغ إلى مشرف البلاغات",
+        "processing_started": "بدأ مشرف البلاغات المعالجة",
         "escalated": "تم تصعيد البلاغ",
         "converted_to_maintenance": "تم تحويل البلاغ للصيانة",
         "maintenance_approved": "اعتمد مركز العمليات طلب الصيانة",
         "maintenance_started": "بدأت أعمال الصيانة",
         "maintenance_completed": "اكتملت أعمال الصيانة",
-        "closed": "أغلق مشرف الوردية البلاغ",
+        "closed": "أغلق مشرف البلاغات البلاغ",
     }
 
     @classmethod
@@ -29,7 +30,7 @@ class EngineeringIncidentFollowupService:
         if maintenance and maintenance.status in {
             MaintenanceRequest.Status.DONE, MaintenanceRequest.Status.CLOSED,
         }:
-            return "awaiting_close", "اكتملت الصيانة — بانتظار تأكيد مشرف الوردية"
+            return "awaiting_close", "اكتملت الصيانة — بانتظار تحقق مشرف البلاغات"
         if maintenance and maintenance.status == MaintenanceRequest.Status.IN_PROGRESS:
             return "maintenance", "الصيانة قيد التنفيذ"
         if maintenance:
@@ -47,11 +48,13 @@ class EngineeringIncidentFollowupService:
         if incident.status == Incident.Status.IN_PROGRESS:
             return "processing", "قيد المعالجة"
         if incident.assigned_to_id:
-            return "shift_center", "وصل إلى مركز الوردية"
+            return "assigned", "تم تعيين مشرف البلاغات"
         return "unassigned", "بانتظار التعيين"
 
     @classmethod
-    def build(cls, *, door, user, can_view_maintenance_details=False):
+    def build(cls, *, door, user, active_shift=None, incident_supervisor=None,
+              section_label="النطاق التشغيلي", door_status_label="متاح",
+              can_view_maintenance_details=False):
         queryset = IncidentRoutingService.visible_incidents(
             Incident.objects.filter(
                 Q(door=door) | Q(door_shift__door_number=door.door_number)
@@ -76,8 +79,22 @@ class EngineeringIncidentFollowupService:
         ]
         return {
             "door": {"id": door.pk, "number": door.door_number},
+            "context": {
+                "section": section_label,
+                "status": door_status_label,
+                "owner": "المركز الهندسي",
+            },
+            "supervisor": ({
+                "name": incident_supervisor.employee.full_name,
+                "role": "مشرف البلاغات",
+                "shift": str(active_shift),
+                "section": getattr(incident_supervisor.employee, "get_operational_section_display", lambda: "")(),
+            } if incident_supervisor else None),
+            "incident_center_url": f'{reverse("ops:incidents")}?door={door.pk}',
+            "create_url": reverse("ops:engineering-incident-create", args=[door.pk]),
             "summary": {
                 "open": sum(item.status not in cls.CLOSED for item in incidents),
+                "today": sum(timezone.localdate(item.created_at) == today for item in incidents),
                 "processing": sum(item.status == Incident.Status.IN_PROGRESS for item in incidents),
                 "escalated": sum(item.escalation_level != Incident.EscalationLevel.NONE for item in incidents),
                 "maintenance": sum(hasattr(item, "maintenance_request") for item in incidents),
@@ -95,7 +112,7 @@ class EngineeringIncidentFollowupService:
         for index, event in enumerate(events):
             label = cls.EVENT_LABELS.get(event.event_type, event.get_event_type_display())
             if event.note and event.event_type == IncidentRoutingEvent.EventType.PROCESSING_STARTED:
-                label = "تحديث من مركز الوردية"
+                label = "تحديث من مشرف البلاغات"
             if event.event_type == IncidentRoutingEvent.EventType.ESCALATED:
                 label = "تم التصعيد إلى المدير العام" if event.target_level == Incident.EscalationLevel.GENERAL_MANAGER else "تم التصعيد إلى رئيس قسم الأبواب"
             serialized_events.append({
@@ -114,7 +131,7 @@ class EngineeringIncidentFollowupService:
             "stage_label": stage_label, "description": incident.description,
             "created_at": timezone.localtime(incident.created_at).strftime("%Y-%m-%d %H:%M"),
             "waiting_seconds": max(0, int((timezone.now() - incident.created_at).total_seconds())),
-            "assignee": incident.assigned_to_name or "بانتظار التعيين",
+            "assignee": incident.assigned_to_name or "بانتظار تعيين مشرف البلاغات",
             "escalation": incident.get_escalation_level_display(),
             "escalation_note": incident.escalation_note,
             "escalated_by": (incident.escalated_by.get_full_name() or incident.escalated_by.username) if incident.escalated_by else "",

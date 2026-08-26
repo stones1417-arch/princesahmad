@@ -138,6 +138,10 @@ class EngineeringCenterClosureTests(TestCase):
         door_6b = Door.objects.get(door_number="6B")
         self.assertContains(response, f"?engineering_door={door_6a.pk}&amp;create=1")
         self.assertContains(response, f"?engineering_door={door_6b.pk}&amp;create=1")
+        self.assertContains(response, reverse("ops:engineering-incident-create", args=[door_6a.pk]))
+        content = response.content.decode()
+        first_card = content.split('class="engineering-card ', 1)[1].split("</article>", 1)[0]
+        self.assertLess(first_card.index("إنشاء بلاغ تشغيلي"), first_card.index("متابعة البلاغات"))
 
     def test_view_only_user_cannot_see_privileged_quick_actions_or_links(self):
         self.client.force_login(self.viewer)
@@ -413,7 +417,7 @@ class EngineeringCenterClosureTests(TestCase):
         record = Record()
         self.assertEqual(EngineeringIncidentFollowupService.operational_stage(record)[0], "unassigned")
         record.assigned_to_id = self.admin.pk
-        self.assertEqual(EngineeringIncidentFollowupService.operational_stage(record)[0], "shift_center")
+        self.assertEqual(EngineeringIncidentFollowupService.operational_stage(record)[0], "assigned")
         record.status = Incident.Status.IN_PROGRESS
         self.assertEqual(EngineeringIncidentFollowupService.operational_stage(record)[0], "processing")
         record.escalation_level = Incident.EscalationLevel.DEPARTMENT_HEAD
@@ -439,7 +443,8 @@ class EngineeringCenterClosureTests(TestCase):
             )
         self.client.force_login(self.admin)
         url = reverse("ops:door-incident-followup", args=[door.pk])
-        with self.assertNumQueries(11):
+        # Includes one bounded lookup for the active shift/specialist card.
+        with self.assertNumQueries(12):
             first = self.client.get(url)
         incident = Incident.objects.filter(door=door).order_by("created_at").first()
         incident.status = Incident.Status.IN_PROGRESS

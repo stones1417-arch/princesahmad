@@ -507,12 +507,30 @@ def door_status_view(request):
 def door_incident_followup_ajax(request, pk):
     _require_ops_permission(request, PlatformPermissions.VIEW_DOORS)
     door = get_object_or_404(
-        filter_doors_for_user(Door.objects.filter(is_active=True), request.user),
+        filter_doors_for_user(
+            Door.objects.filter(is_active=True).select_related("current_state"), request.user
+        ),
         pk=pk,
     )
+    active_shift = _get_active_shift()
+    supervisor = leadership_for_shift(active_shift).get(
+        ShiftOperationalLeadership.Responsibility.INCIDENT_SUPERVISOR
+    )
+    allowed_sections = None if request.user.is_superuser else get_allowed_sections(request.user)
+    section_label = (
+        "جميع الأقسام" if allowed_sections is None
+        else "رجالي" if allowed_sections == {"male"}
+        else "نسائي" if allowed_sections == {"female"}
+        else "نطاق مشترك"
+    )
+    current_state = getattr(door, "current_state", None)
     return JsonResponse(EngineeringIncidentFollowupService.build(
         door=door,
         user=request.user,
+        active_shift=active_shift,
+        incident_supervisor=supervisor,
+        section_label=section_label,
+        door_status_label=current_state.get_state_display() if current_state else "غير محدد",
         can_view_maintenance_details=user_has_permission(
             request.user, PlatformPermissions.VIEW_MAINTENANCE_REQUESTS
         ),
