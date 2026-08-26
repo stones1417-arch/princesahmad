@@ -63,28 +63,24 @@ def account_registration_badges(request):
 
 
 def supervisory_leadership_navigation(request):
-    """Expose exactly one role-appropriate leadership center in global navigation."""
+    """Expose Arabic, permission-aware leadership navigation entries."""
     user = request.user
     if not user.is_authenticated or not user.is_active:
-        return {"supervisory_leadership_url_name": ""}
+        return {
+            "supervisory_leadership_url_name": "",
+            "supervisory_leadership_centers": [],
+        }
+    centers = []
     if user.is_superuser or user_has_role(user, "doors_department_head"):
-        name = "ops:department-command-center"
-    elif user_has_role(user, "general_manager"):
-        name = "ops:executive-command-center"
-    elif user_has_role(user, "senior_administrator"):
-        name = "ops:administrative-command-center"
-    elif user_has_role(user, "doors_department_deputy"):
-        from django.utils import timezone
-        from apps.ops.models import LeadershipDelegation
-
-        name = (
-            "ops:department-command-center"
-            if LeadershipDelegation.objects.filter(
-                delegate=user, revoked_at__isnull=True,
-                starts_at__lte=timezone.now(), ends_at__gt=timezone.now(),
-            ).exists()
-            else ""
-        )
-    else:
-        name = ""
-    return {"supervisory_leadership_url_name": name}
+        centers.append(("ops:department-command-center", "مركز قيادة قسم الأبواب"))
+    if user_has_role(user, "doors_department_deputy"):
+        centers.append(("ops:department-command-center", "مركز قيادة قسم الأبواب"))
+    if user_has_role(user, "senior_administrator"):
+        centers.append(("ops:administrative-command-center", "مركز المتابعة الإدارية"))
+    if user_has_role(user, "general_manager"):
+        centers.append(("ops:executive-command-center", "مركز القيادة التنفيذية"))
+    centers = list(dict.fromkeys(centers))
+    return {
+        "supervisory_leadership_url_name": centers[0][0] if centers else "",
+        "supervisory_leadership_centers": centers,
+    }

@@ -132,6 +132,69 @@ class SupervisoryLeadershipTests(TestCase):
         self.assertEqual(detail.status_code, 200)
         self.assertContains(detail, "المسؤول التنفيذي")
 
+    def test_command_center_ui_uses_arabic_role_identity_and_compact_empty_state(self):
+        self.client.force_login(self.users["doors_department_head"])
+        response = self.client.get(reverse("ops:department-command-center"))
+        self.assertContains(response, "مركز قيادة قسم الأبواب")
+        self.assertContains(response, "الدور: رئيس قسم الأبواب")
+        self.assertContains(response, "لا توجد حالات تحتاج قرارك حاليًا")
+        self.assertNotContains(response, "نطاقك الحالي: doors_department_head")
+        self.assertNotContains(response, "تفاصيل البلاغ")
+        self.assertContains(response, "supervisory_command_center.css")
+        self.assertContains(response, "supervisory_command_center.js")
+
+    def test_role_specific_centers_render_only_the_active_identity(self):
+        cases = (
+            ("senior_administrator", "administrative-command-center", "مركز المتابعة الإدارية", "المتابعات المفتوحة"),
+            ("general_manager", "executive-command-center", "مركز القيادة التنفيذية", "قرارات تنتظر المدير العام"),
+        )
+        for role, route, title, queue_title in cases:
+            with self.subTest(role=role):
+                self.client.force_login(self.users[role])
+                response = self.client.get(reverse(f"ops:{route}"))
+                self.assertContains(response, title)
+                self.assertContains(response, queue_title)
+                self.assertNotContains(response, "مركز رئيس القسم")
+
+    def test_deputy_ui_is_read_only_without_delegation_and_active_with_it(self):
+        deputy = self.users["doors_department_deputy"]
+        self.client.force_login(deputy)
+        response = self.client.get(reverse("ops:department-command-center"))
+        self.assertContains(response, "لا يوجد تفويض نشط")
+        self.assertNotContains(response, "تسجيل إجراء")
+        now = timezone.now()
+        SupervisoryLeadershipService.create_delegation(
+            principal=self.users["doors_department_head"], delegate=deputy,
+            section="male", starts_at=now - timedelta(minutes=1),
+            ends_at=now + timedelta(hours=1), reason="تغطية مؤقتة",
+        )
+        response = self.client.get(reverse("ops:department-command-center"))
+        self.assertContains(response, "تفويض نشط")
+        self.assertContains(response, "تعمل بالنيابة عن رئيس قسم الأبواب")
+
+    def test_detail_is_a_drawer_with_responsibility_and_operational_blocks(self):
+        self.client.force_login(self.users["doors_department_head"])
+        response = self.client.get(
+            reverse("ops:supervisory-incident-detail", args=[self.incident.pk])
+        )
+        self.assertContains(response, 'class="supervisory-center-drawer"')
+        self.assertContains(response, "المسؤول التنفيذي عن البلاغ")
+        self.assertContains(response, "تبقى المسؤولية التنفيذية")
+        self.assertContains(response, "المسار الإشرافي")
+        self.assertContains(response, "طلبات التحديث والتوجيهات والمتابعة الإدارية")
+        self.assertContains(response, "لا يوجد طلب صيانة مرتبط")
+        self.assertContains(response, "الخط الزمني")
+
+    def test_center_switcher_is_permission_aware_and_marks_current_center(self):
+        senior_role = UserRole.objects.get(user=self.users["senior_administrator"]).role
+        UserRole.objects.create(user=self.users["doors_department_head"], role=senior_role)
+        self.client.force_login(self.users["doors_department_head"])
+        response = self.client.get(reverse("ops:department-command-center"))
+        self.assertContains(response, "مراكز القيادة")
+        self.assertContains(response, "قيادة قسم الأبواب")
+        self.assertContains(response, "المتابعة الإدارية")
+        self.assertContains(response, 'aria-selected="true"')
+
     def test_incident_list_query_is_bounded(self):
         query = SupervisoryLeadershipService.visible_incidents(
             self.users["doors_department_head"]

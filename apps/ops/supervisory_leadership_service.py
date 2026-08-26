@@ -117,7 +117,7 @@ class SupervisoryLeadershipService:
         """Return only cases requiring a head decision, in deterministic priority order."""
         incidents = list(cls.visible_incidents(user).exclude(
             status__in=(Incident.Status.RESOLVED, Incident.Status.CLOSED),
-        ))
+        )[:50])
         queue = []
         open_states = {
             IncidentSupervisoryAction.Status.OPEN,
@@ -170,6 +170,47 @@ class SupervisoryLeadershipService:
             item.attention_rank, -item.latest_supervisory_action.pk
             if item.latest_supervisory_action else 0, item.pk,
         ))
+
+    @classmethod
+    def center_attention_queue(cls, user, center):
+        """Build a bounded, presentation-only queue for the active command center."""
+        if center == "department":
+            return cls.head_attention_queue(user)
+
+        incidents = list(cls.visible_incidents(user).exclude(
+            status__in=(Incident.Status.RESOLVED, Incident.Status.CLOSED),
+        )[:50])
+        open_states = {
+            IncidentSupervisoryAction.Status.OPEN,
+            IncidentSupervisoryAction.Status.ANSWERED,
+            IncidentSupervisoryAction.Status.ACKNOWLEDGED,
+        }
+        queue = []
+        for incident in incidents:
+            actions = list(incident.supervisory_actions.all())
+            if center == "administrative":
+                relevant = [item for item in actions if item.action_type in {
+                    IncidentSupervisoryAction.ActionType.REQUEST_UPDATE,
+                    IncidentSupervisoryAction.ActionType.ADMINISTRATIVE_NOTE,
+                    IncidentSupervisoryAction.ActionType.ADMINISTRATIVE_ALERT,
+                } and item.status in open_states]
+                reason = "متابعة إدارية مفتوحة"
+            else:
+                relevant = [item for item in actions if item.action_type in {
+                    IncidentSupervisoryAction.ActionType.EXECUTIVE_DIRECTIVE,
+                    IncidentSupervisoryAction.ActionType.RETURN_TO_FOLLOWUP,
+                    IncidentSupervisoryAction.ActionType.REQUEST_UPDATE,
+                } and item.status in open_states]
+                if incident.escalation_level == Incident.EscalationLevel.GENERAL_MANAGER:
+                    relevant.append(None)
+                reason = "قرار تنفيذي ينتظر المراجعة"
+            if relevant:
+                incident.attention_reason = reason
+                incident.latest_supervisory_action = next(
+                    (item for item in actions if item is not None), None
+                )
+                queue.append(incident)
+        return queue
 
     @classmethod
     @transaction.atomic

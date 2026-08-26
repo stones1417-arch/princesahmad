@@ -60,6 +60,22 @@ LIVE_OPERATION_MODULES = (
 
 @login_required
 def supervisory_command_center_view(request, center="department", pk=None):
+    role_centers = []
+    if request.user.is_superuser or user_has_role(request.user, SupervisoryLeadershipService.HEAD):
+        role_centers.append(("department", "قيادة قسم الأبواب", "ops:department-command-center"))
+    if user_has_role(request.user, SupervisoryLeadershipService.DEPUTY):
+        role_centers.append(("department", "قيادة قسم الأبواب", "ops:department-command-center"))
+    if user_has_role(request.user, SupervisoryLeadershipService.SENIOR_ADMIN):
+        role_centers.append(("administrative", "المتابعة الإدارية", "ops:administrative-command-center"))
+    if user_has_role(request.user, SupervisoryLeadershipService.GENERAL_MANAGER):
+        role_centers.append(("executive", "القيادة التنفيذية", "ops:executive-command-center"))
+    role_centers = list(dict.fromkeys(role_centers))
+    if not role_centers:
+        raise PermissionDenied
+    active_center = role_centers[0][0] if center == "detail" else center
+    if active_center not in {item[0] for item in role_centers}:
+        raise PermissionDenied
+
     incidents = SupervisoryLeadershipService.visible_incidents(request.user)
     selected_section = str(request.GET.get("section") or "").strip()
     if selected_section in {"male", "female"}:
@@ -72,7 +88,8 @@ def supervisory_command_center_view(request, center="department", pk=None):
     selected_incident = None
     if pk is not None:
         selected_incident = get_object_or_404(incidents, pk=pk)
-    page = Paginator(incidents.order_by("-created_at"), 30).get_page(request.GET.get("page"))
+    ordered_incidents = incidents.order_by("-updated_at", "-pk")
+    page = Paginator(ordered_incidents, 30).get_page(request.GET.get("page"))
     action_choices = []
     probe_section = selected_incident.section if selected_incident else selected_section
     if not probe_section:
@@ -84,9 +101,77 @@ def supervisory_command_center_view(request, center="department", pk=None):
             choice for choice in IncidentSupervisoryAction.ActionType.choices
             if choice[0] in allowed
         ]
-    attention_queue = []
-    if role in {SupervisoryLeadershipService.HEAD, SupervisoryLeadershipService.DEPUTY}:
-        attention_queue = SupervisoryLeadershipService.head_attention_queue(request.user)
+    display_role = next((code for code in (
+        SupervisoryLeadershipService.GENERAL_MANAGER,
+        SupervisoryLeadershipService.HEAD,
+        SupervisoryLeadershipService.SENIOR_ADMIN,
+        SupervisoryLeadershipService.DEPUTY,
+    ) if user_has_role(request.user, code)), SupervisoryLeadershipService.HEAD if request.user.is_superuser else "")
+    role_labels = {
+        SupervisoryLeadershipService.HEAD: "رئيس قسم الأبواب",
+        SupervisoryLeadershipService.DEPUTY: "وكيل رئيس قسم الأبواب",
+        SupervisoryLeadershipService.SENIOR_ADMIN: "كبير الإداريين",
+        SupervisoryLeadershipService.GENERAL_MANAGER: "المدير العام",
+    }
+    center_config = {
+        "department": {
+            "title": "مركز قيادة قسم الأبواب",
+            "subtitle": "متابعة الحالات المصعّدة واتخاذ القرارات والتوجيهات الإشرافية.",
+            "queue_title": "تحتاج قرارك",
+            "empty_title": "لا توجد حالات تحتاج قرارك حاليًا.",
+            "empty_text": "ستظهر هنا الحالات المصعّدة أو التي تنتظر إجراءً إشرافيًا.",
+        },
+        "administrative": {
+            "title": "مركز المتابعة الإدارية",
+            "subtitle": "متابعة الحالات والتحديثات والتنبيهات والتوجيهات الإدارية.",
+            "queue_title": "المتابعات المفتوحة",
+            "empty_title": "لا توجد متابعات إدارية مفتوحة.",
+            "empty_text": "ستظهر هنا طلبات التحديث والتنبيهات الإدارية المفتوحة.",
+        },
+        "executive": {
+            "title": "مركز القيادة التنفيذية",
+            "subtitle": "مراجعة الحالات المصعّدة واتخاذ القرارات والتوجيهات التنفيذية.",
+            "queue_title": "قرارات تنتظر المدير العام",
+            "empty_title": "لا توجد قرارات تنفيذية معلّقة.",
+            "empty_text": "ستظهر هنا الحالات المصعّدة إلى القيادة التنفيذية.",
+        },
+    }[active_center]
+    attention_queue = SupervisoryLeadershipService.center_attention_queue(
+        request.user, active_center
+    )
+    action_rows = IncidentSupervisoryAction.objects.filter(
+        incident__in=incidents,
+    )
+    open_action_rows = action_rows.filter(status__in=(
+        IncidentSupervisoryAction.Status.OPEN,
+        IncidentSupervisoryAction.Status.ANSWERED,
+        IncidentSupervisoryAction.Status.ACKNOWLEDGED,
+    ))
+    if active_center == "department":
+        kpis = [
+            ("قرار", len(attention_queue), "تحتاج قرارك", "حالات تنتظر تدخلك"),
+            ("تصعيد", incidents.filter(escalation_level=Incident.EscalationLevel.DEPARTMENT_HEAD).count(), "مصعّدة للقسم", "ضمن النطاق الإشرافي"),
+            ("تحديث", open_action_rows.filter(action_type=IncidentSupervisoryAction.ActionType.REQUEST_UPDATE).count(), "طلبات تحديث مفتوحة", "بانتظار رد أو مراجعة"),
+            ("رد", open_action_rows.filter(action_type=IncidentSupervisoryAction.ActionType.REQUEST_UPDATE, status=IncidentSupervisoryAction.Status.ANSWERED).count(), "ردود تنتظر المراجعة", "ردود مرتبطة بطلبات"),
+            ("توجيه", open_action_rows.filter(action_type=IncidentSupervisoryAction.ActionType.SUPERVISORY_DIRECTIVE).count(), "توجيهات مفتوحة", "بانتظار الاستلام أو الإنجاز"),
+            ("تنفيذي", incidents.filter(escalation_level=Incident.EscalationLevel.GENERAL_MANAGER).count(), "مصعّدة للمدير العام", "ضمن القيادة التنفيذية"),
+        ]
+    elif active_center == "administrative":
+        kpis = [
+            ("متابعة", len(attention_queue), "متابعات مفتوحة", "تحتاج متابعة إدارية"),
+            ("تحديث", open_action_rows.filter(action_type=IncidentSupervisoryAction.ActionType.REQUEST_UPDATE).count(), "طلبات تحديث", "بانتظار رد أو مراجعة"),
+            ("تنبيه", open_action_rows.filter(action_type=IncidentSupervisoryAction.ActionType.ADMINISTRATIVE_ALERT).count(), "تنبيهات إدارية", "تنبيهات ما زالت مفتوحة"),
+            ("توجيه", open_action_rows.filter(action_type__in=(IncidentSupervisoryAction.ActionType.SUPERVISORY_DIRECTIVE, IncidentSupervisoryAction.ActionType.EXECUTIVE_DIRECTIVE)).count(), "توجيهات مفتوحة", "بانتظار الإنجاز"),
+            ("صيانة", incidents.filter(maintenance_request__status__in=(MaintenanceRequest.Status.DONE, MaintenanceRequest.Status.CLOSED)).count(), "صيانة مكتملة", "تنتظر المتابعة"),
+        ]
+    else:
+        kpis = [
+            ("قرار", len(attention_queue), "تحتاج قرارًا", "حالات تنتظر تدخلك"),
+            ("تصعيد", incidents.filter(escalation_level=Incident.EscalationLevel.GENERAL_MANAGER).count(), "مصعّدة إليك", "ضمن النطاق التنفيذي"),
+            ("توجيه", open_action_rows.filter(action_type=IncidentSupervisoryAction.ActionType.EXECUTIVE_DIRECTIVE).count(), "توجيهات تنفيذية مفتوحة", "بانتظار الإنجاز"),
+            ("إعادة", open_action_rows.filter(action_type=IncidentSupervisoryAction.ActionType.RETURN_TO_FOLLOWUP).count(), "أعيدت للقسم", "للمتابعة الإشرافية"),
+            ("مكتمل", action_rows.filter(action_type=IncidentSupervisoryAction.ActionType.SUPERVISORY_RESOLVED).count(), "مكتملة إشرافيًا", "متابعة منتهية"),
+        ]
     active_delegations = LeadershipDelegation.objects.none()
     deputies = []
     if user_has_role(request.user, SupervisoryLeadershipService.HEAD) or request.user.is_superuser:
@@ -99,12 +184,15 @@ def supervisory_command_center_view(request, center="department", pk=None):
             is_active=True, user__is_active=True,
         ).select_related("user", "role")
     return render(request, "ops/supervisory_command_center.html", {
-        "center": center, "page": page, "selected_incident": selected_incident,
+        "center": active_center, "page": page, "selected_incident": selected_incident,
         "selected_section": selected_section, "selected_status": selected_status,
         "action_choices": action_choices, "authority_role": role,
         "active_delegation": delegation, "active_delegations": active_delegations,
         "deputies": deputies,
         "attention_queue": attention_queue,
+        "center_config": center_config, "center_links": role_centers,
+        "display_role": display_role, "role_label": role_labels.get(display_role, "عرض مؤسسي"),
+        "kpis": kpis, "allowed_sections": sorted(get_allowed_sections(request.user)),
     })
 
 
