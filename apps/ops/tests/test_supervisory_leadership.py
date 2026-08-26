@@ -136,7 +136,8 @@ class SupervisoryLeadershipTests(TestCase):
         self.client.force_login(self.users["doors_department_head"])
         response = self.client.get(reverse("ops:department-command-center"))
         self.assertContains(response, "مركز قيادة قسم الأبواب")
-        self.assertContains(response, "الدور: رئيس قسم الأبواب")
+        self.assertContains(response, "صفة الدخول: رئيس قسم الأبواب")
+        self.assertContains(response, "المركز: قيادة قسم الأبواب")
         self.assertContains(response, "لا توجد حالات تحتاج قرارك حاليًا")
         self.assertNotContains(response, "نطاقك الحالي: doors_department_head")
         self.assertNotContains(response, "تفاصيل البلاغ")
@@ -156,10 +157,49 @@ class SupervisoryLeadershipTests(TestCase):
                 self.assertContains(response, queue_title)
                 self.assertNotContains(response, "مركز رئيس القسم")
 
+    def test_natural_center_context_uses_actual_arabic_capacity(self):
+        cases = (
+            ("doors_department_head", "department-command-center", "رئيس قسم الأبواب"),
+            ("senior_administrator", "administrative-command-center", "كبير الإداريين"),
+            ("general_manager", "executive-command-center", "المدير العام"),
+        )
+        for role, route, label in cases:
+            with self.subTest(role=role):
+                self.client.force_login(self.users[role])
+                response = self.client.get(reverse(f"ops:{route}"))
+                self.assertEqual(response.context["actual_role_label"], label)
+                self.assertEqual(response.context["effective_capacity_label"], label)
+                self.assertFalse(response.context["is_cross_center_oversight"])
+                self.assertContains(response, f"صفة الدخول: {label}")
+                self.assertNotContains(response, "عرض إشرافي")
+
+    def test_general_manager_cross_center_context_is_oversight_not_relabeling(self):
+        manager = self.users["general_manager"]
+        for role_code in ("doors_department_head", "senior_administrator"):
+            role = UserRole.objects.get(user=self.users[role_code]).role
+            UserRole.objects.create(user=manager, role=role)
+        self.client.force_login(manager)
+        for route, center_label in (
+            ("department-command-center", "قيادة قسم الأبواب"),
+            ("administrative-command-center", "المتابعة الإدارية"),
+        ):
+            with self.subTest(route=route):
+                response = self.client.get(reverse(f"ops:{route}"))
+                self.assertEqual(response.context["actual_role_label"], "المدير العام")
+                self.assertEqual(response.context["center_label"], center_label)
+                self.assertTrue(response.context["is_cross_center_oversight"])
+                self.assertContains(response, "صفة الدخول: المدير العام")
+                self.assertContains(response, f"المركز: {center_label}")
+                self.assertContains(response, "عرض إشرافي")
+                self.assertNotContains(response, "صفة الدخول: رئيس قسم الأبواب")
+                self.assertNotContains(response, "صفة الدخول: كبير الإداريين")
+
     def test_deputy_ui_is_read_only_without_delegation_and_active_with_it(self):
         deputy = self.users["doors_department_deputy"]
         self.client.force_login(deputy)
         response = self.client.get(reverse("ops:department-command-center"))
+        self.assertContains(response, "صفة الدخول: وكيل رئيس قسم الأبواب")
+        self.assertContains(response, "عرض إشرافي")
         self.assertContains(response, "لا يوجد تفويض نشط")
         self.assertNotContains(response, "تسجيل إجراء")
         now = timezone.now()
@@ -169,8 +209,10 @@ class SupervisoryLeadershipTests(TestCase):
             ends_at=now + timedelta(hours=1), reason="تغطية مؤقتة",
         )
         response = self.client.get(reverse("ops:department-command-center"))
+        self.assertContains(response, "صفة الدخول: وكيل رئيس قسم الأبواب")
         self.assertContains(response, "تفويض نشط")
         self.assertContains(response, "تعمل بالنيابة عن رئيس قسم الأبواب")
+        self.assertNotContains(response, "صفة الدخول: رئيس قسم الأبواب")
 
     def test_detail_is_a_drawer_with_responsibility_and_operational_blocks(self):
         self.client.force_login(self.users["doors_department_head"])

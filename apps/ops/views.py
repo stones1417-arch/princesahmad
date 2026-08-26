@@ -72,7 +72,12 @@ def supervisory_command_center_view(request, center="department", pk=None):
     role_centers = list(dict.fromkeys(role_centers))
     if not role_centers:
         raise PermissionDenied
-    active_center = role_centers[0][0] if center == "detail" else center
+    requested_detail_center = str(request.GET.get("center") or "").strip()
+    active_center = (
+        requested_detail_center
+        if center == "detail" and requested_detail_center in {item[0] for item in role_centers}
+        else role_centers[0][0] if center == "detail" else center
+    )
     if active_center not in {item[0] for item in role_centers}:
         raise PermissionDenied
 
@@ -113,6 +118,19 @@ def supervisory_command_center_view(request, center="department", pk=None):
         SupervisoryLeadershipService.SENIOR_ADMIN: "كبير الإداريين",
         SupervisoryLeadershipService.GENERAL_MANAGER: "المدير العام",
     }
+    natural_centers = {
+        SupervisoryLeadershipService.HEAD: "department",
+        SupervisoryLeadershipService.DEPUTY: "department",
+        SupervisoryLeadershipService.SENIOR_ADMIN: "administrative",
+        SupervisoryLeadershipService.GENERAL_MANAGER: "executive",
+    }
+    actual_role_label = role_labels.get(display_role, "عرض مؤسسي")
+    is_deputy = display_role == SupervisoryLeadershipService.DEPUTY
+    is_delegated_acting = is_deputy and delegation is not None
+    is_cross_center_oversight = (
+        natural_centers.get(display_role) != active_center
+        or (is_deputy and not is_delegated_acting)
+    )
     center_config = {
         "department": {
             "title": "مركز قيادة قسم الأبواب",
@@ -191,7 +209,13 @@ def supervisory_command_center_view(request, center="department", pk=None):
         "deputies": deputies,
         "attention_queue": attention_queue,
         "center_config": center_config, "center_links": role_centers,
-        "display_role": display_role, "role_label": role_labels.get(display_role, "عرض مؤسسي"),
+        "actual_role_label": actual_role_label,
+        "center_label": center_config["title"].removeprefix("مركز "),
+        "effective_capacity_label": actual_role_label,
+        "is_cross_center_oversight": is_cross_center_oversight,
+        "is_delegated_acting": is_delegated_acting,
+        "is_deputy": is_deputy,
+        "delegated_principal_label": "رئيس قسم الأبواب" if is_delegated_acting else "",
         "kpis": kpis, "allowed_sections": sorted(get_allowed_sections(request.user)),
     })
 
