@@ -1,9 +1,10 @@
 from io import StringIO
 from unittest.mock import patch
-from datetime import time
+from datetime import time, timedelta
 
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.contrib.auth import get_user_model
 from django.db import models
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -21,7 +22,7 @@ from apps.ops.operations_center_service import OperationsCenterService
 from apps.ops.supervisory_leadership_service import SupervisoryLeadershipService
 from apps.roles.services.access_control import user_has_permission
 from apps.roles.services.permission_registry import PlatformPermissions
-from apps.scheduling.models import ShiftPlan, ShiftType
+from apps.scheduling.models import ShiftAssignment, ShiftPlan, ShiftType
 
 
 @override_settings(DEBUG=True)
@@ -151,6 +152,68 @@ class FullOperationsDemoCommandsTests(TestCase):
 
     def test_dry_run_rolls_back(self):
         call_command("seed_full_operations_demo", dry_run=True, stdout=StringIO())
+        self.assertFalse(Employee.objects.filter(notes__contains=MARKER).exists())
+
+    def test_count_extends_55_to_100_and_second_run_creates_zero(self):
+        call_command("seed_full_operations_demo", stdout=StringIO())
+        self.assertEqual(get_user_model().objects.filter(username__startswith="abwab_demo_staff_").count(), 55)
+
+        output = StringIO()
+        call_command("seed_full_operations_demo", count=100, stdout=output)
+        self.assertIn("NEW_USERS_CREATED=45", output.getvalue())
+        self.assertEqual(Employee.objects.filter(notes__contains=MARKER).count(), 100)
+        self.assertEqual(ShiftAssignment.objects.filter(employee__notes__contains=MARKER).count(), 100)
+        shift = ShiftPlan.objects.get(notes__contains=MARKER)
+        self.assertEqual(ShiftAssignment.objects.filter(
+            shift_plan=shift,
+            role__in=(ShiftAssignment.OperationalRole.SHIFT_HEAD, ShiftAssignment.OperationalRole.SHIFT_DEPUTY),
+        ).count(), 2)
+        self.assertEqual(Employee.objects.filter(notes__contains=MARKER, can_execute_maintenance=True).count(), 6)
+        coverage = EngineeringCenterService.build(active_shift=shift, allowed_sections=["male"])["doors"]
+        self.assertGreaterEqual(sum(row.staff_coverage_level in {"complete", "surplus"} for row in coverage), 2)
+        self.assertGreaterEqual(sum(row.staff_coverage_level in {"partial", "low"} for row in coverage), 1)
+        self.assertGreaterEqual(sum(row.staff_coverage_level == "uncovered" for row in coverage), 1)
+
+        output = StringIO()
+        call_command("seed_full_operations_demo", count=100, stdout=output)
+        self.assertIn("NEW_USERS_CREATED=0", output.getvalue())
+        self.assertIn("NEW_EMPLOYEES_CREATED=0", output.getvalue())
+        self.assertIn("NEW_SHIFT_ASSIGNMENTS_CREATED=0", output.getvalue())
+        call_command("validate_full_operations_demo", strict=True, expected_count=100, stdout=StringIO())
+
+    def test_use_current_shift_resolves_today_and_does_not_create_shift(self):
+        call_command("seed_full_operations_demo", stdout=StringIO())
+        demo = ShiftPlan.objects.get(notes__contains=MARKER)
+        demo.is_active = False
+        demo.save()
+        current = ShiftPlan.objects.create(
+            shift_type=ShiftType.objects.first(), date=timezone.localdate(),
+            start_time=time(6), end_time=time(14), is_active=True, notes="real current shift",
+        )
+        shift_count = ShiftPlan.objects.count()
+        output = StringIO()
+        call_command("seed_full_operations_demo", count=100, use_current_shift=True, stdout=output)
+        self.assertEqual(ShiftPlan.objects.count(), shift_count)
+        self.assertEqual(ShiftAssignment.objects.filter(shift_plan=current, employee__notes__contains=MARKER).count(), 100)
+        self.assertIn(f"CURRENT_SHIFT_ID={current.pk}", output.getvalue())
+
+    def test_use_current_shift_blocks_when_missing_or_wrong_date(self):
+        with self.assertRaisesMessage(CommandError, "NO_ACTIVE_SHIFT"):
+            call_command("seed_full_operations_demo", use_current_shift=True, stdout=StringIO())
+        wrong = ShiftPlan.objects.create(
+            shift_type=ShiftType.objects.first(), date=timezone.localdate() + timedelta(days=1),
+            start_time=time(6), end_time=time(14), is_active=True,
+        )
+        with self.assertRaisesMessage(CommandError, "WRONG_DATE_OR_INACTIVE_SHIFT"):
+            call_command("seed_full_operations_demo", use_current_shift=True, stdout=StringIO())
+        self.assertFalse(Employee.objects.filter(notes__contains=MARKER).exists())
+        wrong.delete()
+
+    def test_count_dry_run_reports_delta_without_writes(self):
+        output = StringIO()
+        call_command("seed_full_operations_demo", count=100, dry_run=True, stdout=output)
+        self.assertIn("TARGET_USERS=100", output.getvalue())
+        self.assertIn("NEW_USERS_TO_CREATE=100", output.getvalue())
         self.assertFalse(Employee.objects.filter(notes__contains=MARKER).exists())
 
     @override_settings(DEBUG=False)

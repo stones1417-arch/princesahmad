@@ -5,8 +5,10 @@ class Command(BaseCommand):
     help = "Read-only validation for the full operations demo."
     def add_arguments(self, parser):
         parser.add_argument("--strict", action="store_true")
+        parser.add_argument("--expected-count", type=int, default=55)
+        parser.add_argument("--use-current-shift", action="store_true")
     def handle(self, *args, **options):
-        data, errors = validate()
+        data, errors = validate(expected_count=options["expected_count"], use_current_shift=options["use_current_shift"])
         self.stdout.write(str(data))
         if errors and options["strict"]: raise CommandError("; ".join(errors))
         if errors:

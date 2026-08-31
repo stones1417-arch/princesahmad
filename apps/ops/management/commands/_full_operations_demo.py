@@ -99,8 +99,8 @@ def demo_shift():
     return ShiftPlan.objects.filter(notes__contains=MARKER).first()
 
 
-def counts():
-    shift = demo_shift()
+def counts(shift=None):
+    shift = shift or demo_shift()
     return {
         "users": demo_users().count(),
         "employees": Employee.objects.filter(employee_number__startswith=EMPLOYEE_PREFIX, notes__contains=MARKER).count(),
@@ -115,9 +115,33 @@ def counts():
     }
 
 
+def resolve_current_shift():
+    from apps.ops.operations_center_service import OperationsCenterService
+
+    shift = OperationsCenterService.get_active_shift()
+    current_date = timezone.localdate()
+    if shift is None:
+        raise CommandError(f"CURRENT_DATE={current_date}\nCURRENT_SHIFT_ID=\nBLOCKED_BY=NO_ACTIVE_SHIFT")
+    if shift.date != current_date or shift.is_finished or not shift.is_active:
+        raise CommandError(
+            f"CURRENT_DATE={current_date}\nCURRENT_SHIFT_ID={shift.pk}\n"
+            f"CURRENT_SHIFT_DATE={shift.date}\nBLOCKED_BY=WRONG_DATE_OR_INACTIVE_SHIFT"
+        )
+    return shift
+
+
+def _demo_index(username):
+    try:
+        return int(username.removeprefix(USERNAME_PREFIX))
+    except ValueError as exc:
+        raise CommandError(f"INVALID_DEMO_USERNAME={username}") from exc
+
+
 @transaction.atomic
-def seed(*, dry_run=False, enable_demo_logins=False):
-    if not settings.DEBUG and not dry_run and ShiftPlan.objects.filter(is_active=True).exclude(notes__contains=MARKER).exists():
+def seed(*, count=55, use_current_shift=False, dry_run=False, enable_demo_logins=False):
+    if count < 1:
+        raise CommandError("--count must be a positive integer.")
+    if not settings.DEBUG and not dry_run and not use_current_shift and ShiftPlan.objects.filter(is_active=True).exclude(notes__contains=MARKER).exists():
         raise CommandError("PRODUCTION_DEMO_SHIFT_UNSAFE: a real active shift already exists.")
     doors = list(Door.objects.filter(is_active=True).filter(operational_section__in=[SECTION, "shared"]).order_by("sort_order", "pk"))
     if not doors:
@@ -127,35 +151,74 @@ def seed(*, dry_run=False, enable_demo_logins=False):
     password = os.environ.get("DEMO_WORKFORCE_PASSWORD")
     if enable_demo_logins and not password:
         raise CommandError("DEMO_WORKFORCE_PASSWORD is required with --enable-demo-logins.")
+    existing_users = list(demo_users().order_by("username"))
+    invalid_users = [user.username for user in existing_users if not hasattr(user, "employee") or MARKER not in (user.employee.notes or "")]
+    if invalid_users:
+        raise CommandError("DEMO_AUDIT_FAILED=" + ",".join(invalid_users))
+    used_indexes = {_demo_index(user.username) for user in existing_users}
+    indexes = sorted(used_indexes)
+    candidate = 1
+    while len(indexes) < count:
+        if candidate not in used_indexes:
+            indexes.append(candidate)
+            used_indexes.add(candidate)
+        candidate += 1
+    indexes = sorted(indexes[:count])
+    if len(existing_users) > count:
+        raise CommandError(f"TARGET_COUNT_BELOW_EXISTING target={count} existing={len(existing_users)}")
     users, employees = [], []
-    for index in range(1, 56):
+    new_users = new_employees = 0
+    for index in indexes:
         username = f"{USERNAME_PREFIX}{index:02d}"
-        user, _ = User.objects.get_or_create(username=username, defaults={"first_name": "Demo", "last_name": f"Operator {index:02d}", "email": f"{username}@example.invalid"})
+        user, user_created = User.objects.get_or_create(username=username, defaults={"first_name": "Demo", "last_name": f"Operator {index:02d}", "email": f"{username}@example.invalid"})
+        new_users += int(user_created)
         user.is_active = True
         user.set_password(password) if enable_demo_logins else user.set_unusable_password()
         user.save()
         role_code, job_title, shift_role = ROLE_SPECS.get(index, (None, Employee.JobTitle.TECHNICIAN if index in range(10, 16) else Employee.JobTitle.MONITOR, ShiftAssignment.OperationalRole.TECHNICIAN if index in range(10, 16) else ShiftAssignment.OperationalRole.MONITOR))
-        employee, _ = Employee.objects.update_or_create(employee_number=f"{EMPLOYEE_PREFIX}{index:03d}", defaults={
+        employee, employee_created = Employee.objects.update_or_create(employee_number=f"{EMPLOYEE_PREFIX}{index:03d}", defaults={
             "user": user, "full_name": f"موظف تجربة العمليات {index:02d}", "operational_section": SECTION,
             "job_title": job_title, "work_status": Employee.WorkStatus.ACTIVE, "is_active": True,
             "can_work_on_doors": True, "can_execute_maintenance": job_title == Employee.JobTitle.TECHNICIAN,
             "notes": MARKER, "email": f"{username}@example.invalid", "national_id": "", "phone_number": "",
         })
+        new_employees += int(employee_created)
         users.append(user); employees.append((employee, shift_role))
         if role_code:
             role = Role.objects.get(code=role_code)
             UserRole.objects.update_or_create(user=user, role=role, defaults={"is_active": True, "assigned_by": users[0], "notes": MARKER})
-    shift_type = ShiftType.objects.filter(is_active=True).order_by("ordering", "name", "pk").first()
-    if not shift_type:
-        raise CommandError("No active master ShiftType exists; demo seeding will not create one.")
-    shift = demo_shift()
-    if shift is None:
-        candidate_date = timezone.localdate() + timedelta(days=3650)
-        while ShiftPlan.objects.filter(date=candidate_date).exists():
-            candidate_date += timedelta(days=1)
-        shift = ShiftPlan.objects.create(shift_type=shift_type, date=candidate_date, start_time=time(6), end_time=time(14), is_active=True, notes=MARKER, created_by=users[0], activated_by=users[0])
+    if use_current_shift:
+        shift = resolve_current_shift()
+    else:
+        shift_type = ShiftType.objects.filter(is_active=True).order_by("ordering", "name", "pk").first()
+        if not shift_type:
+            raise CommandError("No active master ShiftType exists; demo seeding will not create one.")
+        shift = demo_shift()
+        if shift is None:
+            candidate_date = timezone.localdate() + timedelta(days=3650)
+            while ShiftPlan.objects.filter(date=candidate_date).exists():
+                candidate_date += timedelta(days=1)
+            shift = ShiftPlan.objects.create(shift_type=shift_type, date=candidate_date, start_time=time(6), end_time=time(14), is_active=True, notes=MARKER, created_by=users[0], activated_by=users[0])
+    existing_on_current = ShiftAssignment.objects.filter(shift_plan=shift, employee__in=[item[0] for item in employees]).count()
+    existing_on_other = ShiftAssignment.objects.filter(employee__in=[item[0] for item in employees]).exclude(shift_plan=shift).count()
+    new_shift_assignments = 0
     for employee, shift_role in employees:
-        ShiftAssignment.objects.update_or_create(shift_plan=shift, employee=employee, defaults={"role": shift_role, "is_confirmed": True, "notes": MARKER})
+        current = ShiftAssignment.objects.filter(shift_plan=shift, employee=employee).first()
+        if current:
+            continue
+        other_assignments = list(ShiftAssignment.objects.filter(employee=employee).select_related("shift_plan"))
+        candidate_range = shift.get_datetime_range()
+        for other in other_assignments:
+            other_range = other.shift_plan.get_datetime_range()
+            if candidate_range and other_range and candidate_range[0] < other_range[1] and candidate_range[1] > other_range[0]:
+                raise CommandError(f"SHIFT_ASSIGNMENT_OVERLAP employee={employee.employee_number} shift={other.shift_plan_id}")
+        # Demo-only reassignment: remove marked demo accommodation, never a real employee assignment.
+        for other in other_assignments:
+            if MARKER not in (other.notes or ""):
+                raise CommandError(f"NON_DEMO_SHIFT_ASSIGNMENT employee={employee.employee_number}")
+            other.delete()
+        ShiftAssignment.objects.create(shift_plan=shift, employee=employee, role=shift_role, is_confirmed=True, notes=MARKER)
+        new_shift_assignments += 1
     responsibilities = [ShiftOperationalLeadership.Responsibility.INCIDENT_SUPERVISOR, ShiftOperationalLeadership.Responsibility.OPERATIONS_SUPERVISOR, ShiftOperationalLeadership.Responsibility.MAINTENANCE_SUPERVISOR]
     for responsibility, index in zip(responsibilities, [2, 3, 4]):
         ShiftOperationalLeadership.objects.update_or_create(
@@ -198,19 +261,34 @@ def seed(*, dry_run=False, enable_demo_logins=False):
                 )
     for door in doors[:min(len(doors), 12)]:
         DoorShift.objects.update_or_create(shift_plan=shift, door_number=door.door_number, defaults={"sort_order": door.sort_order, "section": SECTION, "state": DoorShift.DoorState.OPEN, "is_active": True, "notes": MARKER})
-    result = counts()
+    result = counts(shift)
+    result.update({
+        "target_users": count,
+        "existing_demo_users": len(existing_users),
+        "new_users_to_create": count - len(existing_users),
+        "new_users_created": new_users,
+        "new_employees_created": new_employees,
+        "new_shift_assignments_created": new_shift_assignments,
+        "existing_demo_on_current_shift": existing_on_current,
+        "existing_demo_on_other_shift": existing_on_other,
+        "current_date": str(timezone.localdate()),
+        "current_shift_id": shift.pk,
+        "current_shift_name": shift.shift_type.name,
+        "current_shift_start": str(shift.start_time),
+        "current_shift_end": str(shift.end_time),
+    })
     if dry_run:
         transaction.set_rollback(True)
     return result
 
 
-def validate():
-    data = counts(); errors = []
-    if data["users"] != 55: errors.append(f"users={data['users']} expected=55")
-    if data["employees"] != 55: errors.append(f"employees={data['employees']} expected=55")
+def validate(*, expected_count=55, use_current_shift=False):
+    shift = resolve_current_shift() if use_current_shift else demo_shift()
+    data = counts(shift); errors = []
+    if data["users"] != expected_count: errors.append(f"users={data['users']} expected={expected_count}")
+    if data["employees"] != expected_count: errors.append(f"employees={data['employees']} expected={expected_count}")
     if data["shifts"] != 1: errors.append(f"shifts={data['shifts']} expected=1")
-    if data["shift_assignments"] != 55: errors.append(f"shift_assignments={data['shift_assignments']} expected=55")
-    shift = demo_shift()
+    if data["shift_assignments"] != expected_count: errors.append(f"shift_assignments={data['shift_assignments']} expected={expected_count}")
     if shift and ShiftOperationalLeadership.objects.filter(shift_plan=shift).count() != 3: errors.append("operational leadership is incomplete")
     if Employee.objects.filter(employee_number__startswith=EMPLOYEE_PREFIX).exclude(notes__contains=MARKER).exists(): errors.append("unmarked employee collides with demo prefix")
     data["demo_exists"] = bool(shift)
