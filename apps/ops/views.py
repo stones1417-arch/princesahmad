@@ -1034,6 +1034,20 @@ def update_door_status_ajax(request, pk):
             status=400,
         )
 
+    master_door = Door.objects.filter(door_number=door.door_number).first()
+    current_state = (
+        DoorCurrentState.objects.filter(door=master_door).first()
+        if master_door else None
+    )
+    resolved_state = OperationsCenterService._resolve_state(
+        door_shift=door,
+        current_state=current_state,
+    )
+    resolved_notes = OperationsCenterService._resolve_notes(
+        door_shift=door,
+        current_state=current_state,
+    )
+
     return JsonResponse(
         {
             "success": True,
@@ -1047,11 +1061,11 @@ def update_door_status_ajax(request, pk):
             "door": {
                 "id": door.id,
                 "door_number": door.door_number,
-                "state": door.state,
+                "state": resolved_state,
                 "state_label": (
-                    door.get_state_display()
+                    dict(DoorShift.DoorState.choices).get(resolved_state, resolved_state)
                 ),
-                "notes": door.notes or "",
+                "notes": resolved_notes,
                 "updated_at": (
                     door.updated_at.strftime(
                         "%Y-%m-%d %H:%M"

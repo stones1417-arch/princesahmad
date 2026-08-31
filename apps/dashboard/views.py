@@ -16,6 +16,7 @@ from apps.hr.models import Employee
 from apps.locations.door_directions import get_official_door_direction
 from apps.locations.models import Door
 from apps.ops.models import DoorCurrentState, DoorShift, Incident, MaintenanceRequest
+from apps.ops.operations_center_service import OperationsCenterService
 from apps.reporting.models import ShiftReport
 from apps.roles.services.access_control import user_has_permission
 from apps.roles.services.permission_registry import PlatformPermissions
@@ -351,13 +352,7 @@ def build_dashboard_context(request):
     today = timezone.localdate()
     late_threshold = now - timedelta(hours=24)
 
-    active_shift = (
-        ShiftPlan.objects
-        .select_related("shift_type")
-        .filter(is_active=True)
-        .order_by("-id")
-        .first()
-    )
+    active_shift = OperationsCenterService.get_active_shift()
 
     sections = {
         "south": "الجهة الجنوبية",
@@ -597,20 +592,17 @@ def build_dashboard_context(request):
             current_state = current_states_by_number.get(
                 door_shift.door_number
             )
-            effective_state = (
-                current_state.state
-                if current_state
-                else door_shift.state
+            effective_state = OperationsCenterService._resolve_state(
+                door_shift=door_shift,
+                current_state=current_state,
             )
-            effective_state_label = (
-                current_state.get_state_display()
-                if current_state
-                else door_shift.get_state_display()
+            effective_state_label = dict(DoorShift.DoorState.choices).get(
+                effective_state,
+                effective_state,
             )
-            effective_notes = (
-                current_state.notes
-                if current_state
-                else door_shift.notes
+            effective_notes = OperationsCenterService._resolve_notes(
+                door_shift=door_shift,
+                current_state=current_state,
             )
 
             door_data = {
